@@ -1,0 +1,147 @@
+import React, { memo } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { motion } from 'motion/react';
+import { User } from 'firebase/auth';
+
+// Pages
+import { HomePage } from '../../pages/HomePage';
+import { RecipesPage } from '../../pages/RecipesPage';
+import { RecipePage } from '../../pages/RecipePage';
+import { AddRecipePage } from '../../pages/AddRecipePage';
+import { InventoryPage } from '../../pages/InventoryPage';
+import { ShoppingListPage } from '../../pages/ShoppingListPage';
+import { MealPlannerPage } from '../../pages/MealPlannerPage';
+import { SettingsPage } from '../../pages/SettingsPage';
+
+// Types
+import { Recipe, Theme, Mode } from '../../types';
+
+interface AppRoutesProps {
+  user: User | null;
+  recipes: Recipe[];
+  onEdit: (recipe: Recipe) => void;
+  onDelete: (recipe: Recipe) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  sortBy: 'newest' | 'oldest' | 'alpha';
+  setSortBy: (sort: 'newest' | 'oldest' | 'alpha') => void;
+  isSortDropdownOpen: boolean;
+  setIsSortDropdownOpen: (open: boolean) => void;
+  showFilterModal: boolean;
+  setShowFilterModal: (show: boolean) => void;
+  setIsSidebarOpen: (open: boolean) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+  onLogout: () => void;
+}
+
+const pageTransition = {
+  initial: { y: '15%', opacity: 0 },
+  animate: { y: 0, opacity: 1 },
+  exit: { y: '15%', opacity: 0 },
+  transition: { type: 'spring' as const, damping: 25, stiffness: 200 }
+};
+
+export const AppRoutes: React.FC<AppRoutesProps> = memo((
+  {
+    user,
+    recipes,
+    onEdit,
+    onDelete,
+    searchQuery,
+    setSearchQuery,
+    sortBy,
+    setSortBy,
+    isSortDropdownOpen,
+    setIsSortDropdownOpen,
+    showFilterModal,
+    setShowFilterModal,
+    setIsSidebarOpen,
+    theme,
+    setTheme,
+    mode,
+    setMode,
+    onLogout
+  }
+) => {
+  return (
+    <Routes>
+      <Route path="/" element={
+        <motion.div key="home" {...pageTransition}>
+          <HomePage onMenuClick={() => setIsSidebarOpen(true)} />
+        </motion.div>
+      } />
+      
+      <Route path="/recipes" element={
+        <motion.div key="recipes" {...pageTransition}>
+          <RecipesPage
+            onMenuClick={() => setIsSidebarOpen(true)}
+            recipes={recipes}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            isSortDropdownOpen={isSortDropdownOpen}
+            setIsSortDropdownOpen={setIsSortDropdownOpen}
+            showFilterModal={showFilterModal}
+            setShowFilterModal={setShowFilterModal}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        </motion.div>
+      } />
+      
+      <Route path="/recipe/:id" element={
+        <motion.div key="recipe-detail" {...pageTransition}>
+          <RecipePage recipes={recipes} onEdit={onEdit} onDelete={onDelete} />
+        </motion.div>
+      } />
+      
+      <Route path="/add-recipe" element={
+        <motion.div key="add-recipe" {...pageTransition}>
+          <AddRecipePage user={user} onMenuClick={() => setIsSidebarOpen(true)} />
+        </motion.div>
+      } />
+
+      <Route path="/edit-recipe/:id" element={
+        <motion.div key="edit-recipe" {...pageTransition}>
+          <AddRecipePage user={user} onMenuClick={() => setIsSidebarOpen(true)} />
+        </motion.div>
+      } />
+      
+      <Route path="/inventory" element={
+        <motion.div key="inventory" {...pageTransition}>
+          <InventoryPage onMenuClick={() => setIsSidebarOpen(true)} />
+        </motion.div>
+      } />
+      
+      <Route path="/shopping-list" element={
+        <motion.div key="shopping-list" {...pageTransition}>
+          <ShoppingListPage onMenuClick={() => setIsSidebarOpen(true)} user={user} />
+        </motion.div>
+      } />
+      
+      <Route path="/meal-planner" element={
+        <motion.div key="meal-planner" {...pageTransition}>
+          <MealPlannerPage onMenuClick={() => setIsSidebarOpen(true)} />
+        </motion.div>
+      } />
+      
+      <Route path="/settings" element={
+        <motion.div key="settings" {...pageTransition}>
+          <SettingsPage 
+            onMenuClick={() => setIsSidebarOpen(true)} 
+            theme={theme}
+            setTheme={setTheme}
+            mode={mode}
+            setMode={setMode}
+            user={user}
+            onLogout={onLogout}
+          />
+        </motion.div>
+      } />
+    </Routes>
+  );
+});

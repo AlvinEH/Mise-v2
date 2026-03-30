@@ -1,0 +1,251 @@
+{
+  "entities": {
+    "Recipe": {
+      "title": "Recipe",
+      "description": "A recipe extracted from a web page or created manually.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The name of the recipe."
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of ingredients."
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Step-by-step instructions (Markdown)."
+        },
+        "sourceUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "The URL the recipe was clipped from."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who saved the recipe."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the recipe was saved."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional tags for categorization."
+        }
+      },
+      "required": ["title", "ingredients", "instructions", "userId", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"]
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "StoreList": {
+      "title": "Store List",
+      "description": "A shopping list for a specific store.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the store."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the list."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the list was created."
+        }
+      },
+      "required": ["name", "userId", "createdAt"]
+    },
+    "ShoppingItem": {
+      "title": "Shopping Item",
+      "description": "An item in a shopping list.",
+      "type": "object",
+      "properties": {
+        "storeListId": {
+          "type": "string",
+          "description": "The ID of the store list this item belongs to."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the item."
+        },
+        "amount": {
+          "type": "string",
+          "description": "Quantity of the item."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement."
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether the item has been checked off."
+        },
+        "order": {
+          "type": "integer",
+          "description": "The sort order of the item."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the item."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was added."
+        }
+      },
+      "required": ["storeListId", "name", "completed", "userId", "createdAt"]
+    },
+    "MealEntry": {
+      "title": "Meal Entry",
+      "description": "A meal planned for a specific date and type.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date of the meal (YYYY-MM-DD)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["lunch", "dinner"],
+          "description": "The type of meal."
+        },
+        "recipeName": {
+          "type": "string",
+          "description": "The name of the recipe or custom meal."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes for the meal."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the entry."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the entry was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the entry was last updated."
+        }
+      },
+      "required": ["date", "type", "recipeName", "userId", "createdAt", "updatedAt"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "An item in the pantry or supply closet.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the item."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["ingredient", "supply"],
+          "description": "The category of the item."
+        },
+        "quantity": {
+          "type": "string",
+          "description": "Optional quantity."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Optional unit."
+        },
+        "location": {
+          "type": "string",
+          "description": "Where the item is stored (e.g., Pantry, Freezer)."
+        },
+        "purchasedOn": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional purchase date."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the item."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was added."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was last updated."
+        }
+      },
+      "required": ["name", "category", "userId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "recipes": {
+      "schema": "Recipe",
+      "description": "Collection of saved recipes."
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "storeLists": {
+      "schema": "StoreList",
+      "description": "Collection of store-specific shopping lists."
+    },
+    "shoppingItems": {
+      "schema": "ShoppingItem",
+      "description": "Collection of items across all shopping lists."
+    },
+    "mealEntries": {
+      "schema": "MealEntry",
+      "description": "Collection of planned meals."
+    },
+    "inventory": {
+      "schema": "InventoryItem",
+      "description": "Collection of items in stock."
+    }
+  }
+}

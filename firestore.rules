@@ -1,0 +1,239 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - displayName: string (optional)
+    //   - email: string (required)
+    //   - photoURL: string (optional)
+    //   - role: string (required, 'user' or 'admin')
+    //
+    // Collection: recipes
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - ingredients: list (required)
+    //   - instructions: string (required)
+    //   - sourceUrl: string (optional)
+    //   - userId: string (required)
+    //   - createdAt: timestamp (required)
+    //   - tags: list (optional)
+    //
+    // Collection: storeLists
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - userId: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: shoppingItems
+    // Document ID: auto-generated
+    // Fields:
+    //   - storeListId: string (required)
+    //   - name: string (required)
+    //   - amount: string (optional)
+    //   - unit: string (optional)
+    //   - completed: bool (required)
+    //   - order: int (required)
+    //   - userId: string (required)
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: inventory
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - category: string (required, 'ingredient' or 'supply')
+    //   - quantity: string (optional)
+    //   - unit: string (optional)
+    //   - location: string (optional)
+    //   - purchasedOn: string (optional)
+    //   - notes: string (optional)
+    //   - userId: string (required)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // Collection: mealEntries
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - date: string (required, YYYY-MM-DD format)
+    //   - type: string (required, 'lunch' or 'dinner')
+    //   - recipeId: string (optional)
+    //   - recipeName: string (optional)
+    //   - notes: string (optional)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && resource != null && 'userId' in resource.data && request.auth.uid == resource.data.userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (request.auth.token.email == "alvin.e.huang@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function isValidRecipe(data) {
+      let requiredFields = ['title', 'ingredients', 'instructions', 'userId', 'createdAt'];
+      let optionalFields = ['sourceUrl', 'tags'];
+      let allFields = requiredFields.concat(optionalFields);
+      
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.ingredients is list && data.ingredients.size() < 100 &&
+             data.instructions is string && data.instructions.size() < 10000 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidRecipeUpdate(data) {
+      return (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
+             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() > 0 && data.ingredients.size() < 100)) &&
+             (!('instructions' in data) || (data.instructions is string && data.instructions.size() > 0 && data.instructions.size() < 10000)) &&
+             (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
+             (!('tags' in data) || (data.tags is list));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role']) &&
+             data.email is string &&
+             data.role in ['user', 'admin'];
+    }
+
+    function isValidStoreList(data) {
+      return data.keys().hasAll(['name', 'userId', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidShoppingItem(data) {
+      return data.keys().hasAll(['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt']) &&
+             data.storeListId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.completed is bool &&
+             data.order is int &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidShoppingItemUpdate(data) {
+      return (('completed' in data) ? (data.completed is bool) : true) &&
+             (('order' in data) ? (data.order is int) : true) &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
+             (!('amount' in data) || (data.amount is string && data.amount.size() < 50)) &&
+             (!('unit' in data) || (data.unit is string && data.unit.size() < 50));
+    }
+
+    function isValidMealEntry(data) {
+      return data.keys().hasAll(['userId', 'date', 'type', 'recipeName', 'createdAt', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.date is string && data.date.size() == 10 && // YYYY-MM-DD format
+             data.type in ['lunch', 'dinner'] &&
+             data.recipeName is string && data.recipeName.size() > 0 && data.recipeName.size() < 200 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidMealEntryUpdate(data) {
+      return data.keys().hasAll(['updatedAt']) &&
+             data.updatedAt is timestamp &&
+             (!('recipeName' in data) || (data.recipeName is string && data.recipeName.size() > 0 && data.recipeName.size() < 200)) &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['name', 'category', 'userId', 'createdAt', 'updatedAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.category in ['ingredient', 'supply'] &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('quantity' in data) || (data.quantity is string && data.quantity.size() < 100)) &&
+             (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
+             (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
+             (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidInventoryItemUpdate(data) {
+      return data.keys().hasAll(['updatedAt']) &&
+             data.updatedAt is timestamp &&
+             data.userId == request.auth.uid &&
+             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
+             (!('quantity' in data) || (data.quantity is string && data.quantity.size() < 100)) &&
+             (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
+             (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
+             (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow get: if isAdmin() || isOwner(userId);
+      allow list: if isAdmin();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if (isAdmin() || isOwner(userId)) && isValidUser(request.resource.data) && (isAdmin() || request.resource.data.role == resource.data.role);
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidRecipe(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidRecipeUpdate(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+
+    match /storeLists/{listId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidStoreList(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidStoreList(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+
+    match /shoppingItems/{itemId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidShoppingItem(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidShoppingItemUpdate(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+
+    match /mealEntries/{entryId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && (isAdmin() || request.resource.data.userId == request.auth.uid) && isValidMealEntry(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid) && isValidMealEntryUpdate(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidInventoryItem(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidInventoryItemUpdate(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+  }
+}
