@@ -1,8 +1,9 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, Trash2, ExternalLink, Pencil } from 'lucide-react';
+import { Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { Zzz } from '../components/ui/icons';
+import { PageHeader } from '../components/layout/PageHeader';
 import { Recipe } from '../types';
 
 interface RecipePageProps {
@@ -36,58 +37,50 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
       animate={{ opacity: 1 }}
       className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface"
     >
+      <PageHeader 
+        title={recipe.title} 
+        showBack 
+        actions={
+          <>
+            <button 
+              onClick={() => onEdit(recipe)}
+              className="p-2 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
+              title="Edit Recipe"
+            >
+              <Pencil size={20} />
+            </button>
+            <button 
+              onClick={() => onDelete(recipe)}
+              className="p-2 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-red-600 rounded-full transition-colors"
+              title="Delete Recipe"
+            >
+              <Trash2 size={20} />
+            </button>
+            {recipe.sourceUrl && (
+              <a 
+                href={recipe.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
+                title="View Original"
+              >
+                <ExternalLink size={20} />
+              </a>
+            )}
+          </>
+        }
+      />
       <main className="flex-1 overflow-y-auto min-h-0">
         <div className="px-6 py-8 max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <button 
-              onClick={() => navigate('/recipes')}
-              className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors flex items-center gap-2"
-              title="Back to Recipes"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => onEdit(recipe)}
-                className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
-                title="Edit Recipe"
-              >
-                <Pencil size={20} />
-              </button>
-              <button 
-                onClick={() => onDelete(recipe)}
-                className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-red-600 rounded-full transition-colors"
-                title="Delete Recipe"
-              >
-                <Trash2 size={20} />
-              </button>
-              {recipe.sourceUrl && (
-                <a 
-                  href={recipe.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
-                  title="View Original"
-                >
-                  <ExternalLink size={20} />
-                </a>
-              )}
-            </div>
-          </div>
-
           <div className="space-y-8">
-            <div>
-              <h1 className="text-4xl font-black text-m3-on-surface mb-4 leading-tight">{recipe.title}</h1>
-            </div>
-
         {recipe.ingredients && recipe.ingredients.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold text-m3-on-surface mb-6">Ingredients</h2>
-            <div className="grid gap-3">
+            <h2 className="text-2xl font-bold text-m3-on-surface mb-4">Ingredients</h2>
+            <div className="space-y-0.5">
               {recipe.ingredients.map((ingredient, index) => (
-                <div key={index} className="flex items-center gap-4 p-4 bg-m3-surface-container rounded-2xl">
-                  <div className="w-6 h-6 border-2 border-m3-outline rounded-lg" />
-                  <span className="text-m3-on-surface font-medium">
+                <div key={index} className="flex items-center gap-3 py-1.5 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group">
+                  <div className="w-5 h-5 border-2 border-m3-outline/30 rounded-md flex-shrink-0 group-hover:border-m3-primary/50 transition-colors" />
+                  <span className="text-m3-on-surface font-bold text-sm leading-tight">
                     {typeof ingredient === 'string' ? ingredient : `${ingredient.amount || ''} ${ingredient.unit || ''} ${ingredient.name}`.trim()}
                   </span>
                 </div>

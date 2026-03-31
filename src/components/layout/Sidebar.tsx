@@ -36,7 +36,7 @@ export const Sidebar = memo(({ isOpen, onClose }: SidebarProps) => {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/30 z-50 lg:hidden will-change-opacity"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 lg:hidden will-change-opacity"
           />
         )}
       </AnimatePresence>

@@ -102,15 +102,14 @@ export const RecipesPage = React.memo(({
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-      <PageHeader title="Recipe Library" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Recipe Library" 
+        description="Discover and organize your favorite recipes."
+        onMenuClick={onMenuClick} 
+      />
       
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 lg:mb-12">
-            <h2 className="text-4xl font-black text-m3-on-surface tracking-tight mb-2">Recipe Library</h2>
-            <p className="text-m3-on-surface-variant font-medium">Discover and organize your favorite recipes.</p>
-          </div>
-
           <div className="flex gap-3 mb-8">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-m3-on-surface-variant/60" size={20} />

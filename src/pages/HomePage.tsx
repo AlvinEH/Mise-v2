@@ -42,17 +42,14 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-m3-surface">
-      <PageHeader title="Home" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Welcome to Mise" 
+        description="Your personal kitchen companion."
+        onMenuClick={onMenuClick} 
+      />
       
       <main className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-black text-m3-on-surface tracking-tight mb-3">
-              Welcome to Mise
-            </h1>
-          </div>
-
           {/* Navigation Links */}
           <div className="space-y-3 max-w-sm">
             {pages.map((page, index) => (

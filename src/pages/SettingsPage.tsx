@@ -60,11 +60,12 @@ export const SettingsPage = ({
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-      <PageHeader title="Settings" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Settings" 
+        description="Customize your experience and manage account."
+        onMenuClick={onMenuClick} 
+      />
       <main className="flex-1 overflow-y-auto p-8 sm:p-12 max-w-4xl mx-auto w-full min-h-0">
-        <h2 className="text-4xl font-black text-m3-on-surface mb-4 tracking-tight">Settings</h2>
-        <p className="text-m3-on-surface-variant text-lg font-medium mb-12">Customize your experience and manage account.</p>
-        
         <div className="space-y-12">
           {/* Theme Selection */}
           <motion.section

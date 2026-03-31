@@ -303,15 +303,13 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-      <PageHeader title="Inventory" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Inventory" 
+        description="Track your ingredients and kitchen supplies."
+        onMenuClick={onMenuClick} 
+      />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6 lg:mb-12">
-            <h2 className="text-4xl font-black text-m3-on-surface tracking-tight mb-2">Inventory</h2>
-            <p className="text-m3-on-surface-variant font-medium">Track your ingredients and kitchen supplies.</p>
-          </div>
-
           {/* Tabs and Filter */}
           <div className="mb-8 flex items-center justify-center relative max-w-2xl mx-auto px-12">
             <div className="flex items-center gap-1 bg-m3-surface-variant/20 p-1 rounded-[20px] w-full max-w-[260px]">
@@ -410,35 +408,35 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           transition={{ duration: 0.3, ease: "easeInOut" }}
                           className="flex flex-col overflow-hidden px-6"
                           style={{ 
-                            maxHeight: locationItems.length === 0 ? '280px' : Math.min(10, locationItems.length) * 65 + 120 + 'px'
+                            maxHeight: locationItems.length === 0 ? '280px' : Math.min(10, locationItems.length) * 45 + 120 + 'px'
                           }}
                         >
-                          <div className={`space-y-2 lg:space-y-2 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
+                          <div className={`space-y-0.5 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
                             {locationItems.length > 0 ? (
                               <>
                                 {locationItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-center gap-2 lg:gap-3 p-2 lg:p-2.5 bg-m3-surface-variant/10 rounded-xl lg:rounded-2xl transition-all group hover:bg-m3-surface-variant/20"
+                                  className="flex items-center gap-2 py-1 px-2 hover:bg-m3-surface-variant/10 transition-colors rounded-lg group"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-sm text-m3-on-surface truncate">
+                                    <h4 className="font-bold text-base text-m3-on-surface truncate leading-tight">
                                       {item.name}
                                     </h4>
-                                    <div className="flex items-center gap-3 text-xs text-m3-on-surface-variant/70">
+                                    <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
                                       {item.quantity && (
-                                        <span className="font-medium">
+                                        <span>
                                           {item.quantity} {item.unit}
                                         </span>
                                       )}
                                       {item.purchasedOn && (
                                         <span>
-                                          {new Date(item.purchasedOn).toLocaleDateString()}
+                                          • {new Date(item.purchasedOn).toLocaleDateString()}
                                         </span>
                                       )}
                                       {item.notes && (
-                                        <span className="italic truncate max-w-[120px]">
-                                          {item.notes}
+                                        <span className="italic truncate max-w-[100px]">
+                                          • {item.notes}
                                         </span>
                                       )}
                                     </div>
@@ -446,17 +444,17 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                                   <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                     <button
                                       onClick={() => startEdit(item)}
-                                      className="p-1.5 text-m3-on-surface-variant hover:text-m3-primary rounded-lg hover:bg-m3-primary/10 transition-colors"
+                                      className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10 rounded-md transition-colors"
                                       title="Edit item"
                                     >
-                                      <Edit2 size={14} />
+                                      <Edit2 size={16} />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
-                                      className="p-1.5 text-m3-on-surface-variant hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                      className="p-2 text-m3-on-surface-variant/40 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                       title="Delete item"
                                     >
-                                      <Trash2 size={14} />
+                                      <Trash2 size={16} />
                                     </button>
                                   </div>
                                 </div>
@@ -464,7 +462,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                               </>
                             ) : (
                               <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                                <p className="text-m3-on-surface-variant/60 text-sm font-medium">
+                                <p className="text-m3-on-surface-variant/60 text-base font-medium">
                                   No ingredients in {location.toLowerCase()}
                                 </p>
                               </div>
@@ -475,9 +473,9 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           <div className="border-t border-m3-outline/10 p-3">
                             <button
                               onClick={() => startAddWithLocation(location)}
-                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-base font-medium"
                             >
-                              <Plus size={14} />
+                              <Plus size={18} />
                               Add to {location}
                             </button>
                           </div>
@@ -545,35 +543,35 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           transition={{ duration: 0.3, ease: "easeInOut" }}
                           className="flex flex-col overflow-hidden px-6"
                           style={{ 
-                            maxHeight: locationItems.length === 0 ? '280px' : Math.min(10, locationItems.length) * 65 + 120 + 'px'
+                            maxHeight: locationItems.length === 0 ? '280px' : Math.min(10, locationItems.length) * 45 + 120 + 'px'
                           }}
                         >
-                          <div className={`space-y-2 lg:space-y-2 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
+                          <div className={`space-y-0.5 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
                             {locationItems.length > 0 ? (
                               <>
                                 {locationItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-center gap-2 lg:gap-3 p-2 lg:p-2.5 bg-m3-surface-variant/10 rounded-xl lg:rounded-2xl transition-all group hover:bg-m3-surface-variant/20"
+                                  className="flex items-center gap-2 py-1 px-2 hover:bg-m3-surface-variant/10 transition-colors rounded-lg group"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-sm text-m3-on-surface truncate">
+                                    <h4 className="font-bold text-base text-m3-on-surface truncate leading-tight">
                                       {item.name}
                                     </h4>
-                                    <div className="flex items-center gap-3 text-xs text-m3-on-surface-variant/70">
+                                    <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
                                       {item.quantity && (
-                                        <span className="font-medium">
+                                        <span>
                                           {item.quantity} {item.unit}
                                         </span>
                                       )}
                                       {item.purchasedOn && (
                                         <span>
-                                          {new Date(item.purchasedOn).toLocaleDateString()}
+                                          • {new Date(item.purchasedOn).toLocaleDateString()}
                                         </span>
                                       )}
                                       {item.notes && (
-                                        <span className="italic truncate max-w-[120px]">
-                                          {item.notes}
+                                        <span className="italic truncate max-w-[100px]">
+                                          • {item.notes}
                                         </span>
                                       )}
                                     </div>
@@ -581,17 +579,17 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                                   <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                     <button
                                       onClick={() => startEdit(item)}
-                                      className="p-1.5 text-m3-on-surface-variant hover:text-m3-primary rounded-lg hover:bg-m3-primary/10 transition-colors"
+                                      className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10 rounded-md transition-colors"
                                       title="Edit item"
                                     >
-                                      <Edit2 size={14} />
+                                      <Edit2 size={16} />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
-                                      className="p-1.5 text-m3-on-surface-variant hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                      className="p-2 text-m3-on-surface-variant/40 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                       title="Delete item"
                                     >
-                                      <Trash2 size={14} />
+                                      <Trash2 size={16} />
                                     </button>
                                   </div>
                                 </div>
@@ -599,7 +597,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                               </>
                             ) : (
                               <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-                                <p className="text-m3-on-surface-variant/60 text-sm font-medium">
+                                <p className="text-m3-on-surface-variant/60 text-base font-medium">
                                   No supplies in {location.toLowerCase()}
                                 </p>
                               </div>
@@ -610,9 +608,9 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           <div className="border-t border-m3-outline/10 p-3">
                             <button
                               onClick={() => startAddWithLocation(location)}
-                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-base font-medium"
                             >
-                              <Plus size={14} />
+                              <Plus size={18} />
                               Add to {location}
                             </button>
                           </div>
@@ -664,7 +662,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           </button>
                         </div>
                         <input
-                          autoFocus
+                          autoFocus={!editingItem}
                           type="text"
                           placeholder={activeTab === 'ingredients' ? 'e.g. 1 bottle olive oil' : 'e.g. 6 rolls paper towels'}
                           value={smartInput}
@@ -716,7 +714,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                             </button>
                           </div>
                           <input
-                            autoFocus={!useSmartInput}
+                            autoFocus={!useSmartInput && !editingItem}
                             type="text"
                             placeholder={`e.g. ${activeTab === 'ingredients' ? 'Extra Virgin Olive Oil' : 'Paper Towels'}`}
                             value={formData.name}

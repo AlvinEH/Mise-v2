@@ -197,14 +197,13 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-      <PageHeader title="Shopping List" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Shopping List" 
+        description="Organize your groceries by store."
+        onMenuClick={onMenuClick} 
+      />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 lg:mb-12">
-            <h2 className="text-4xl font-black text-m3-on-surface tracking-tight mb-2">Shopping List</h2>
-            <p className="text-m3-on-surface-variant font-medium">Organize your groceries by store.</p>
-          </div>
-
           <AnimatePresence>
             {isAddingStore && (
               <motion.div 

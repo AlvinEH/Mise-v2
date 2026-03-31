@@ -324,18 +324,13 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface">
-      <PageHeader title="Meal Planner" onMenuClick={onMenuClick} />
+      <PageHeader 
+        title="Meal Planner" 
+        description="Plan your meals for the week."
+        onMenuClick={onMenuClick} 
+      />
       
       <main className="flex-1 overflow-hidden flex flex-col min-h-0">
-        {/* Page Header */}
-        <div className="px-6 pt-1 pb-0 bg-m3-surface">
-          <div className="max-w-7xl mx-auto">
-            <div>
-              <h2 className="text-4xl font-black text-m3-on-surface tracking-tight mb-0">Meal Planner</h2>
-            </div>
-          </div>
-        </div>
-        
         {/* Navigation Controls */}
         <div className="px-6 py-4 bg-m3-surface z-10 border-b border-m3-outline-variant/20">
           <div className="flex items-center justify-center gap-3">

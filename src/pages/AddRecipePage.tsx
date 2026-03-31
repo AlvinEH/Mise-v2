@@ -12,7 +12,6 @@ import { User } from 'firebase/auth';
 import { db } from '../firebase';
 import { extractRecipeFromUrl, Ingredient } from '../services/geminiService';
 import { 
-  ArrowLeft,
   Plus, 
   Check,
   Loader2
@@ -22,6 +21,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 
 // Import components
 import { IngredientItem } from '../components/recipe/IngredientItem';
+import { PageHeader } from '../components/layout/PageHeader';
 
 // Import types and utils
 import { UNIT_CONVERSIONS } from '../constants/units';
@@ -227,23 +227,11 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       animate={{ opacity: 1 }}
       className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface"
     >
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-m3-surface/80 backdrop-blur-md border-b border-m3-outline/10 px-4 py-4 lg:px-8">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/recipes')}
-              className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
-              title="Back to Recipes"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-2xl font-black tracking-tight text-m3-on-surface">
-              {isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : 'Add New Recipe'}
-            </h1>
-          </div>
-        </div>
-      </header>
+      <PageHeader 
+        title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : 'Add New Recipe'} 
+        description={isEditing ? "Update your recipe details." : "Create a new recipe manually or from a URL."}
+        showBack 
+      />
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-4 py-8 lg:px-8 min-h-0">
