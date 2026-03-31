@@ -32,30 +32,35 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   const totalCount = items.length;
 
   return (
-    <div className="bg-m3-surface-variant/30 rounded-[32px] border border-m3-outline/10 overflow-hidden hover:bg-m3-surface-variant/50 transition-all group">
+    <div className="bg-m3-surface-variant/10 rounded-xl border border-m3-outline/10 overflow-hidden transition-all group">
       <div 
-        className="p-6 flex items-center justify-between cursor-pointer"
+        className="p-4 flex items-center justify-between cursor-pointer bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 transition-colors"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <div className="flex items-center gap-4 text-left flex-1">
-          <div className="w-12 h-12 bg-m3-primary-container text-m3-on-primary-container rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
-            {isCollapsed ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-m3-on-surface leading-tight">{list.name}</h3>
-            <p className="text-sm font-bold text-m3-on-surface-variant/60 uppercase tracking-widest">
-              {completedCount}/{totalCount} Items Completed
-            </p>
-          </div>
+        <div className="flex flex-col text-left flex-1">
+          <h3 className="text-xl font-black text-m3-on-surface leading-tight">{list.name}</h3>
+          <p className="text-xs font-bold text-m3-on-surface-variant/60 uppercase tracking-widest mt-1">
+            {totalCount} {totalCount === 1 ? 'Item' : 'Items'}
+          </p>
         </div>
         
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
+              setIsCollapsed(!isCollapsed);
+            }}
+            className="p-2 text-m3-on-surface-variant/30 hover:text-m3-primary transition-colors"
+            title={isCollapsed ? "Expand" : "Collapse"}
+          >
+            {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
               onExpand();
             }}
-            className="p-3 text-m3-on-surface-variant/30 hover:text-m3-primary transition-colors"
+            className="p-2 text-m3-on-surface-variant/30 hover:text-m3-primary transition-colors"
             title="Full Screen"
           >
             <Maximize2 size={20} />
@@ -67,7 +72,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
                 onDeleteStore();
               }
             }}
-            className="p-3 text-m3-on-surface-variant/30 hover:text-m3-error transition-colors"
+            className="p-2 text-m3-on-surface-variant/30 hover:text-m3-error transition-colors"
             title="Delete Store"
           >
             <Trash2 size={20} />
@@ -82,7 +87,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="border-t border-m3-outline/5 bg-m3-surface/20"
+            className="bg-transparent"
           >
             <div className="max-h-[400px] overflow-y-auto">
               <ShoppingListContent 
@@ -97,14 +102,6 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Mini Progress Bar */}
-      <div className="h-1.5 bg-m3-outline/5 w-full">
-        <div 
-          className="h-full bg-m3-primary transition-all duration-500"
-          style={{ width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
-        />
-      </div>
     </div>
   );
 });

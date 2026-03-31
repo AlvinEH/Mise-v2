@@ -34,18 +34,21 @@ export const Sidebar = memo(({ isOpen, onClose }: SidebarProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-50 lg:hidden will-change-opacity"
           />
         )}
       </AnimatePresence>
 
       <motion.aside
         initial={false}
-        animate={{ x: (isOpen || isDesktop) ? 0 : '-100%' }}
-        transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
-        className={`fixed top-0 left-0 h-full w-[70%] bg-m3-surface border-r border-m3-outline/10 z-[60] lg:static lg:w-56 flex flex-col`}
+        animate={{ x: (isOpen || isDesktop) ? 0 : -280 }}
+        transition={{ 
+          duration: 0.3,
+          ease: [0.2, 0, 0, 1]
+        }}
+        className={`fixed top-0 left-0 h-full w-[280px] bg-m3-surface border-r border-m3-outline/10 z-[60] lg:static lg:w-64 flex flex-col will-change-transform`}
       >
         <div className="p-6 flex items-center justify-between border-b border-m3-outline/5">
           <div className="text-2xl font-black tracking-tight text-m3-on-surface">

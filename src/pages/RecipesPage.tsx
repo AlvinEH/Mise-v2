@@ -170,7 +170,7 @@ export const RecipesPage = React.memo(({
       </main>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-10 right-10 z-40">
+      <div className="fixed bottom-6 right-6 z-40">
         <FABMenu onNavigate={navigate} />
       </div>
 

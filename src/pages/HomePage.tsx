@@ -13,7 +13,6 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
     {
       icon: Calendar,
       title: 'Meal Planner',
-      description: 'Plan your meals for the week ahead',
       path: '/meal-planner',
       bgColor: 'bg-m3-primary-container',
       iconColor: 'text-m3-on-primary-container'
@@ -21,7 +20,6 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
     {
       icon: ShoppingCart,
       title: 'Shopping List',
-      description: 'Organize your grocery shopping',
       path: '/shopping-list',
       bgColor: 'bg-m3-secondary-container',
       iconColor: 'text-m3-on-secondary-container'
@@ -29,7 +27,6 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
     {
       icon: Package,
       title: 'Inventory',
-      description: 'Track your pantry and ingredients',
       path: '/inventory',
       bgColor: 'bg-m3-surface-variant',
       iconColor: 'text-m3-on-surface-variant'
@@ -37,7 +34,6 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
     {
       icon: BookOpen,
       title: 'Recipes',
-      description: 'Browse and manage your recipes',
       path: '/recipes',
       bgColor: 'bg-m3-primary-container',
       iconColor: 'text-m3-on-primary-container'
@@ -55,13 +51,10 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
             <h1 className="text-4xl font-black text-m3-on-surface tracking-tight mb-3">
               Welcome to Mise
             </h1>
-            <p className="text-lg text-m3-on-surface-variant">
-              Your complete kitchen companion for meal planning, shopping, and cooking
-            </p>
           </div>
 
           {/* Navigation Links */}
-          <div className="space-y-4 max-w-md">
+          <div className="space-y-3 max-w-sm">
             {pages.map((page, index) => (
               <motion.div
                 key={page.path}
@@ -73,19 +66,16 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
               >
                 <Link
                   to={page.path}
-                  className="group flex items-center gap-4 p-5 rounded-[28px] bg-m3-surface-container hover:bg-m3-surface-container-high border border-m3-outline/5 transition-all duration-300 hover:shadow-lg block"
+                  className="group flex items-center gap-4 p-4 rounded-[24px] bg-m3-surface-container hover:bg-m3-surface-container-high border border-m3-outline/5 transition-all duration-300 hover:shadow-md block"
                 >
-                  <div className={`flex-shrink-0 p-3.5 rounded-2xl ${page.bgColor} ${page.iconColor} transition-colors`}>
-                    <page.icon size={24} strokeWidth={2.5} />
+                  <div className={`flex-shrink-0 p-3 rounded-xl ${page.bgColor} ${page.iconColor} transition-colors`}>
+                    <page.icon size={22} strokeWidth={2.5} />
                   </div>
                   
                   <div>
-                    <h3 className="text-xl font-black text-m3-on-surface group-hover:text-m3-primary transition-colors tracking-tight">
+                    <h3 className="text-lg font-black text-m3-on-surface group-hover:text-m3-primary transition-colors tracking-tight">
                       {page.title}
                     </h3>
-                    <p className="text-sm font-medium text-m3-on-surface-variant leading-tight">
-                      {page.description}
-                    </p>
                   </div>
                 </Link>
               </motion.div>

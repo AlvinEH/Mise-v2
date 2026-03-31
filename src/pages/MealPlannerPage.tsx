@@ -38,9 +38,10 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
     const today = startOfDay(new Date());
     const nextFriday = getNextFriday();
     
-    // Show 3 weeks: 1 week before + current week + next week
+    // Show reduced range initially: 1 week before + current week + next week
+    // This avoids long scrolling animations on initial load
     return {
-      start: subDays(today, 14),
+      start: subDays(today, 7),
       end: addDays(nextFriday, 7)
     };
   });
@@ -58,18 +59,32 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
 
       const { scrollTop, scrollHeight, clientHeight } = container;
       
-      // Load more past dates when scrolling near top (within 300px)
-      if (scrollTop < 300) {
+      // Increase threshold to preload much earlier (e.g., 1000px or ~2 screens)
+      const threshold = 1000;
+      
+      // Load more past dates when scrolling near top
+      if (scrollTop < threshold) {
         isLoadingRef.current = true;
+        
+        // Capture current scroll height to adjust after update
+        const previousScrollHeight = scrollHeight;
+        
         setDateRange(prev => ({
           ...prev,
           start: subDays(prev.start, 7)
         }));
-        setTimeout(() => { isLoadingRef.current = false; }, 500);
+
+        // Adjust scroll position after prepending to prevent jumping
+        // We use a small timeout to wait for React to render the new days
+        setTimeout(() => {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = scrollTop + (newScrollHeight - previousScrollHeight);
+          isLoadingRef.current = false;
+        }, 0);
       }
       
-      // Load more future dates when scrolling near bottom (within 300px)
-      if (scrollTop + clientHeight > scrollHeight - 300) {
+      // Load more future dates when scrolling near bottom
+      if (scrollTop + clientHeight > scrollHeight - threshold) {
         isLoadingRef.current = true;
         setDateRange(prev => ({
           ...prev,
@@ -128,32 +143,36 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
     return unsubscribe;
   }, [user, dateRange]);
 
-  // Scroll to today on initial load and when meals are loaded
-  useEffect(() => {
-    if (todayRef.current && meals.length > 0) {
-      // Small delay to ensure layout is complete
-      setTimeout(() => {
-        if (todayRef.current) {
-          todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 200);
+  // Consolidate scrolling logic
+  const scrollToToday = (behavior: ScrollBehavior = 'smooth') => {
+    if (todayRef.current) {
+      todayRef.current.scrollIntoView({ behavior, block: 'start' });
     }
-  }, [meals.length > 0]); 
+  };
 
-  // Always scroll to today when component mounts (page entry)
+  // Initial scroll to today on mount
   useEffect(() => {
-    const scrollToTodayOnMount = () => {
+    const timer = setTimeout(() => {
       if (todayRef.current) {
-        todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        todayRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
       }
-    };
-    
-    // Small delay to ensure DOM is fully rendered
-    const timer = setTimeout(scrollToTodayOnMount, 300);
+    }, 150);
     return () => clearTimeout(timer);
   }, []);
 
-
+  // Ensure today is at the top when meals are first loaded (in case of layout shifts)
+  const hasInitialMealScroll = useRef(false);
+  useEffect(() => {
+    if (meals.length > 0 && !hasInitialMealScroll.current) {
+      const timer = setTimeout(() => {
+        if (todayRef.current) {
+          todayRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+          hasInitialMealScroll.current = true;
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [meals.length]);
 
   const handleEditDay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,14 +276,8 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
     setDinnerMealName('');
   };
 
-  const scrollToToday = () => {
-    todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-
-
   const goToToday = () => {
-    scrollToToday();
+    scrollToToday('smooth');
   };
 
 
@@ -325,7 +338,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
         
         {/* Navigation Controls */}
         <div className="px-6 py-4 bg-m3-surface z-10 border-b border-m3-outline-variant/20">
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-center gap-3">
             <button 
               onClick={handleDatePicker}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-medium text-sm hover:shadow-md transition-all active:scale-95"
@@ -346,7 +359,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
         {/* Scrolling Agenda View */}
         <div 
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto scroll-smooth scrollbar-none"
+          className="flex-1 overflow-y-auto scrollbar-none"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <div className="max-w-4xl mx-auto py-6 md:py-12 px-4 md:px-6">
@@ -362,16 +375,17 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                 return (
                   <motion.div
                     key={dateString}
+                    ref={isToday ? todayRef : null}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.05 }}
-                    whileHover={!shouldCompact ? { y: -2, scale: 1.01 } : {}}
-                    whileTap={!shouldCompact ? { y: -4, scale: 0.99 } : {}}
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    whileTap={{ y: -4, scale: 0.99 }}
+                    className="scroll-mt-6 md:scroll-mt-10"
                   >
                     <div 
-                      ref={isToday ? todayRef : null}
                       data-date={dateString}
-                      onClick={() => !shouldCompact && startEditingDay(dateString, dayMeals)}
+                      onClick={() => startEditingDay(dateString, dayMeals)}
                       className={`group relative grid grid-cols-[48px_1fr] md:grid-cols-[80px_1fr] rounded-[28px] transition-all duration-300 overflow-hidden cursor-pointer ${
                         isToday 
                           ? 'bg-m3-primary-container text-m3-on-primary-container shadow-sm' 
@@ -459,7 +473,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-m3-surface/80 backdrop-blur-xl flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 z-50"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowDatePicker(false);
             }}
@@ -468,7 +482,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-m3-surface-container-high rounded-[28px] p-6 md:p-8 w-full max-w-sm shadow-xl border border-m3-outline-variant/20"
+              className="bg-m3-surface-container-high/95 backdrop-blur-xl rounded-[28px] p-6 md:p-8 w-full max-w-sm shadow-2xl"
             >
               <div className="mb-6">
                 <h3 className="text-2xl font-semibold text-m3-on-surface tracking-tight">
@@ -508,17 +522,17 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                   />
                 </div>
                 
-                <div className="flex gap-3 pt-4">
+                <div className="flex items-center justify-end gap-2 pt-6">
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(false)}
-                    className="flex-1 px-6 py-2.5 rounded-full font-medium text-sm text-m3-primary hover:bg-m3-primary/5 transition-all"
+                    className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={goToSelectedDate}
-                    className="flex-1 px-6 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
+                    className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
                   >
                     Go to Date
                   </button>
@@ -533,7 +547,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-m3-surface/80 backdrop-blur-xl flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 z-50"
             onClick={(e) => {
               if (e.target === e.currentTarget) cancelEdit();
             }}
@@ -542,7 +556,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-m3-surface-container-high rounded-[28px] p-6 md:p-8 w-full max-w-lg shadow-xl border border-m3-outline-variant/20"
+              className="bg-m3-surface-container-high/95 backdrop-blur-xl rounded-[28px] p-6 md:p-8 w-full max-w-lg shadow-2xl"
             >
               <div className="mb-6">
                 <h3 className="text-2xl font-semibold text-m3-on-surface tracking-tight">
@@ -597,28 +611,28 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                   </div>
                 </div>
                 
-                <div className="flex gap-3 pt-4">
+                <div className="flex items-center gap-2 pt-8">
                   {(editingDay.lunch || editingDay.dinner) && (
                     <button
                       type="button"
                       onClick={handleDeleteDay}
-                      className="px-4 py-2.5 rounded-full font-medium text-sm text-m3-error hover:bg-m3-error/5 transition-all flex items-center gap-2"
+                      className="px-4 py-2.5 rounded-full font-semibold text-sm text-m3-error hover:bg-m3-error/8 transition-all flex items-center gap-2 active:scale-95"
                     >
-                      <Trash2 size={16} />
-                      Delete
+                      <Trash2 size={18} />
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   )}
                   <div className="flex-1" />
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="flex-[0.4] py-2.5 px-6 border border-m3-outline text-m3-primary rounded-[20px] font-medium hover:bg-m3-primary/8 transition-all"
+                    className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-[0.6] py-2.5 px-6 bg-m3-primary text-m3-on-primary rounded-[20px] font-medium hover:bg-m3-primary/90 shadow-sm hover:shadow-md transition-all"
+                    className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
                   >
                     Save Day
                   </button>

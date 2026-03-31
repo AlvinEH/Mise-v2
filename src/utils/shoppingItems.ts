@@ -26,6 +26,7 @@ const UNIT_PATTERNS = [
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(ml|milliliters?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'ml' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(l|liters?|litres?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'l' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(fl\s*oz|fluid\s+ounces?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'fl oz' }) },
+  { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(racks?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'Rack' }) },
   // Supply unit patterns - matching InventoryPage supply units
   { regex: /^(\d+(?:[/\.\s]*\d+)?)\s*(pieces?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'pieces' }) },
   { regex: /^(\d+(?:[/\.\s]*\d+)?)\s*(rolls?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'rolls' }) },
@@ -56,6 +57,7 @@ const UNIT_PATTERNS = [
   { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:ml|milliliters?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'ml' }) },
   { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:l|liters?|litres?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'l' }) },
   { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:fl\s*oz|fluid\s+ounces?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'fl oz' }) },
+  { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:racks?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'Rack' }) },
   // Supply units (name amount unit) - matching InventoryPage supply units
   { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:pieces?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'pieces' }) },
   { regex: /(.+?)\s*(\d+(?:\.\d+)?)\s*(?:rolls?)\s*$/i, format: (name: string, amount: string) => ({ name: capitalizeWords(name.trim()), amount, unit: 'rolls' }) },

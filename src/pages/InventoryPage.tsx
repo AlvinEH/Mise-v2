@@ -54,7 +54,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
 
   // Common units for ingredients and supplies
   const commonUnits = {
-    ingredients: ['cups', 'tbsp', 'tsp', 'oz', 'lbs', 'g', 'kg', 'ml', 'L', 'pieces', 'cans', 'bottles', 'bags'],
+    ingredients: ['cups', 'tbsp', 'tsp', 'oz', 'lbs', 'g', 'kg', 'ml', 'L', 'pieces', 'cans', 'bottles', 'bags', 'Racks'],
     supplies: ['pieces', 'rolls', 'boxes', 'packs', 'sets', 'bottles', 'tubes', 'sheets']
   };
 
@@ -313,28 +313,26 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
           </div>
 
           {/* Tabs and Filter */}
-          <div className="mb-8 flex items-center justify-center relative max-w-2xl mx-auto">
-            <div className="flex items-center gap-2 bg-m3-surface-variant/20 p-1 rounded-[20px]">
+          <div className="mb-8 flex items-center justify-center relative max-w-2xl mx-auto px-12">
+            <div className="flex items-center gap-1 bg-m3-surface-variant/20 p-1 rounded-[20px] w-full max-w-[260px]">
               <button
                 onClick={() => handleTabSwitch('ingredients')}
-                className={`flex-1 px-6 py-3 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-2 py-2.5 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center ${
                   activeTab === 'ingredients'
                     ? 'bg-m3-primary text-m3-on-primary shadow-md'
                     : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
                 }`}
               >
-                <Apple size={16} />
                 Ingredients
               </button>
               <button
                 onClick={() => handleTabSwitch('supplies')}
-                className={`flex-1 px-6 py-3 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 px-2 py-2.5 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center ${
                   activeTab === 'supplies'
                     ? 'bg-m3-primary text-m3-on-primary shadow-md'
                     : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
                 }`}
               >
-                <Package size={16} />
                 Supplies
               </button>
             </div>
@@ -474,12 +472,12 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           </div>
                           
                           {/* Footer Section - Part of collapsible content */}
-                          <div className="border-t border-m3-outline/10 p-4">
+                          <div className="border-t border-m3-outline/10 p-3">
                             <button
                               onClick={() => startAddWithLocation(location)}
-                              className="w-full p-3 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 font-medium"
+                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
                             >
-                              <Plus size={16} />
+                              <Plus size={14} />
                               Add to {location}
                             </button>
                           </div>
@@ -609,12 +607,12 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           </div>
                           
                           {/* Footer Section - Part of collapsible content */}
-                          <div className="border-t border-m3-outline/10 p-4">
+                          <div className="border-t border-m3-outline/10 p-3">
                             <button
                               onClick={() => startAddWithLocation(location)}
-                              className="w-full p-3 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 font-medium"
+                              className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-sm font-medium"
                             >
-                              <Plus size={16} />
+                              <Plus size={14} />
                               Add to {location}
                             </button>
                           </div>
@@ -643,7 +641,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-lg shadow-xl border border-m3-outline/10"
+                  className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-lg shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
                 >
                   <h3 className="text-2xl font-black text-m3-on-surface mb-6">
                     {editingItem ? 'Edit' : 'Add'} {activeTab === 'ingredients' ? 'Ingredient' : 'Supply'}
@@ -841,7 +839,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-md shadow-xl border border-m3-outline/10"
+              className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-md shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-black text-m3-on-surface">
@@ -1032,14 +1030,14 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                 })()}
               </div>
               
-              <div className="border-t border-m3-outline/5 pt-4 mt-4">
+              <div className="border-t border-m3-outline/5 pt-3 mt-3">
                 <button
                   onClick={() => {
                     startAddWithLocation(expandedLocation);
                   }}
-                  className="w-full px-6 py-3 bg-m3-primary text-m3-on-primary rounded-2xl font-bold hover:bg-m3-primary/90 shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 bg-m3-primary text-m3-on-primary rounded-2xl font-bold hover:bg-m3-primary/90 shadow-md transition-all flex items-center justify-center gap-2 text-sm"
                 >
-                  <Plus size={18} />
+                  <Plus size={16} />
                   Add to {expandedLocation}
                 </button>
               </div>

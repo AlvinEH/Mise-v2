@@ -209,38 +209,37 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
             {isAddingStore && (
               <motion.div 
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: 180, marginBottom: 48 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 transition={{
                   duration: 0.4,
                   ease: [0.4, 0.0, 0.2, 1]
                 }}
-                className="bg-m3-surface-variant/10 rounded-[32px] border border-m3-outline/10 overflow-hidden"
+                className="bg-m3-surface-variant/10 rounded-xl border border-m3-outline/10 overflow-hidden"
               >
-                <div className="p-6 h-full">
-                <form onSubmit={handleAddStore} className="space-y-4">
+                <div className="p-4">
+                <form onSubmit={handleAddStore} className="space-y-3">
                   <input 
-                    autoFocus
                     type="text" 
                     placeholder="Enter store name"
                     value={newStoreName}
                     onChange={e => setNewStoreName(e.target.value)}
                     autoCapitalize="sentences"
-                    className="w-full px-6 py-4 bg-m3-surface border border-m3-outline/20 rounded-2xl outline-none focus:border-m3-primary font-bold"
+                    className="w-full px-4 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary font-bold text-sm"
                   />
                   <div className="flex gap-2">
                     <button 
                       type="button"
                       onClick={() => setIsAddingStore(false)}
-                      className="flex-[0.4] py-2.5 px-6 border border-m3-outline text-m3-primary rounded-[20px] font-medium hover:bg-m3-primary/8 transition-all"
+                      className="flex-[0.4] py-2 px-4 border border-m3-outline text-m3-primary rounded-xl font-medium hover:bg-m3-primary/8 transition-all text-sm"
                     >
                       Cancel
                     </button>
                     <button 
                       type="submit"
-                      className="flex-[0.6] py-2.5 px-6 bg-m3-primary text-m3-on-primary rounded-[20px] font-medium hover:bg-m3-primary/90 shadow-sm hover:shadow-md transition-all"
+                      className="flex-[0.6] py-2 px-4 bg-m3-primary text-m3-on-primary rounded-xl font-medium hover:bg-m3-primary/90 shadow-sm hover:shadow-md transition-all whitespace-nowrap text-sm"
                     >
-                      Create Store
+                      Add Store
                     </button>
                   </div>
                 </form>
@@ -250,23 +249,19 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
           </AnimatePresence>
 
           {storeLists.length > 0 ? (
-            <motion.div 
-              layout
+            <div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8"
-              transition={{ duration: 0.3, ease: "easeInOut" }}
             >
               {storeLists.map((list, index) => (
                 <motion.div
                   key={list.id}
-                  layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ 
                     type: "spring",
                     stiffness: 300,
                     damping: 30,
-                    delay: index * 0.05,
-                    layout: { duration: 0.3, ease: "easeInOut" }
+                    delay: index * 0.05
                   }}
                 >
                   <StoreCard 
@@ -282,9 +277,9 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
                 />
                 </motion.div>
               ))}
-            </motion.div>
+            </div>
           ) : (
-            <div className="text-center py-32 bg-m3-surface-variant/10 rounded-[48px] border-2 border-dashed border-m3-outline/20">
+            <div className="text-center py-32 bg-m3-surface-variant/10 rounded-xl border-2 border-dashed border-m3-outline/20">
               <h3 className="text-2xl font-bold text-m3-on-surface mb-2">No shopping lists yet</h3>
               <p className="text-m3-on-surface-variant font-medium mb-8">Add a store to start organizing your groceries.</p>
             </div>
@@ -293,13 +288,32 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
       </main>
 
       {/* Floating Action Button */}
-      <button 
-        onClick={() => setIsAddingStore(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-m3-primary text-m3-on-primary rounded-full shadow-lg hover:shadow-xl hover:bg-m3-primary/90 transition-all active:scale-95 flex items-center justify-center z-50"
-        title="Add Store"
-      >
-        <Plus size={24} strokeWidth={2.5} />
-      </button>
+      <div className="fixed bottom-6 right-6 z-50">
+        <motion.button 
+          onClick={() => setIsAddingStore(!isAddingStore)}
+          animate={{ 
+            rotate: isAddingStore ? 45 : 0,
+            backgroundColor: isAddingStore ? "var(--m3-secondary)" : "var(--m3-primary-container)",
+            color: isAddingStore ? "var(--m3-on-secondary)" : "var(--m3-on-primary-container)"
+          }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 500, 
+            damping: 35,
+            backgroundColor: { duration: 0.2 },
+            color: { duration: 0.2 }
+          }}
+          className="w-14 h-14 rounded-[16px] shadow-md flex items-center justify-center group relative overflow-hidden will-change-transform"
+          title="Add Store"
+        >
+          <div className="absolute inset-0 bg-current opacity-0 group-hover:opacity-[0.08] transition-opacity" />
+          <div className="relative z-10">
+            <Plus size={24} strokeWidth={2} />
+          </div>
+        </motion.button>
+      </div>
 
       <AnimatePresence>
         {expandedListId && (

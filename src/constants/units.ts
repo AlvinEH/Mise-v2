@@ -1,6 +1,6 @@
 // Common cooking units for ingredient measurements
 export const COMMON_UNITS = [
-  "", "cup", "tbsp", "tsp", "oz", "lb", "g", "kg", "ml", "l", "pinch", "dash", "clove", "whole", "slice", "bottles", "bags"
+  "", "cup", "tbsp", "tsp", "oz", "lb", "g", "kg", "ml", "l", "pinch", "dash", "clove", "whole", "slice", "bottles", "bags", "Rack"
 ];
 
 // Unit conversion ratios for automatic unit conversion

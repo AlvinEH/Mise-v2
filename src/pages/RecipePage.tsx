@@ -1,16 +1,17 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { Zzz } from '../components/ui/icons';
 import { Recipe } from '../types';
 
 interface RecipePageProps {
   recipes: Recipe[];
+  onEdit: (recipe: Recipe) => void;
   onDelete: (recipe: Recipe) => void;
 }
 
-export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onDelete }) => {
+export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelete }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const recipe = recipes.find(r => r.id === id);
@@ -46,6 +47,13 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onDelete }) => 
               <ArrowLeft size={24} />
             </button>
             <div className="flex gap-3">
+              <button 
+                onClick={() => onEdit(recipe)}
+                className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
+                title="Edit Recipe"
+              >
+                <Pencil size={20} />
+              </button>
               <button 
                 onClick={() => onDelete(recipe)}
                 className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 text-red-600 rounded-full transition-colors"
