@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, Filter, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, Filter, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
@@ -26,7 +26,7 @@ interface InventoryItem {
   updatedAt: any;
 }
 
-export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
+export const InventoryPage = memo(({ onMenuClick }: InventoryPageProps) => {
   const [user] = useAuthState(auth);
   const [activeTab, setActiveTab] = useState<'ingredients' | 'supplies'>('ingredients');
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -86,14 +86,14 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
     return unsubscribe;
   }, [user]);
 
-  const filteredItems = items.filter(item => {
+  const filteredItems = useMemo(() => items.filter(item => {
     const matchesTab = item.category === (activeTab === 'ingredients' ? 'ingredient' : 'supply');
     const matchesSearch = searchQuery === '' || 
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.location?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLocation = locationFilter === 'all' || item.location === locationFilter;
     return matchesTab && matchesSearch && matchesLocation;
-  });
+  }), [items, activeTab, searchQuery, locationFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,49 +305,77 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Inventory" 
-        description="Track your ingredients and kitchen supplies."
         onMenuClick={onMenuClick} 
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          {/* Tabs and Filter */}
-          <div className="mb-8 flex items-center justify-center relative max-w-2xl mx-auto px-12">
-            <div className="flex items-center gap-1 bg-m3-surface-variant/20 p-1 rounded-[20px] w-full max-w-[260px]">
+          {/* Search and Tabs */}
+          <div className="mb-8 flex flex-col gap-4 max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 w-full">
+              <div className="relative flex-1 group">
+                <Search 
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50 transition-colors group-focus-within:text-m3-primary" 
+                  size={24} 
+                />
+                <input
+                  type="text"
+                  placeholder={`Search ${activeTab === 'ingredients' ? 'Ingredients' : 'Supplies'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoCapitalize="words"
+                  className="w-full h-14 pl-11 pr-14 bg-m3-surface-container-high border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base sm:text-lg font-medium placeholder:text-xs sm:placeholder:text-base placeholder:text-m3-on-surface-variant/60 transition-all shadow-sm hover:shadow-md focus:shadow-md"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Button */}
               <button
-                onClick={() => handleTabSwitch('ingredients')}
-                className={`flex-1 px-2 py-2.5 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center ${
-                  activeTab === 'ingredients'
-                    ? 'bg-m3-primary text-m3-on-primary shadow-md'
-                    : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
+                onClick={() => setShowFilterModal(true)}
+                className={`relative h-14 w-14 flex items-center justify-center rounded-full transition-all shrink-0 ${
+                  locationFilter !== 'all' 
+                    ? 'bg-m3-primary-container text-m3-on-primary-container shadow-md' 
+                    : 'bg-m3-surface-container-high text-m3-on-surface-variant hover:bg-m3-surface-container-highest shadow-sm'
                 }`}
+                title="Filter by Location"
               >
-                Ingredients
-              </button>
-              <button
-                onClick={() => handleTabSwitch('supplies')}
-                className={`flex-1 px-2 py-2.5 rounded-[16px] text-sm font-bold transition-all flex items-center justify-center ${
-                  activeTab === 'supplies'
-                    ? 'bg-m3-primary text-m3-on-primary shadow-md'
-                    : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
-                }`}
-              >
-                Supplies
+                <Filter size={24} />
+                {locationFilter !== 'all' && (
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-m3-primary rounded-full border-2 border-m3-primary-container" />
+                )}
               </button>
             </div>
 
-            {/* Filter Button */}
-            <button
-              onClick={() => setShowFilterModal(true)}
-              className={`absolute right-0 p-3 rounded-full hover:bg-m3-surface-variant/30 transition-all ${
-                searchQuery || locationFilter !== 'all' ? 'text-m3-primary bg-m3-primary/10' : 'text-m3-on-surface-variant'
-              }`}
-              title="Search and Filter"
-            >
-              <Filter size={20} />
-              {(searchQuery || locationFilter !== 'all') && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-m3-primary rounded-full" />
-              )}
-            </button>
+            <div className="flex items-center justify-center w-full">
+              <div className="flex items-center gap-1 bg-m3-surface-container-high p-1 rounded-full w-full sm:w-auto">
+                <button
+                  onClick={() => handleTabSwitch('ingredients')}
+                  className={`flex-1 sm:px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[100px] ${
+                    activeTab === 'ingredients'
+                      ? 'bg-m3-primary text-m3-on-primary shadow-md'
+                      : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
+                  }`}
+                >
+                  Ingredients
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('supplies')}
+                  className={`flex-1 sm:px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[100px] ${
+                    activeTab === 'supplies'
+                      ? 'bg-m3-primary text-m3-on-primary shadow-md'
+                      : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
+                  }`}
+                >
+                  Supplies
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Content Display */}
@@ -413,10 +441,14 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                         >
                           <div className={`space-y-0.5 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
                             {locationItems.length > 0 ? (
-                              <>
+                              <AnimatePresence mode="popLayout">
                                 {locationItems.map((item) => (
-                                <div
+                                <motion.div
                                   key={item.id}
+                                  layout
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, scale: 0.95, height: 0 }}
                                   className="flex items-center gap-2 py-1 px-2 hover:bg-m3-surface-variant/10 transition-colors rounded-lg group"
                                 >
                                   <div className="flex-1 min-w-0">
@@ -457,9 +489,9 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                                       <Trash2 size={16} />
                                     </button>
                                   </div>
-                                </div>
+                                </motion.div>
                                 ))}
-                              </>
+                              </AnimatePresence>
                             ) : (
                               <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
                                 <p className="text-m3-on-surface-variant/60 text-base font-medium">
@@ -548,10 +580,14 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                         >
                           <div className={`space-y-0.5 pb-4 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
                             {locationItems.length > 0 ? (
-                              <>
+                              <AnimatePresence mode="popLayout">
                                 {locationItems.map((item) => (
-                                <div
+                                <motion.div
                                   key={item.id}
+                                  layout
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, scale: 0.95, height: 0 }}
                                   className="flex items-center gap-2 py-1 px-2 hover:bg-m3-surface-variant/10 transition-colors rounded-lg group"
                                 >
                                   <div className="flex-1 min-w-0">
@@ -592,9 +628,9 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                                       <Trash2 size={16} />
                                     </button>
                                   </div>
-                                </div>
+                                </motion.div>
                                 ))}
-                              </>
+                              </AnimatePresence>
                             ) : (
                               <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
                                 <p className="text-m3-on-surface-variant/60 text-base font-medium">
@@ -662,7 +698,6 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                           </button>
                         </div>
                         <input
-                          autoFocus={!editingItem}
                           type="text"
                           placeholder={activeTab === 'ingredients' ? 'e.g. 1 bottle olive oil' : 'e.g. 6 rolls paper towels'}
                           value={smartInput}
@@ -714,7 +749,6 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
                             </button>
                           </div>
                           <input
-                            autoFocus={!useSmartInput && !editingItem}
                             type="text"
                             placeholder={`e.g. ${activeTab === 'ingredients' ? 'Extra Virgin Olive Oil' : 'Paper Towels'}`}
                             value={formData.name}
@@ -828,113 +862,61 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[120]"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowFilterModal(false);
             }}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-md shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-m3-surface-container-high rounded-[28px] p-8 w-full max-w-md shadow-2xl border border-m3-outline/10"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-black text-m3-on-surface">
-                  Search & Filter
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-medium text-m3-on-surface">
+                  Sort
                 </h3>
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-colors"
-                >
-                  <X size={20} />
-                </button>
               </div>
 
-              <div className="space-y-6">
-                {/* Search Input */}
-                <div>
-                  <label className="block text-sm font-bold text-m3-on-surface-variant mb-2">
-                    Search {activeTab}
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50" size={20} />
-                    <input
-                      type="text"
-                      placeholder={`Search ${activeTab}...`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-2xl outline-none focus:border-m3-primary font-medium"
-                    />
-                  </div>
-                </div>
-
+              <div className="space-y-8">
                 {/* Location Filter */}
                 <div>
-                  <label className="block text-sm font-bold text-m3-on-surface-variant mb-2">
-                    Filter by Location
-                  </label>
-                  <div className="relative location-dropdown">
+                  <div className="grid grid-cols-1 gap-3">
                     <button
-                      onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
-                      className="flex items-center justify-between w-full px-4 py-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 border border-m3-outline/20 rounded-2xl transition-all text-sm font-medium text-m3-on-surface"
+                      onClick={() => {
+                        handleLocationFilterSelect('all');
+                        setShowFilterModal(false);
+                      }}
+                      className={`w-full text-left px-6 py-4 rounded-2xl transition-all flex items-center justify-between group ${
+                        locationFilter === 'all' 
+                          ? 'bg-m3-secondary-container text-m3-on-secondary-container font-bold' 
+                          : 'bg-m3-surface-container text-m3-on-surface hover:bg-m3-surface-container-highest'
+                      }`}
                     >
-                      <span>
-                        {locationFilter === 'all' ? 'All Locations' : locationFilter}
-                      </span>
-                      <ChevronDown size={16} className={`text-m3-on-surface-variant transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`} />
+                      <span>All Locations</span>
+                      {locationFilter === 'all' && <div className="w-2 h-2 bg-m3-primary rounded-full" />}
                     </button>
                     
-                    {isLocationDropdownOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-2xl shadow-xl z-10 overflow-hidden">
-                        <button
-                          onClick={() => {
-                            handleLocationFilterSelect('all');
-                            setIsLocationDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 hover:bg-m3-surface-variant/20 transition-all text-sm font-medium ${
-                            locationFilter === 'all' ? 'bg-m3-primary/5 text-m3-primary' : 'text-m3-on-surface'
-                          }`}
-                        >
-                          All Locations
-                        </button>
-                        
-                        {locationOptions[activeTab as keyof typeof locationOptions].map((location) => (
-                          <button
-                            key={location}
-                            onClick={() => {
-                              handleLocationFilterSelect(location);
-                              setIsLocationDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 hover:bg-m3-surface-variant/20 transition-all text-sm font-medium ${
-                              locationFilter === location ? 'bg-m3-primary/5 text-m3-primary' : 'text-m3-on-surface'
-                            }`}
-                          >
-                            {location}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {locationOptions[activeTab as keyof typeof locationOptions].map((location) => (
+                      <button
+                        key={location}
+                        onClick={() => {
+                          handleLocationFilterSelect(location);
+                          setShowFilterModal(false);
+                        }}
+                        className={`w-full text-left px-6 py-4 rounded-2xl transition-all flex items-center justify-between group ${
+                          locationFilter === location 
+                            ? 'bg-m3-secondary-container text-m3-on-secondary-container font-bold' 
+                            : 'bg-m3-surface-container text-m3-on-surface hover:bg-m3-surface-container-highest'
+                        }`}
+                      >
+                        <span>{location}</span>
+                        {locationFilter === location && <div className="w-2 h-2 bg-m3-primary rounded-full" />}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-3 pt-6">
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setLocationFilter('all');
-                  }}
-                  className="flex-1 px-6 py-3 bg-m3-surface-variant/20 text-m3-on-surface-variant rounded-2xl font-bold hover:bg-m3-surface-variant/30 transition-all"
-                >
-                  Clear All
-                </button>
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="flex-1 px-6 py-3 bg-m3-primary text-m3-on-primary rounded-2xl font-bold hover:bg-m3-primary/90 shadow-md transition-all"
-                >
-                  Apply
-                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -948,7 +930,7 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 bg-m3-surface z-[100] flex flex-col overflow-hidden"
+            className="fixed inset-0 bg-m3-surface z-[100] flex flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
           >
             <div className="p-4 lg:p-6 border-b border-m3-outline/10 flex items-center justify-between bg-m3-surface">
               <div className="flex items-center">
@@ -1045,4 +1027,4 @@ export const InventoryPage = ({ onMenuClick }: InventoryPageProps) => {
       </AnimatePresence>
     </div>
   );
-};
+});

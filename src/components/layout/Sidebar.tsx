@@ -48,7 +48,7 @@ export const Sidebar = memo(({ isOpen, onClose }: SidebarProps) => {
           duration: 0.3,
           ease: [0.2, 0, 0, 1]
         }}
-        className={`fixed top-0 left-0 h-full w-[280px] bg-m3-surface border-r border-m3-outline/10 z-[60] lg:static lg:w-64 flex flex-col will-change-transform`}
+        className={`fixed top-0 left-0 h-full w-[280px] bg-m3-surface border-r border-m3-outline/10 z-[60] lg:static lg:w-64 flex flex-col will-change-transform pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)]`}
       >
         <div className="p-6 flex items-center justify-between border-b border-m3-outline/5">
           <div className="text-2xl font-black tracking-tight text-m3-on-surface">

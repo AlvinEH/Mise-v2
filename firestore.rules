@@ -94,8 +94,8 @@ service cloud.firestore {
     }
 
     function isValidRecipe(data) {
-      let requiredFields = ['title', 'ingredients', 'instructions', 'userId', 'createdAt'];
-      let optionalFields = ['sourceUrl', 'tags'];
+      let requiredFields = ['title', 'ingredients', 'instructions', 'userId', 'createdAt', 'updatedAt'];
+      let optionalFields = ['sourceUrl', 'tags', 'servings'];
       let allFields = requiredFields.concat(optionalFields);
       
       return data.keys().hasAll(requiredFields) &&
@@ -104,15 +104,21 @@ service cloud.firestore {
              data.ingredients is list && data.ingredients.size() < 100 &&
              data.instructions is string && data.instructions.size() < 10000 &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('servings' in data) || (data.servings is string && data.servings.size() < 100));
     }
 
     function isValidRecipeUpdate(data) {
-      return (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
+      let allowedFields = ['title', 'ingredients', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt'];
+      return data.keys().hasOnly(allowedFields) &&
+             (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
              (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() > 0 && data.ingredients.size() < 100)) &&
              (!('instructions' in data) || (data.instructions is string && data.instructions.size() > 0 && data.instructions.size() < 10000)) &&
              (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
-             (!('tags' in data) || (data.tags is list));
+             (!('tags' in data) || (data.tags is list)) &&
+             (!('servings' in data) || (data.servings is string && data.servings.size() < 100)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp));
     }
 
     function isValidUser(data) {

@@ -34,6 +34,15 @@
           "format": "date-time",
           "description": "When the recipe was saved."
         },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the recipe was last updated."
+        },
+        "servings": {
+          "type": "string",
+          "description": "The number of servings or yield of the recipe."
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -42,7 +51,7 @@
           "description": "Optional tags for categorization."
         }
       },
-      "required": ["title", "ingredients", "instructions", "userId", "createdAt"]
+      "required": ["title", "ingredients", "instructions", "userId", "createdAt", "updatedAt"]
     },
     "User": {
       "title": "User",

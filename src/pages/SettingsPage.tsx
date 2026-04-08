@@ -62,7 +62,6 @@ export const SettingsPage = ({
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Settings" 
-        description="Customize your experience and manage account."
         onMenuClick={onMenuClick} 
       />
       <main className="flex-1 overflow-y-auto p-8 sm:p-12 max-w-4xl mx-auto w-full min-h-0">

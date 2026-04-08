@@ -10,7 +10,8 @@ import {
   doc, 
   updateDoc, 
   Timestamp, 
-  orderBy 
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Minimize2 } from 'lucide-react';
@@ -34,6 +35,9 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
   const [newStoreName, setNewStoreName] = useState('');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
+  const syncTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const pendingUpdatesRef = React.useRef<Map<string, ShoppingItem[]>>(new Map());
+  const isSyncingRef = React.useRef(false);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -45,17 +49,17 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
     return () => window.removeEventListener('popstate', handlePopState);
   }, [expandedListId]);
 
-  const handleExpand = (id: string) => {
+  const handleExpand = React.useCallback((id: string) => {
     setExpandedListId(id);
     window.history.pushState({ expanded: id }, '');
-  };
+  }, []);
 
-  const handleCollapse = () => {
+  const handleCollapse = React.useCallback(() => {
     if (expandedListId) {
       setExpandedListId(null);
       window.history.back();
     }
-  };
+  }, [expandedListId]);
 
   useEffect(() => {
     if (!user) return;
@@ -72,10 +76,14 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
     const qItems = query(
       collection(db, 'shoppingItems'),
       where('userId', '==', user.uid),
-      orderBy('order', 'asc')
+      orderBy('order', 'asc'),
+      orderBy('createdAt', 'asc')
     );
     const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
-      setShoppingItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem)));
+      // Only update if we're not in the middle of an optimistic reorder sync
+      if (!isSyncingRef.current && !syncTimeoutRef.current) {
+        setShoppingItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem)));
+      }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 
     return () => {
@@ -114,15 +122,17 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
     }
   };
 
-  const handleAddItem = async (storeListId: string, name: string) => {
+  const handleAddItem = React.useCallback(async (storeListId: string, name: string) => {
     if (!name.trim()) return;
-    const storeItems = shoppingItems.filter(i => i.storeListId === storeListId);
-    const maxOrder = storeItems.length > 0 ? Math.max(...storeItems.map(i => i.order)) : -1;
     
     // Parse the item name to extract units
     const parsed = parseShoppingItem(name.trim());
     
     try {
+      // Get current max order for this store
+      const storeItems = shoppingItems.filter(i => i.storeListId === storeListId);
+      const maxOrder = storeItems.length > 0 ? Math.max(...storeItems.map(i => i.order)) : -1;
+
       const itemData: any = {
         storeListId,
         name: parsed.name,
@@ -132,21 +142,16 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
         createdAt: Timestamp.now()
       };
 
-      // Only include amount and unit if they have values
-      if (parsed.amount) {
-        itemData.amount = parsed.amount;
-      }
-      if (parsed.unit) {
-        itemData.unit = parsed.unit;
-      }
+      if (parsed.amount) itemData.amount = parsed.amount;
+      if (parsed.unit) itemData.unit = parsed.unit;
 
       await addDoc(collection(db, 'shoppingItems'), itemData);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'shoppingItems');
     }
-  };
+  }, [user.uid, shoppingItems]);
 
-  const handleToggleItem = async (item: ShoppingItem) => {
+  const handleToggleItem = React.useCallback(async (item: ShoppingItem) => {
     try {
       await updateDoc(doc(db, 'shoppingItems', item.id), {
         completed: !item.completed
@@ -154,52 +159,79 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'shoppingItems/' + item.id);
     }
-  };
+  }, []);
 
-  const handleDeleteItem = async (id: string) => {
+  const handleDeleteItem = React.useCallback(async (id: string) => {
     try {
       await deleteDoc(doc(db, 'shoppingItems', id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'shoppingItems/' + id);
     }
-  };
+  }, []);
 
-  const handleClearCompleted = async (storeListId: string) => {
+  const handleClearCompleted = React.useCallback(async (storeListId: string) => {
     const completedItems = shoppingItems.filter(item => item.storeListId === storeListId && item.completed);
     for (const item of completedItems) {
       await deleteDoc(doc(db, 'shoppingItems', item.id));
     }
-  };
+  }, [shoppingItems]);
 
-  const handleReorder = async (storeListId: string, newItems: ShoppingItem[]) => {
-    // Update local state immediately for smooth UI
-    const updatedAllItems = shoppingItems.map(item => {
-      const newItem = newItems.find(ni => ni.id === item.id);
-      if (newItem) {
-        return { ...item, order: newItems.indexOf(newItem) };
-      }
-      return item;
+  const handleReorder = React.useCallback((storeListId: string, newItems: ShoppingItem[]) => {
+    // 1. Update local state immediately for buttery smooth UI
+    setShoppingItems(prevItems => {
+      const otherItems = prevItems.filter(item => item.storeListId !== storeListId);
+      const updatedItems = newItems.map((item, index) => ({ ...item, order: index }));
+      return [...otherItems, ...updatedItems].sort((a, b) => a.order - b.order);
     });
-    setShoppingItems(updatedAllItems);
 
-    // Update Firestore
-    try {
-      for (let i = 0; i < newItems.length; i++) {
-        const item = newItems[i];
-        if (item.order !== i) {
-          await updateDoc(doc(db, 'shoppingItems', item.id), { order: i });
-        }
-      }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'shoppingItems/reorder');
+    // 2. Queue the update for Firestore with debouncing
+    pendingUpdatesRef.current.set(storeListId, newItems);
+
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
     }
-  };
+
+    syncTimeoutRef.current = setTimeout(async () => {
+      const updatesToSync = new Map(pendingUpdatesRef.current);
+      pendingUpdatesRef.current.clear();
+
+      if (updatesToSync.size === 0) {
+        syncTimeoutRef.current = null;
+        return;
+      }
+
+      isSyncingRef.current = true;
+      try {
+        const batch = writeBatch(db);
+        let hasChanges = false;
+
+        updatesToSync.forEach((items) => {
+          items.forEach((item, index) => {
+            if (item.order !== index) {
+              const itemRef = doc(db, 'shoppingItems', item.id);
+              batch.update(itemRef, { order: index });
+              hasChanges = true;
+            }
+          });
+        });
+
+        if (hasChanges) {
+          await batch.commit();
+        }
+      } catch (error) {
+        console.error('Failed to sync reorder to Firestore:', error);
+        handleFirestoreError(error, OperationType.UPDATE, 'shoppingItems/reorder');
+      } finally {
+        isSyncingRef.current = false;
+        syncTimeoutRef.current = null;
+      }
+    }, 1000);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Shopping List" 
-        description="Organize your groceries by store."
         onMenuClick={onMenuClick} 
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
@@ -287,7 +319,7 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
       </main>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-50 pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)]">
         <motion.button 
           onClick={() => setIsAddingStore(!isAddingStore)}
           animate={{ 
@@ -320,7 +352,7 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 bg-m3-surface z-[100] flex flex-col overflow-hidden"
+            className="fixed inset-0 bg-m3-surface z-[100] flex flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
           >
             <div className="p-4 lg:p-6 border-b border-m3-outline/10 flex items-center justify-between bg-m3-surface">
               <div className="flex items-center gap-4">

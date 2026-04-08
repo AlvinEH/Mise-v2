@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, UtensilsCrossed, Calendar as CalendarIcon, Trash2, X } from 'lucide-react';
-import { format, addDays, subDays, isSameDay, startOfDay, isBefore, getDay } from 'date-fns';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { Plus, UtensilsCrossed, Calendar as CalendarIcon, Trash2, X, Search, Filter } from 'lucide-react';
+import { format, addDays, subDays, isSameDay, startOfDay, isBefore, getDay, parseISO } from 'date-fns';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs, limit } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -18,7 +18,7 @@ interface DayMeals {
   dinner?: MealEntry;
 }
 
-export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
+export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
   const [user] = useAuthState(auth);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [editingDay, setEditingDay] = useState<{ date: string; lunch?: MealEntry; dinner?: MealEntry } | null>(null);
@@ -26,77 +26,25 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
   const [dinnerMealName, setDinnerMealName] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
-  // Calculate next Friday
-  const getNextFriday = () => {
-    const today = new Date();
-    const dayOfWeek = getDay(today); // 0=Sunday, 1=Monday, ..., 5=Friday, 6=Saturday
-    const daysUntilFriday = dayOfWeek <= 5 ? 5 - dayOfWeek : 7 - dayOfWeek + 5;
-    return addDays(startOfDay(today), daysUntilFriday);
+  
+  // Search state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchResults, setSearchResults] = useState<{ date: string; meals: DayMeals }[]>([]);
+
+  // Calculate date range: 7 days before and 7 days after the selected date
+  const getRangeForDate = (date: Date) => {
+    return {
+      start: subDays(startOfDay(date), 7),
+      end: addDays(startOfDay(date), 7)
+    };
   };
 
-  const [dateRange, setDateRange] = useState(() => {
-    const today = startOfDay(new Date());
-    const nextFriday = getNextFriday();
-    
-    // Show reduced range initially: 1 week before + current week + next week
-    // This avoids long scrolling animations on initial load
-    return {
-      start: subDays(today, 7),
-      end: addDays(nextFriday, 7)
-    };
-  });
+  const [dateRange, setDateRange] = useState(() => getRangeForDate(new Date()));
   const todayRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isLoadingRef = useRef(false);
-
-  // Infinite scroll for seamless content loading
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      if (isLoadingRef.current) return;
-
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      
-      // Increase threshold to preload much earlier (e.g., 1000px or ~2 screens)
-      const threshold = 1000;
-      
-      // Load more past dates when scrolling near top
-      if (scrollTop < threshold) {
-        isLoadingRef.current = true;
-        
-        // Capture current scroll height to adjust after update
-        const previousScrollHeight = scrollHeight;
-        
-        setDateRange(prev => ({
-          ...prev,
-          start: subDays(prev.start, 7)
-        }));
-
-        // Adjust scroll position after prepending to prevent jumping
-        // We use a small timeout to wait for React to render the new days
-        setTimeout(() => {
-          const newScrollHeight = container.scrollHeight;
-          container.scrollTop = scrollTop + (newScrollHeight - previousScrollHeight);
-          isLoadingRef.current = false;
-        }, 0);
-      }
-      
-      // Load more future dates when scrolling near bottom
-      if (scrollTop + clientHeight > scrollHeight - threshold) {
-        isLoadingRef.current = true;
-        setDateRange(prev => ({
-          ...prev,
-          end: addDays(prev.end, 7)
-        }));
-        setTimeout(() => { isLoadingRef.current = false; }, 500);
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Generate days from current range
   const days = [];
@@ -151,12 +99,13 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
   };
 
   // Initial scroll to today on mount
+  // We use 'auto' (instant) for the very first scroll to ensure it lands correctly
   useEffect(() => {
     const timer = setTimeout(() => {
       if (todayRef.current) {
         todayRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
       }
-    }, 150);
+    }, 100);
     return () => clearTimeout(timer);
   }, []);
 
@@ -169,10 +118,101 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
           todayRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
           hasInitialMealScroll.current = true;
         }
-      }, 100);
+      }, 50);
       return () => clearTimeout(timer);
     }
   }, [meals.length]);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim() || !user) return;
+
+    setIsSearching(true);
+    setHasSearched(true);
+    setSearchResults([]);
+
+    try {
+      // Fetch all user meal entries ordered by date desc
+      // We'll filter them client-side for "contains" search
+      const q = query(
+        collection(db, 'mealEntries'),
+        where('userId', '==', user.uid),
+        orderBy('date', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const allMeals = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as MealEntry));
+
+      // Group by date and filter by search query
+      const groupedByDate: Record<string, DayMeals> = {};
+      const matchingDates: string[] = [];
+
+      for (const meal of allMeals) {
+        const matches = meal.recipeName?.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        if (matches) {
+          if (!matchingDates.includes(meal.date)) {
+            matchingDates.push(meal.date);
+          }
+        }
+        
+        // Always populate grouped data for the matching dates
+        if (!groupedByDate[meal.date]) {
+          groupedByDate[meal.date] = {};
+        }
+        groupedByDate[meal.date][meal.type] = meal;
+      }
+
+      // Take the 5 most recent matching dates
+      const top5Dates = matchingDates.slice(0, 5);
+      const results = top5Dates.map(date => ({
+        date,
+        meals: groupedByDate[date]
+      }));
+
+      setSearchResults(results);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'mealEntries');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const closeSearch = () => {
+    setShowSearchModal(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
+  const goToResultDate = (dateString: string, dayMeals: DayMeals) => {
+    closeSearch();
+    const targetDate = parseISO(dateString);
+    
+    // Check if the date is within the current range
+    const isWithinRange = targetDate >= dateRange.start && targetDate <= dateRange.end;
+
+    if (!isWithinRange) {
+      // Shift the range to be around the target date
+      setDateRange(getRangeForDate(targetDate));
+    }
+
+    // Scroll to the date after a short delay to allow for range update/render
+    setTimeout(() => {
+      const dateElement = document.querySelector(`[data-date="${dateString}"]`);
+      if (dateElement) {
+        dateElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Also highlight it briefly
+        dateElement.classList.add('ring-2', 'ring-m3-primary');
+        setTimeout(() => {
+          dateElement.classList.remove('ring-2', 'ring-m3-primary');
+        }, 2000);
+      }
+    }, 500); // Slightly longer delay to ensure DOM is ready if range changed
+  };
 
   const handleEditDay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,10 +276,6 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
     }
   };
 
-
-
-
-
   const startEditingDay = (date: string, dayMeals: { lunch?: MealEntry; dinner?: MealEntry }) => {
     setEditingDay({ date, lunch: dayMeals.lunch, dinner: dayMeals.dinner });
     setLunchMealName(dayMeals.lunch?.recipeName || '');
@@ -277,10 +313,17 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
   };
 
   const goToToday = () => {
-    scrollToToday('smooth');
+    const today = startOfDay(new Date());
+    const isWithinRange = today >= dateRange.start && today <= dateRange.end;
+
+    if (!isWithinRange) {
+      setDateRange(getRangeForDate(today));
+      // Scroll after range update
+      setTimeout(() => scrollToToday('smooth'), 500);
+    } else {
+      scrollToToday('smooth');
+    }
   };
-
-
 
   const handleDatePicker = () => {
     setShowDatePicker(true);
@@ -289,23 +332,26 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
 
   const goToSelectedDate = () => {
     if (!selectedDate) return;
-    const targetDate = new Date(selectedDate);
-    
-    // Extend date range if needed to include the selected date
-    setDateRange(prev => ({
-      start: targetDate < prev.start ? subDays(targetDate, 7) : prev.start,
-      end: targetDate > prev.end ? addDays(targetDate, 7) : prev.end
-    }));
+    const targetDate = parseISO(selectedDate);
+    const dateString = format(targetDate, 'yyyy-MM-dd');
     
     setShowDatePicker(false);
     
+    // Check if the date is within the current range
+    const isWithinRange = targetDate >= dateRange.start && targetDate <= dateRange.end;
+
+    if (!isWithinRange) {
+      // Shift the range to be around the target date
+      setDateRange(getRangeForDate(targetDate));
+    }
+
     // Scroll to the date after a short delay to ensure it's rendered
     setTimeout(() => {
-      const dateElement = document.querySelector(`[data-date="${format(targetDate, 'yyyy-MM-dd')}"]`);
+      const dateElement = document.querySelector(`[data-date="${dateString}"]`);
       if (dateElement) {
         dateElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }, 100);
+    }, 500);
   };
 
   if (!user) {
@@ -326,7 +372,6 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
     <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface">
       <PageHeader 
         title="Meal Planner" 
-        description="Plan your meals for the week."
         onMenuClick={onMenuClick} 
       />
       
@@ -339,7 +384,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
               className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-medium text-sm hover:shadow-md transition-all active:scale-95"
             >
               <CalendarIcon size={18} className="text-m3-primary" />
-              Pick Date
+              Date
             </button>
             <button 
               onClick={goToToday}
@@ -348,6 +393,13 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
               <CalendarIcon size={18} className="text-m3-on-primary" />
               Today
             </button>
+            <button 
+              onClick={() => setShowSearchModal(true)}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-m3-surface-container text-m3-on-surface hover:shadow-md transition-all active:scale-95"
+              title="Filter"
+            >
+              <Filter size={18} className="text-m3-primary" />
+            </button>
           </div>
         </div>
 
@@ -355,7 +407,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
         <div 
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto scrollbar-none"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overflowAnchor: 'none' }}
         >
           <div className="max-w-4xl mx-auto py-6 md:py-12 px-4 md:px-6">
             <div className="space-y-3 md:space-y-4">
@@ -365,7 +417,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                 const isToday = isSameDay(date, new Date());
                 const isPast = isBefore(date, startOfDay(new Date()));
                 const hasNoMeals = !dayMeals.lunch && !dayMeals.dinner;
-                const shouldCompact = isPast && hasNoMeals;
+                const shouldCompact = hasNoMeals;
                 
                 return (
                   <motion.div
@@ -373,9 +425,12 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                     ref={isToday ? todayRef : null}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.05 }}
-                    whileHover={{ y: -2, scale: 1.01 }}
-                    whileTap={{ y: -4, scale: 0.99 }}
+                    transition={{ 
+                      opacity: { duration: 0.4, delay: index * 0.05 },
+                      y: { duration: 0.4, delay: index * 0.05 }
+                    }}
+                    whileHover={{ y: -4 }}
+                    whileTap={{ y: -2, scale: 0.98 }}
                     className="scroll-mt-6 md:scroll-mt-10"
                   >
                     <div 
@@ -410,12 +465,12 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-3 md:p-6">
                       {/* Lunch Slot */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-semibold tracking-wide text-m3-on-primary-container/60`}>LUNCH</span>
-                        </div>
-                        
-                        {dayMeals.lunch ? (
+                      {dayMeals.lunch && (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[10px] font-semibold tracking-wide text-m3-on-primary-container/60`}>LUNCH</span>
+                          </div>
+                          
                           <div className={`relative p-1 rounded-xl text-m3-on-primary-container`}>
                             <div className="min-w-0">
                               <h4 className="font-semibold text-sm leading-tight mb-0.5 truncate">
@@ -423,20 +478,16 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                               </h4>
                             </div>
                           </div>
-                        ) : (
-                          <div className={`w-full py-2 text-[10px] font-medium italic transition-all text-m3-on-primary-container/40 ${isPast ? 'opacity-50' : ''}`}>
-                            No lunch planned
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Dinner Slot */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-[10px] font-semibold tracking-wide text-m3-on-primary-container/60`}>DINNER</span>
-                        </div>
-                        
-                        {dayMeals.dinner ? (
+                      {dayMeals.dinner && (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[10px] font-semibold tracking-wide text-m3-on-primary-container/60`}>DINNER</span>
+                          </div>
+                          
                           <div className={`relative p-1 rounded-xl text-m3-on-primary-container`}>
                             <div className="min-w-0">
                               <h4 className="font-semibold text-sm leading-tight mb-0.5 truncate">
@@ -444,12 +495,8 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                               </h4>
                             </div>
                           </div>
-                        ) : (
-                          <div className={`w-full py-2 text-[10px] font-medium italic transition-all text-m3-on-primary-container/40 ${isPast ? 'opacity-50' : ''}`}>
-                            No dinner planned
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                     )}
                   </div>
@@ -463,6 +510,99 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
 
       {/* Add/Edit Meal Modal */}
       <AnimatePresence>
+        {showSearchModal && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={closeSearch}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-m3-surface-container-high rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-m3-outline-variant/20 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-m3-on-surface">Search Meals</h2>
+                <button 
+                  onClick={closeSearch}
+                  className="p-2 rounded-full hover:bg-m3-surface-container-highest transition-colors"
+                >
+                  <X size={20} className="text-m3-on-surface-variant" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto">
+                <form onSubmit={handleSearch} className="mb-6">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search for a meal..."
+                      autoCapitalize="words"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-m3-surface-container-highest border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all"
+                    />
+                    <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant" />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSearching || !searchQuery.trim()}
+                    className="w-full mt-4 py-3 rounded-2xl bg-m3-primary text-m3-on-primary font-semibold hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
+                  >
+                    {isSearching ? 'Searching...' : 'Search'}
+                  </button>
+                </form>
+
+                <div className="space-y-4">
+                  {searchResults.length > 0 ? (
+                    <>
+                      <p className="text-sm font-medium text-m3-on-surface-variant px-1">Recent Results</p>
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.date}
+                          onClick={() => goToResultDate(result.date, result.meals)}
+                          className="w-full p-4 rounded-2xl bg-m3-surface-container-highest hover:bg-m3-surface-container-highest/80 transition-all text-left group"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-bold text-m3-primary">
+                              {format(parseISO(result.date), 'EEEE, MMM d')}
+                            </span>
+                            <Search size={14} className="text-m3-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <div className="space-y-1">
+                            {result.meals.lunch && (
+                              <p className="text-sm text-m3-on-surface flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Lunch</span>
+                                {result.meals.lunch.recipeName}
+                              </p>
+                            )}
+                            {result.meals.dinner && (
+                              <p className="text-sm text-m3-on-surface flex items-center gap-2">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Dinner</span>
+                                {result.meals.dinner.recipeName}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  ) : hasSearched && !isSearching ? (
+                    <div className="text-center py-8">
+                      <Search size={48} className="mx-auto mb-4 text-m3-on-surface-variant/20" />
+                      <p className="text-m3-on-surface-variant">No meals found matching "{searchQuery}"</p>
+                    </div>
+                  ) : !isSearching && (
+                    <div className="text-center py-8">
+                      <p className="text-m3-on-surface-variant text-sm italic opacity-60">Find past or future meals by name</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showDatePicker && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -569,6 +709,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                       type="text"
                       value={lunchMealName}
                       onChange={e => setLunchMealName(e.target.value)}
+                      autoCapitalize="words"
                       className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case"
                     />
                     {lunchMealName && (
@@ -592,6 +733,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                       type="text"
                       value={dinnerMealName}
                       onChange={e => setDinnerMealName(e.target.value)}
+                      autoCapitalize="words"
                       className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case"
                     />
                     {dinnerMealName && (
@@ -629,7 +771,7 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
                     type="submit"
                     className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
                   >
-                    Save Day
+                    Save
                   </button>
                 </div>
               </form>
@@ -641,4 +783,4 @@ export const MealPlannerPage = ({ onMenuClick }: MealPlannerPageProps) => {
       </AnimatePresence>
     </div>
   );
-};
+});

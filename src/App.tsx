@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn } from 'lucide-react';
@@ -10,6 +10,9 @@ import { AppRoutes } from './components/routing/AppRoutes';
 
 // Hooks
 import { useAuth, useTheme, useRecipes } from './hooks';
+
+// Types
+import { Recipe } from './types';
 
 // Services
 import { signIn, logOut } from './firebase';
@@ -76,8 +79,13 @@ function App() {
     setRecipeToDelete,
     sortBy,
     setSortBy,
-    handleDelete
+    handleDelete: baseHandleDelete
   } = useRecipes(user);
+
+  const handleDelete = useCallback(async (id: string) => {
+    await baseHandleDelete(id);
+    navigate('/recipes');
+  }, [baseHandleDelete, navigate]);
 
   // Close dropdowns and modals when clicking outside
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -94,10 +102,19 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
+  const handleSidebarClose = useCallback(() => setIsSidebarOpen(false), []);
+  const handleSidebarOpen = useCallback(() => setIsSidebarOpen(true), []);
+
   // Determine if we should hide the sidebar based on current route
-  const isRecipeDetailPage = location.pathname.startsWith('/recipe/') || 
-                            location.pathname === '/add-recipe' || 
-                            location.pathname.startsWith('/edit-recipe/');
+  const isRecipeDetailPage = useMemo(() => 
+    location.pathname.startsWith('/recipe/') || 
+    location.pathname === '/add-recipe' || 
+    location.pathname.startsWith('/edit-recipe/'),
+  [location.pathname]);
+
+  const handleEdit = useCallback((recipe: Recipe) => {
+    navigate(`/edit-recipe/${recipe.id}`);
+  }, [navigate]);
 
   if (!isAuthReady) {
     return (
@@ -135,16 +152,16 @@ function App() {
       {!isRecipeDetailPage && (
         <Sidebar 
           isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
+          onClose={handleSidebarClose}
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <AppRoutes
           user={user}
           recipes={recipes}
-          onEdit={(recipe) => navigate(`/edit-recipe/${recipe.id}`)}
+          onEdit={handleEdit}
           onDelete={setRecipeToDelete}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -154,7 +171,7 @@ function App() {
           setIsSortDropdownOpen={setIsSortDropdownOpen}
           showFilterModal={showFilterModal}
           setShowFilterModal={setShowFilterModal}
-          setIsSidebarOpen={setIsSidebarOpen}
+          setIsSidebarOpen={handleSidebarOpen}
           theme={theme}
           setTheme={setTheme}
           mode={mode}

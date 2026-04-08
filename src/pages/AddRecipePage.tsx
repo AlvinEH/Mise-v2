@@ -10,11 +10,14 @@ import {
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from '../firebase';
-import { extractRecipeFromUrl, Ingredient } from '../services/geminiService';
+import { extractRecipeFromUrl, extractRecipeFromImage, Ingredient } from '../services/geminiService';
 import { 
   Plus, 
   Check,
-  Loader2
+  Loader2,
+  Image as ImageIcon,
+  Upload,
+  X
 } from 'lucide-react';
 import { motion, Reorder } from 'motion/react';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -39,19 +42,22 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
   const { id } = useParams();
   const isEditing = !!id;
   const [searchParams] = useSearchParams();
-  const initialMode = (searchParams.get('mode') as 'manual' | 'url') || 'manual';
-  const [mode, setMode] = useState<'manual' | 'url'>(initialMode);
+  const initialMode = (searchParams.get('mode') as 'manual' | 'url' | 'image') || 'manual';
+  const [mode, setMode] = useState<'manual' | 'url' | 'image'>(initialMode);
   const [urlInput, setUrlInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState<{ file: File; preview: string } | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditing);
   const [form, setForm] = useState<{
     title: string;
     instructions: string;
     sourceUrl: string;
+    servings: string;
   }>({
     title: '',
     instructions: '',
-    sourceUrl: ''
+    sourceUrl: '',
+    servings: ''
   });
   
   const [ingredients, setIngredients] = useState<{ id: string; amount: string; unit: string; name: string }[]>([
@@ -77,7 +83,8 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
             setForm({
               title: data.title,
               instructions: data.instructions || '',
-              sourceUrl: data.sourceUrl || ''
+              sourceUrl: data.sourceUrl || '',
+              servings: data.servings || ''
             });
             
             if (data.ingredients && data.ingredients.length > 0) {
@@ -122,37 +129,86 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     setIsExtracting(true);
     try {
       const extracted = await extractRecipeFromUrl(urlInput);
-      
-      // Pre-populate the form with extracted data
-      setForm({
-        title: extracted.title,
-        instructions: extracted.instructions,
-        sourceUrl: urlInput
-      });
-      
-      setIngredients(extracted.ingredients.map(ing => {
-        const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
-        const parsed = parseShoppingItem(ingredientString);
-        return { 
-          id: Math.random().toString(36).substr(2, 9), 
-          amount: parsed.amount, 
-          unit: parsed.unit, 
-          name: parsed.name 
-        };
-      }));
-      
-      // Switch to manual mode to allow editing
+      populateForm(extracted);
+      setForm(prev => ({ ...prev, sourceUrl: urlInput }));
       setMode('manual');
       setUrlInput('');
     } catch (error) {
-      if (error instanceof Error && error.message.includes('API key')) {
-        alert(`${error.message}\n\nYou can get a free API key from Google AI Studio and add it in Settings.`);
-      } else {
-        console.error("Extraction error:", error);
-        alert("Failed to extract recipe. Please check the URL and try again. If the issue persists, verify your API key in Settings.");
-      }
+      handleExtractionError(error);
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setSelectedImage({ file, preview });
+  };
+
+  const handleImageUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedImage || !user) return;
+
+    setIsExtracting(true);
+    try {
+      // Convert image to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(selectedImage.file);
+      
+      const base64Data = await base64Promise;
+      const extracted = await extractRecipeFromImage(base64Data, selectedImage.file.type);
+      
+      populateForm(extracted);
+      setMode('manual');
+      setSelectedImage(null);
+    } catch (error) {
+      handleExtractionError(error);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const populateForm = (extracted: any) => {
+    setForm({
+      title: extracted.title,
+      instructions: extracted.instructions,
+      sourceUrl: '',
+      servings: extracted.servings || ''
+    });
+    
+    setIngredients(extracted.ingredients.map((ing: any) => {
+      const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+      const parsed = parseShoppingItem(ingredientString);
+      return { 
+        id: Math.random().toString(36).substr(2, 9), 
+        amount: parsed.amount, 
+        unit: parsed.unit, 
+        name: parsed.name 
+      };
+    }));
+  };
+
+  const handleExtractionError = (error: any) => {
+    if (error instanceof Error && error.message.includes('API key')) {
+      alert(`${error.message}\n\nYou can get a free API key from Google AI Studio and add it in Settings.`);
+    } else {
+      console.error("Extraction error:", error);
+      alert("Failed to extract recipe. Please try again. If the issue persists, verify your API key in Settings.");
     }
   };
 
@@ -170,6 +226,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
         title: form.title,
         ingredients: finalIngredients,
         instructions: form.instructions || '',
+        servings: form.servings || '',
         userId: user.uid,
         updatedAt: Timestamp.now()
       };
@@ -228,9 +285,9 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface"
     >
       <PageHeader 
-        title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : 'Add New Recipe'} 
-        description={isEditing ? "Update your recipe details." : "Create a new recipe manually or from a URL."}
+        title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : mode === 'image' ? 'Add from Image' : 'Add New Recipe'} 
         showBack 
+        onBack={() => navigate('/recipes')}
       />
 
       {/* Main Content */}
@@ -275,6 +332,66 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 </p>
               </div>
             </div>
+          ) : mode === 'image' ? (
+            /* Image Extraction Mode */
+            <div className="space-y-8">
+              <form onSubmit={handleImageUpload} className="space-y-6 max-w-2xl mx-auto">
+                <div className="space-y-4">
+                  <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Recipe Image</label>
+                  
+                  {!selectedImage ? (
+                    <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-m3-outline/20 rounded-[32px] bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 transition-all cursor-pointer group">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <div className="p-4 bg-m3-primary/10 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                          <Upload className="text-m3-primary" size={32} />
+                        </div>
+                        <p className="mb-2 text-lg font-bold text-m3-on-surface">Click to upload or drag and drop</p>
+                        <p className="text-sm text-m3-on-surface-variant/60">PNG, JPG or WEBP (MAX. 5MB)</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                      />
+                    </label>
+                  ) : (
+                    <div className="relative rounded-[32px] overflow-hidden border border-m3-outline/20 shadow-lg group">
+                      <img 
+                        src={selectedImage.preview} 
+                        alt="Selected recipe" 
+                        className="w-full h-auto max-h-[400px] object-contain bg-black/5"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setSelectedImage(null)}
+                        className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-all"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={isExtracting || !selectedImage}
+                  className="w-full py-5 bg-m3-primary text-m3-on-primary rounded-[24px] font-black hover:bg-m3-primary/90 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3 text-xl"
+                >
+                  {isExtracting && <Loader2 className="animate-spin" size={24} />}
+                  {isExtracting ? 'Extracting Recipe...' : 'Extract Recipe'}
+                </button>
+              </form>
+
+              <div className="space-y-3 text-center max-w-2xl mx-auto">
+                <p className="text-sm text-m3-on-surface-variant/60">
+                  Upload a photo of a cookbook page, a handwritten recipe, or a screenshot.
+                </p>
+                <p className="text-xs text-m3-on-surface-variant/50">
+                  Requires a free Gemini API key. Add yours in Settings → API Configuration.
+                </p>
+              </div>
+            </div>
           ) : (
             /* Manual Entry Mode */
             <form onSubmit={handleSave} className="space-y-10">
@@ -287,6 +404,17 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-xl font-bold text-m3-on-surface transition-all"
                 minRows={1}
                 placeholder="Enter recipe title..."
+              />
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Servings</label>
+              <input 
+                type="text"
+                value={form.servings}
+                onChange={e => setForm({...form, servings: e.target.value})}
+                className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none text-m3-on-surface transition-all font-medium"
+                placeholder="e.g., 4, Serves 6, 12 cookies"
               />
             </div>
 

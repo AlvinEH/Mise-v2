@@ -64,15 +64,16 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
       value={ing}
       dragListener={false}
       dragControls={dragControls}
-      className="flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl"
+      className="relative flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl group"
     >
+      {/* Drag Handle */}
       <div 
-        className="cursor-grab active:cursor-grabbing p-2 text-m3-on-surface-variant/40 hover:text-m3-on-surface-variant transition-colors touch-none"
+        className="cursor-grab active:cursor-grabbing touch-none flex items-center justify-center text-m3-on-surface-variant/20 group-hover:text-m3-on-surface-variant/60 transition-colors"
         onPointerDown={(e) => dragControls.start(e)}
       >
         <GripVertical size={20} />
       </div>
-      
+
       <div className="flex-1 flex flex-col gap-3">
         {useSmartInput ? (
           <div className="space-y-3">
@@ -151,7 +152,7 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
         )}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 relative z-20">
         <button 
           type="button"
           onClick={() => {

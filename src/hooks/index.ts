@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
 import { Theme, Mode } from '../types';
@@ -16,7 +16,7 @@ export const useAuth = () => {
     return unsubscribe;
   }, []);
 
-  return { user, isAuthReady };
+  return useMemo(() => ({ user, isAuthReady }), [user, isAuthReady]);
 };
 
 export const useTheme = () => {
@@ -40,7 +40,7 @@ export const useTheme = () => {
     localStorage.setItem('Mise-mode', mode);
   }, [theme, mode]);
 
-  return { theme, setTheme, mode, setMode };
+  return useMemo(() => ({ theme, setTheme, mode, setMode }), [theme, mode]);
 };
 
 // Re-export useRecipes for convenience

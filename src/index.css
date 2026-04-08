@@ -240,5 +240,40 @@
   .writing-mode-vertical-rl {
     writing-mode: vertical-rl;
   }
+
+  .prose-m3 {
+    --tw-prose-body: var(--m3-on-surface) !important;
+    --tw-prose-headings: var(--m3-on-surface) !important;
+    --tw-prose-lead: var(--m3-on-surface-variant) !important;
+    --tw-prose-links: var(--m3-primary) !important;
+    --tw-prose-bold: var(--m3-on-surface) !important;
+    --tw-prose-counters: var(--m3-on-surface-variant) !important;
+    --tw-prose-bullets: var(--m3-on-surface-variant) !important;
+    --tw-prose-hr: var(--m3-outline) !important;
+    --tw-prose-quotes: var(--m3-on-surface) !important;
+    --tw-prose-quote-borders: var(--m3-primary) !important;
+    --tw-prose-captions: var(--m3-on-surface-variant) !important;
+    --tw-prose-code: var(--m3-on-surface) !important;
+    --tw-prose-pre-code: var(--m3-on-surface) !important;
+    --tw-prose-pre-bg: var(--m3-surface-container) !important;
+    --tw-prose-th-borders: var(--m3-outline) !important;
+    --tw-prose-td-borders: var(--m3-outline) !important;
+    
+    color: var(--m3-on-surface) !important;
+  }
+  
+  /* Ensure all markdown elements inherit the theme-specific text color */
+  .prose-m3 * {
+    color: inherit !important;
+  }
+  
+  /* Reset specific elements that should have their own colors */
+  .prose-m3 a {
+    color: var(--m3-primary) !important;
+  }
+  
+  .prose-m3 blockquote {
+    border-left-color: var(--m3-primary) !important;
+  }
 }
 

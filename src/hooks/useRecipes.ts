@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from '../firebase';
@@ -34,12 +34,12 @@ export const useRecipes = (user: User | null) => {
     }
   }, []);
 
-  return {
+  return useMemo(() => ({
     recipes,
     recipeToDelete,
     setRecipeToDelete,
     sortBy,
     setSortBy,
     handleDelete
-  };
+  }), [recipes, recipeToDelete, sortBy, handleDelete]);
 };

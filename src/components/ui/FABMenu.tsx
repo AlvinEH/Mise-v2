@@ -1,6 +1,6 @@
 import React, { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Edit2, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, ExternalLink, Image } from 'lucide-react';
 
 interface FABMenuProps {
   onNavigate: (path: string) => void;
@@ -45,6 +45,30 @@ export const FABMenu: React.FC<FABMenuProps> = memo(({ onNavigate }) => {
                 }
               }}
             >
+              {/* Image Add Button */}
+              <motion.div 
+                className="flex items-center gap-3 will-change-transform"
+                variants={{
+                  hidden: { opacity: 0, y: 8, scale: 0.95 },
+                  visible: { opacity: 1, y: 0, scale: 1 }
+                }}
+                transition={{ type: "spring", stiffness: 600, damping: 40 }}
+              >
+                <span className="bg-m3-surface-container-high text-m3-on-surface px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm border border-m3-outline/5">
+                  From Image
+                </span>
+                <button
+                  onClick={() => {
+                    setIsExpanded(false);
+                    onNavigate('/add-recipe?mode=image');
+                  }}
+                  className="w-12 h-12 bg-m3-secondary-container text-m3-on-secondary-container rounded-[12px] shadow-sm flex items-center justify-center transition-transform active:scale-95"
+                  title="From Image"
+                >
+                  <Image size={20} strokeWidth={2} />
+                </button>
+              </motion.div>
+
               {/* URL Add Button */}
               <motion.div 
                 className="flex items-center gap-3 will-change-transform"

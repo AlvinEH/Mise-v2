@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Calendar, ShoppingCart, Package, BookOpen } from 'lucide-react';
@@ -8,7 +8,7 @@ interface HomePageProps {
   onMenuClick: () => void;
 }
 
-export const HomePage = ({ onMenuClick }: HomePageProps) => {
+export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
   const pages = [
     {
       icon: Calendar,
@@ -44,7 +44,6 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-m3-surface">
       <PageHeader 
         title="Welcome to Mise" 
-        description="Your personal kitchen companion."
         onMenuClick={onMenuClick} 
       />
       
@@ -82,4 +81,4 @@ export const HomePage = ({ onMenuClick }: HomePageProps) => {
       </main>
     </div>
   );
-};
+});
