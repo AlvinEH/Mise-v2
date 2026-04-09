@@ -695,7 +695,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
             >
               <div className="mb-6">
                 <h3 className="text-2xl font-semibold text-m3-on-surface tracking-tight">
-                  {format(new Date(editingDay.date), 'EEEE, MMM d')}
+                  {format(parseISO(editingDay.date), 'EEEE, MMM d')}
                 </h3>
               </div>
               
