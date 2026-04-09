@@ -285,20 +285,48 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
 
   const handleConvert = (index: number, targetUnit: string) => {
     const ing = ingredients[index];
-    if (!ing.unit || !targetUnit || !UNIT_CONVERSIONS[ing.unit]?.[targetUnit]) return;
+    if (!ing.unit || !targetUnit) return;
 
-    // Handle fractions or decimals
+    // Strip "can" or "bottle" for conversion lookup
+    const baseSourceUnit = ing.unit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
+    const baseTargetUnit = targetUnit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
+
+    if (!UNIT_CONVERSIONS[baseSourceUnit]?.[baseTargetUnit]) return;
+
+    // Handle fractions, decimals, and mixed numbers
     let numericAmount = 0;
-    if (ing.amount.includes('/')) {
-      const [num, den] = ing.amount.split('/').map(Number);
-      numericAmount = num / den;
+    const amountStr = ing.amount.trim();
+    
+    if (amountStr.includes(' ')) {
+      // Mixed number like "1 1/2"
+      const parts = amountStr.split(/\s+/);
+      let total = 0;
+      for (const part of parts) {
+        if (part.includes('/')) {
+          const [num, den] = part.split('/').map(Number);
+          if (!isNaN(num) && !isNaN(den) && den !== 0) {
+            total += num / den;
+          }
+        } else {
+          const val = parseFloat(part);
+          if (!isNaN(val)) total += val;
+        }
+      }
+      numericAmount = total;
+    } else if (amountStr.includes('/')) {
+      // Simple fraction like "1/2"
+      const [num, den] = amountStr.split('/').map(Number);
+      if (!isNaN(num) && !isNaN(den) && den !== 0) {
+        numericAmount = num / den;
+      }
     } else {
-      numericAmount = parseFloat(ing.amount);
+      // Decimal or whole number
+      numericAmount = parseFloat(amountStr);
     }
 
-    if (isNaN(numericAmount)) return;
+    if (isNaN(numericAmount) || numericAmount === 0) return;
 
-    const convertedAmount = numericAmount * UNIT_CONVERSIONS[ing.unit][targetUnit];
+    const convertedAmount = numericAmount * UNIT_CONVERSIONS[baseSourceUnit][baseTargetUnit];
     const roundedAmount = Math.round(convertedAmount * 100) / 100;
 
     const newIngs = [...ingredients];

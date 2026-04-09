@@ -93,16 +93,40 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
             </div>
             
             {(ing.amount || ing.unit || ing.name) && (
-              <div className="flex flex-wrap gap-1 text-[10px] text-m3-on-surface-variant">
-                <span className="bg-m3-primary-container/30 px-2 py-1 rounded-full">
-                  Amt: {ing.amount || 'empty'}
-                </span>
-                <span className="bg-m3-secondary-container/30 px-2 py-1 rounded-full">
-                  Unit: {ing.unit || 'empty'}
-                </span>
-                <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full max-w-[120px] truncate">
-                  Name: {ing.name || 'empty'}
-                </span>
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-1 text-[10px] text-m3-on-surface-variant">
+                  <span className="bg-m3-primary-container/30 px-2 py-1 rounded-full">
+                    Amt: {ing.amount || 'empty'}
+                  </span>
+                  <span className="bg-m3-secondary-container/30 px-2 py-1 rounded-full">
+                    Unit: {ing.unit || 'empty'}
+                  </span>
+                  <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full max-w-[120px] truncate">
+                    Name: {ing.name || 'empty'}
+                  </span>
+                </div>
+
+                {ing.unit && ing.amount && (() => {
+                  const baseUnit = ing.unit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
+                  const conversions = UNIT_CONVERSIONS[baseUnit];
+                  if (!conversions) return null;
+
+                  return (
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-m3-on-surface-variant/40">Convert:</span>
+                      {Object.keys(conversions).map(targetUnit => (
+                        <button
+                          key={targetUnit}
+                          type="button"
+                          onClick={() => onConvert(index, targetUnit)}
+                          className="text-[10px] bg-m3-primary/10 text-m3-primary px-2 py-0.5 rounded-full hover:bg-m3-primary/20 transition-all active:scale-95 font-medium"
+                        >
+                          to {targetUnit}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

@@ -35,6 +35,7 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
   const [newStoreName, setNewStoreName] = useState('');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [editItemName, setEditItemName] = useState('');
   const syncTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -337,6 +338,8 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
                   onClearCompleted={() => handleClearCompleted(list.id)}
                   onReorder={(newItems) => handleReorder(list.id, newItems)}
                   onExpand={() => handleExpand(list.id)}
+                  isCollapsed={expandedCardId !== list.id}
+                  onToggleCollapse={() => setExpandedCardId(expandedCardId === list.id ? null : list.id)}
                 />
                 </motion.div>
               ))}

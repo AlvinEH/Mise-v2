@@ -15,6 +15,8 @@ interface StoreCardProps {
   onClearCompleted: () => void;
   onReorder: (newItems: ShoppingItem[]) => void;
   onExpand: () => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 export const StoreCard: React.FC<StoreCardProps> = memo(({ 
@@ -27,9 +29,10 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   onDeleteStore,
   onClearCompleted,
   onReorder,
-  onExpand 
+  onExpand,
+  isCollapsed,
+  onToggleCollapse
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const completedCount = items.filter(i => i.completed).length;
   const totalCount = items.length;
 
@@ -37,7 +40,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
     <div className="bg-m3-surface-variant/10 rounded-xl border border-m3-outline/10 overflow-hidden transition-all group">
       <div 
         className="p-4 flex items-center justify-between cursor-pointer bg-m3-surface-variant/20 hover:bg-m3-surface-variant/30 transition-colors"
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={onToggleCollapse}
       >
         <div className="flex flex-col text-left flex-1">
           <h3 className="text-xl font-black text-m3-on-surface leading-tight">{list.name}</h3>
@@ -50,7 +53,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsCollapsed(!isCollapsed);
+              onToggleCollapse();
             }}
             className="p-2 text-m3-on-surface-variant/30 hover:text-m3-primary transition-colors"
             title={isCollapsed ? "Expand" : "Collapse"}

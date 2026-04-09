@@ -16,6 +16,7 @@ const capitalizeWords = (str: string): string => {
 // Common unit patterns that should be extracted
 const UNIT_PATTERNS = [
   // Recipe ingredient patterns (amount unit name) - check these first
+  { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|litres?|fl\s*oz|fluid\s+ounces?)\s+(cans?|bottles?)\s+(.+)$/i, format: (amount: string, unit: string, container: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: `${unit.toLowerCase()} ${container.toLowerCase()}` }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(cups?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'cup' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(tbsp|tablespoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'tbsp' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(tsp|teaspoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'tsp' }) },
@@ -95,7 +96,11 @@ export const parseShoppingItem = (itemName: string): ParsedItem => {
       console.log('Capture groups count:', captureGroups);
       
       let parsed;
-      if (captureGroups === 3) {
+      if (captureGroups === 4) {
+        // 4 capture groups: amount unit container name
+        console.log('Using 4-group format with:', match[1], match[2], match[3], match[4]);
+        parsed = (pattern as any).format(match[1], match[2], match[3], match[4]);
+      } else if (captureGroups === 3) {
         // 3 capture groups: amount unit name (recipe format)
         console.log('Using 3-group format with:', match[1], match[2], match[3]);
         parsed = (pattern as any).format(match[1], match[2], match[3]);

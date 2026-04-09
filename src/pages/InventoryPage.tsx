@@ -221,10 +221,26 @@ export const InventoryPage = memo(({ onMenuClick }: InventoryPageProps) => {
   };
 
   const toggleCardCollapsed = (location: string) => {
-    setCollapsedCards(prev => ({
-      ...prev,
-      [location]: !prev[location]
-    }));
+    setCollapsedCards(prev => {
+      const isCurrentlyCollapsed = prev[location];
+      if (isCurrentlyCollapsed) {
+        // Expanding this one, collapse all others
+        const newState: Record<string, boolean> = {};
+        // Initialize all possible locations as collapsed
+        const allLocations = [...locationOptions.ingredients, ...locationOptions.supplies];
+        allLocations.forEach(loc => {
+          newState[loc] = true;
+        });
+        newState[location] = false; // Expand this one
+        return newState;
+      } else {
+        // Collapsing this one
+        return {
+          ...prev,
+          [location]: true
+        };
+      }
+    });
   };
 
   useEffect(() => {

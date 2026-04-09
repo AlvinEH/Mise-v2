@@ -6,6 +6,7 @@ export interface Recipe extends ExtractedRecipe {
   id: string;
   userId: string;
   createdAt: Timestamp;
+  updatedAt: Timestamp;
   sourceUrl?: string;
   tags?: string[];
 }
