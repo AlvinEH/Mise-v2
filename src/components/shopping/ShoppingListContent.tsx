@@ -8,6 +8,7 @@ interface ShoppingListContentProps {
   onAddItem: (name: string) => void;
   onToggleItem: (item: ShoppingItem) => void;
   onDeleteItem: (id: string) => void;
+  onEditItem: (item: ShoppingItem) => void;
   onClearCompleted: () => void;
   onReorder: (newItems: ShoppingItem[]) => void;
   isExpanded?: boolean;
@@ -17,14 +18,49 @@ const ShoppingListItem = memo(({
   item, 
   onToggleItem, 
   onDeleteItem, 
+  onEditItem,
   isExpanded 
 }: { 
   item: ShoppingItem; 
   onToggleItem: (item: ShoppingItem) => void; 
   onDeleteItem: (id: string) => void;
+  onEditItem: (item: ShoppingItem) => void;
   isExpanded: boolean;
 }) => {
   const controls = useDragControls();
+  const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = React.useRef(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      onEditItem(item);
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePointerMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isLongPress.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    onToggleItem(item);
+  };
 
   return (
     <Reorder.Item 
@@ -37,11 +73,15 @@ const ShoppingListItem = memo(({
       animate={{ opacity: 1, x: 0, height: 'auto' }}
       exit={{ opacity: 0, scale: 0.95, x: 20, height: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center justify-between py-0.5 hover:bg-m3-surface-variant/10 transition-colors group px-2 rounded-xl overflow-hidden"
+      className="flex items-center justify-between py-0.5 hover:bg-m3-surface-variant/10 transition-colors group px-2 rounded-xl overflow-hidden select-none"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      onPointerMove={handlePointerMove}
     >
       <button 
-        onClick={() => onToggleItem(item)}
-        className="flex items-center gap-2 flex-1 text-left"
+        onClick={handleClick}
+        className="flex items-center gap-2 flex-1 text-left py-2"
       >
         <div className={`p-1 rounded-full transition-colors ${item.completed ? 'text-m3-primary' : 'text-m3-on-surface-variant/30 group-hover:text-m3-on-surface-variant'}`}>
           {item.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
@@ -80,6 +120,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
   onAddItem,
   onToggleItem, 
   onDeleteItem, 
+  onEditItem,
   onClearCompleted,
   onReorder,
   isExpanded = false
@@ -97,8 +138,8 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
   const completedCount = items.filter(i => i.completed).length;
 
   return (
-    <motion.div className={`flex flex-col h-full ${isExpanded ? 'p-4 lg:p-8' : 'p-2 gap-2'}`}>
-      <motion.div className={`flex-1 ${isExpanded ? 'overflow-y-auto pr-2' : ''} flex flex-col gap-2`}>
+    <motion.div className={`flex flex-col h-full ${isExpanded ? 'p-4 lg:p-8' : ''}`}>
+      <motion.div className={`flex-1 ${isExpanded ? 'overflow-y-auto pr-2' : 'p-2 pb-0'} flex flex-col gap-2`}>
         {items.length > 0 ? (
           <>
             <AnimatePresence>
@@ -132,6 +173,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
                     item={item}
                     onToggleItem={onToggleItem}
                     onDeleteItem={onDeleteItem}
+                    onEditItem={onEditItem}
                     isExpanded={isExpanded}
                   />
                 ))}
@@ -153,7 +195,10 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
       <motion.form 
         layout
         onSubmit={handleAddItem} 
-        className={`${isExpanded ? 'pt-4 border-t border-m3-outline/5 mt-4' : 'sticky bottom-0 bg-transparent pt-1'}`}
+        className={`${isExpanded 
+          ? 'pt-4 border-t border-m3-outline/5 mt-4' 
+          : 'sticky bottom-0 bg-m3-surface-container-low p-2 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]'
+        }`}
       >
         <input
           type="text"

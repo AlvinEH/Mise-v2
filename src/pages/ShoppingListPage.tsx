@@ -35,6 +35,8 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
   const [newStoreName, setNewStoreName] = useState('');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
+  const [editItemName, setEditItemName] = useState('');
   const syncTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const pendingUpdatesRef = React.useRef<Map<string, ShoppingItem[]>>(new Map());
   const isSyncingRef = React.useRef(false);
@@ -169,6 +171,35 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
     }
   }, []);
 
+  const handleEditItem = React.useCallback((item: ShoppingItem) => {
+    setEditingItem(item);
+    setEditItemName(`${item.amount ? item.amount + ' ' : ''}${item.unit ? item.unit + ' ' : ''}${item.name}`);
+  }, []);
+
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem || !editItemName.trim()) return;
+
+    const parsed = parseShoppingItem(editItemName.trim());
+    
+    try {
+      const updateData: any = {
+        name: parsed.name,
+        updatedAt: Timestamp.now()
+      };
+      
+      // Explicitly set or remove amount/unit based on parsing
+      updateData.amount = parsed.amount || null;
+      updateData.unit = parsed.unit || null;
+
+      await updateDoc(doc(db, 'shoppingItems', editingItem.id), updateData);
+      setEditingItem(null);
+      setEditItemName('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'shoppingItems/' + editingItem.id);
+    }
+  };
+
   const handleClearCompleted = React.useCallback(async (storeListId: string) => {
     const completedItems = shoppingItems.filter(item => item.storeListId === storeListId && item.completed);
     for (const item of completedItems) {
@@ -301,6 +332,7 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
                   onAddItem={(name) => handleAddItem(list.id, name)}
                   onToggleItem={handleToggleItem}
                   onDeleteItem={handleDeleteItem}
+                  onEditItem={handleEditItem}
                   onDeleteStore={() => handleDeleteStore(list.id)}
                   onClearCompleted={() => handleClearCompleted(list.id)}
                   onReorder={(newItems) => handleReorder(list.id, newItems)}
@@ -378,6 +410,7 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
                     onAddItem={(name) => handleAddItem(expandedList.id, name)}
                     onToggleItem={handleToggleItem}
                     onDeleteItem={handleDeleteItem}
+                    onEditItem={handleEditItem}
                     onClearCompleted={() => handleClearCompleted(expandedList.id)}
                     onReorder={(newItems) => handleReorder(expandedList.id, newItems)}
                     isExpanded={true}
@@ -386,6 +419,52 @@ export const ShoppingListPage = ({ onMenuClick, user }: ShoppingListPageProps) =
               })()}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Item Modal */}
+      <AnimatePresence>
+        {editingItem && (
+          <div 
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setEditingItem(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-m3-surface-container-high rounded-[28px] shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-m3-outline-variant/20">
+                <h2 className="text-xl font-black text-m3-on-surface">Edit Item</h2>
+              </div>
+              <form onSubmit={handleUpdateItem} className="p-6 space-y-4">
+                <input
+                  type="text"
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                  autoFocus
+                  className="w-full px-4 py-3 rounded-2xl bg-m3-surface-container-highest border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all font-bold"
+                />
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingItem(null)}
+                    className="flex-1 py-3 rounded-2xl border border-m3-outline text-m3-primary font-bold hover:bg-m3-primary/5 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 rounded-2xl bg-m3-primary text-m3-on-primary font-bold hover:shadow-lg transition-all active:scale-95"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

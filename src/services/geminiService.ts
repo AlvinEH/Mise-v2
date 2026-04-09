@@ -30,11 +30,11 @@ const recipeSchema = {
     },
     instructions: {
       type: Type.STRING,
-      description: "A step-by-step list of instructions in markdown format"
+      description: "A step-by-step list of instructions in markdown format. Use numbered lists (1., 2., etc.) for each step. Ensure each step is clearly separated by a double line break."
     },
     servings: {
       type: Type.STRING,
-      description: "The number of servings or yield of the recipe (e.g., '4', 'Serves 6', '12 cookies')"
+      description: "The number of servings or yield of the recipe (e.g., '4', 'Serves 6', '12 cookies'). If not found, return an empty string."
     }
   },
   required: ["title", "ingredients", "instructions"]
@@ -45,6 +45,7 @@ export async function extractRecipeFromUrl(url: string) {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Extract the recipe details (title, ingredients, and instructions) from this URL: ${url}. 
+      Format the instructions as a clear, numbered list in Markdown. Ensure there is a double line break between each step for readability.
       If the URL is not a recipe, try to find the most relevant food-related information or return an error-like title.`,
       config: {
         tools: [{ urlContext: {} }],
@@ -75,7 +76,7 @@ export async function extractRecipeFromImage(base64Data: string, mimeType: strin
           },
         },
         {
-          text: "Extract the recipe details (title, ingredients, instructions, and servings) from this image. Return the result in JSON format.",
+          text: "Extract the recipe details (title, ingredients, instructions, and servings) from this image. Format the instructions as a clear, numbered list in Markdown with double line breaks between steps. Return the result in JSON format.",
         },
       ],
       config: {

@@ -183,10 +183,38 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     }
   };
 
+  const formatInstructions = (text: string): string => {
+    if (!text) return '';
+    
+    // Split by one or more newlines to get individual steps/blocks
+    // We use a regex that matches any sequence of newlines and optional whitespace
+    const blocks = text.split(/\n\s*\n|\n/).map(b => b.trim()).filter(b => b.length > 0);
+    
+    const formattedBlocks = blocks.map((block, index) => {
+      // Check if block already starts with a number (e.g., "1.", "1)") or a bullet (e.g., "-", "*", "+")
+      const numberMatch = block.match(/^(\d+)[\.\)]\s*(.*)/s);
+      const bulletMatch = block.match(/^([\*\-\+])\s*(.*)/s);
+      
+      if (numberMatch) {
+        // Re-number to ensure a perfect sequence
+        return `${index + 1}. ${numberMatch[2].trim()}`;
+      } else if (bulletMatch) {
+        // Keep the bullet but ensure proper spacing
+        return `${bulletMatch[1]} ${bulletMatch[2].trim()}`;
+      } else {
+        // Plain text block becomes a numbered step
+        return `${index + 1}. ${block}`;
+      }
+    });
+    
+    // Join with double newlines to ensure an empty line between every step in the editor
+    return formattedBlocks.join('\n\n');
+  };
+
   const populateForm = (extracted: any) => {
     setForm({
       title: extracted.title,
-      instructions: extracted.instructions,
+      instructions: formatInstructions(extracted.instructions),
       sourceUrl: '',
       servings: extracted.servings || ''
     });
@@ -466,7 +494,16 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
             </div>
 
             <div className="space-y-4">
-              <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Instructions (Markdown)</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Instructions (Markdown)</label>
+                <button 
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, instructions: formatInstructions(prev.instructions) }))}
+                  className="text-xs text-m3-primary font-black hover:bg-m3-primary/10 px-3 py-1.5 rounded-full transition-all"
+                >
+                  Clean Up Formatting
+                </button>
+              </div>
               <textarea 
                 rows={10}
                 required

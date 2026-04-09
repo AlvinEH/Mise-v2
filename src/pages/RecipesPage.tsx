@@ -107,49 +107,52 @@ export const RecipesPage = React.memo(({
         onMenuClick={onMenuClick} 
       />
       
-      <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex gap-3 mb-10">
-            <div className="relative flex-1 group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant">
-                <Search size={24} />
+      <main className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-10">
+          {/* Pinned Search and Filter */}
+          <div className="sticky top-0 z-20 bg-m3-surface pt-6 pb-4 sm:pt-10 sm:pb-6">
+            <div className="flex gap-3">
+              <div className="relative flex-1 group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant">
+                  <Search size={24} />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search recipes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-high text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                placeholder="Search recipes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-high text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
-                >
-                  <X size={20} />
-                </button>
-              )}
+              
+              <button
+                onClick={() => setShowFilterModal(true)}
+                className={`relative h-14 w-14 flex items-center justify-center rounded-full transition-all ${
+                  searchQuery || sortBy !== 'alpha' 
+                    ? 'bg-m3-primary-container text-m3-on-primary-container shadow-md' 
+                    : 'bg-m3-surface-container-high text-m3-on-surface-variant hover:bg-m3-surface-container-highest'
+                }`}
+                title="Sort recipes"
+              >
+                <ArrowUpDown size={24} />
+                {(searchQuery || sortBy !== 'alpha') && (
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-m3-primary rounded-full border-2 border-m3-primary-container" />
+                )}
+              </button>
             </div>
-            
-            <button
-              onClick={() => setShowFilterModal(true)}
-              className={`relative h-14 w-14 flex items-center justify-center rounded-full transition-all ${
-                searchQuery || sortBy !== 'alpha' 
-                  ? 'bg-m3-primary-container text-m3-on-primary-container shadow-md' 
-                  : 'bg-m3-surface-container-high text-m3-on-surface-variant hover:bg-m3-surface-container-highest'
-              }`}
-              title="Sort recipes"
-            >
-              <ArrowUpDown size={24} />
-              {(searchQuery || sortBy !== 'alpha') && (
-                <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-m3-primary rounded-full border-2 border-m3-primary-container" />
-              )}
-            </button>
           </div>
 
-          <section>
+          <section className="pb-10">
             {sortedAndFilteredRecipes.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
                 <AnimatePresence mode="popLayout">
                   {sortedAndFilteredRecipes.map((recipe, index) => (
                     <motion.div

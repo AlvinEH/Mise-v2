@@ -106,19 +106,23 @@ service cloud.firestore {
              data.userId == request.auth.uid &&
              data.createdAt is timestamp &&
              data.updatedAt is timestamp &&
-             (!('servings' in data) || (data.servings is string && data.servings.size() < 100));
+             (!('servings' in data) || (data.servings is string && data.servings.size() < 100)) &&
+             (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
+             (!('tags' in data) || (data.tags is list));
     }
 
     function isValidRecipeUpdate(data) {
-      let allowedFields = ['title', 'ingredients', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt'];
-      return data.keys().hasOnly(allowedFields) &&
+      let allPossibleFields = ['title', 'ingredients', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt', 'userId', 'createdAt'];
+      return data.keys().hasOnly(allPossibleFields) &&
              (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
-             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() > 0 && data.ingredients.size() < 100)) &&
-             (!('instructions' in data) || (data.instructions is string && data.instructions.size() > 0 && data.instructions.size() < 10000)) &&
+             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() < 100)) &&
+             (!('instructions' in data) || (data.instructions is string && data.instructions.size() < 10000)) &&
              (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
              (!('tags' in data) || (data.tags is list)) &&
              (!('servings' in data) || (data.servings is string && data.servings.size() < 100)) &&
-             (!('updatedAt' in data) || (data.updatedAt is timestamp));
+             (!('updatedAt' in data) || (data.updatedAt is timestamp)) &&
+             data.userId == resource.data.userId &&
+             data.createdAt == resource.data.createdAt;
     }
 
     function isValidUser(data) {
@@ -135,21 +139,35 @@ service cloud.firestore {
     }
 
     function isValidShoppingItem(data) {
-      return data.keys().hasAll(['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt']) &&
+      let requiredFields = ['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt'];
+      let optionalFields = ['amount', 'unit', 'updatedAt'];
+      let allFields = requiredFields.concat(optionalFields);
+
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
              data.storeListId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.completed is bool &&
              data.order is int &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('amount' in data) || data.amount == null || (data.amount is string && data.amount.size() < 50)) &&
+             (!('unit' in data) || data.unit == null || (data.unit is string && data.unit.size() < 50)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
     function isValidShoppingItemUpdate(data) {
-      return (('completed' in data) ? (data.completed is bool) : true) &&
-             (('order' in data) ? (data.order is int) : true) &&
+      let allPossibleFields = ['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt', 'amount', 'unit', 'updatedAt'];
+      return data.keys().hasOnly(allPossibleFields) &&
+             (!('completed' in data) || (data.completed is bool)) &&
+             (!('order' in data) || (data.order is int)) &&
              (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
-             (!('amount' in data) || (data.amount is string && data.amount.size() < 50)) &&
-             (!('unit' in data) || (data.unit is string && data.unit.size() < 50));
+             (!('amount' in data) || data.amount == null || (data.amount is string && data.amount.size() < 50)) &&
+             (!('unit' in data) || data.unit == null || (data.unit is string && data.unit.size() < 50)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp)) &&
+             data.userId == resource.data.userId &&
+             data.createdAt == resource.data.createdAt &&
+             data.storeListId == resource.data.storeListId;
     }
 
     function isValidMealEntry(data) {
@@ -167,7 +185,11 @@ service cloud.firestore {
       return data.keys().hasAll(['updatedAt']) &&
              data.updatedAt is timestamp &&
              (!('recipeName' in data) || (data.recipeName is string && data.recipeName.size() > 0 && data.recipeName.size() < 200)) &&
-             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() < 1000));
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() < 1000)) &&
+             data.userId == resource.data.userId &&
+             data.createdAt == resource.data.createdAt &&
+             data.date == resource.data.date &&
+             data.type == resource.data.type;
     }
 
     function isValidInventoryItem(data) {
@@ -187,7 +209,8 @@ service cloud.firestore {
     function isValidInventoryItemUpdate(data) {
       return data.keys().hasAll(['updatedAt']) &&
              data.updatedAt is timestamp &&
-             data.userId == request.auth.uid &&
+             data.userId == resource.data.userId &&
+             data.createdAt == resource.data.createdAt &&
              (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
              (!('quantity' in data) || (data.quantity is string && data.quantity.size() < 100)) &&
              (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&

@@ -260,6 +260,22 @@
     --tw-prose-td-borders: var(--m3-outline) !important;
     
     color: var(--m3-on-surface) !important;
+    font-size: 1.125rem !important;
+    line-height: 1.75 !important;
+  }
+
+  .prose-m3 ol {
+    @apply list-decimal pl-6 space-y-6;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .prose-m3 ol li {
+    @apply pl-2;
+  }
+
+  .prose-m3 ol li::marker {
+    @apply font-black text-m3-primary text-xl;
   }
   
   /* Ensure all markdown elements inherit the theme-specific text color */

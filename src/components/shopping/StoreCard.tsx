@@ -10,6 +10,7 @@ interface StoreCardProps {
   onAddItem: (name: string) => void;
   onToggleItem: (item: ShoppingItem) => void;
   onDeleteItem: (id: string) => void;
+  onEditItem: (item: ShoppingItem) => void;
   onDeleteStore: () => void;
   onClearCompleted: () => void;
   onReorder: (newItems: ShoppingItem[]) => void;
@@ -22,6 +23,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   onAddItem,
   onToggleItem,
   onDeleteItem,
+  onEditItem,
   onDeleteStore,
   onClearCompleted,
   onReorder,
@@ -95,6 +97,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
                 onAddItem={onAddItem}
                 onToggleItem={onToggleItem}
                 onDeleteItem={onDeleteItem}
+                onEditItem={onEditItem}
                 onClearCompleted={onClearCompleted}
                 onReorder={onReorder}
               />
