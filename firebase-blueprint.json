@@ -213,6 +213,10 @@
           "type": "string",
           "description": "Optional notes."
         },
+        "used": {
+          "type": "boolean",
+          "description": "Whether the item has been used."
+        },
         "userId": {
           "type": "string",
           "description": "The UID of the user who owns the item."
@@ -226,9 +230,43 @@
           "type": "string",
           "format": "date-time",
           "description": "When the item was last updated."
+        },
+        "order": {
+          "type": "integer",
+          "description": "The sort order of the item within its location."
         }
       },
       "required": ["name", "category", "userId", "createdAt", "updatedAt"]
+    },
+    "InventoryLocation": {
+      "title": "Inventory Location",
+      "description": "A storage location for inventory items.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the location."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["ingredient", "supply"],
+          "description": "The category of items stored here."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the location."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the location was created."
+        },
+        "order": {
+          "type": "integer",
+          "description": "The sort order of the location."
+        }
+      },
+      "required": ["name", "category", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -255,6 +293,10 @@
     "inventory": {
       "schema": "InventoryItem",
       "description": "Collection of items in stock."
+    },
+    "inventoryLocations": {
+      "schema": "InventoryLocation",
+      "description": "Collection of storage locations."
     }
   }
 }

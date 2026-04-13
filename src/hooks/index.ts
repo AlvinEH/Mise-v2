@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase';
-import { Theme, Mode } from '../types';
+import { Theme, Mode, CheckboxStyle } from '../types';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +26,9 @@ export const useTheme = () => {
   const [mode, setMode] = useState<Mode>(() => 
     (localStorage.getItem('Mise-mode') as Mode) || 'light'
   );
+  const [checkboxStyle, setCheckboxStyle] = useState<CheckboxStyle>(() => 
+    (localStorage.getItem('Mise-checkbox-style') as CheckboxStyle) || 'square'
+  );
 
   useEffect(() => {
     const themeValue = theme === 'm3' ? (mode === 'light' ? '' : 'm3-dark') : `${theme}-${mode}`;
@@ -38,9 +41,14 @@ export const useTheme = () => {
     
     localStorage.setItem('Mise-theme', theme);
     localStorage.setItem('Mise-mode', mode);
-  }, [theme, mode]);
+    localStorage.setItem('Mise-checkbox-style', checkboxStyle);
+  }, [theme, mode, checkboxStyle]);
 
-  return useMemo(() => ({ theme, setTheme, mode, setMode }), [theme, mode]);
+  return useMemo(() => ({ 
+    theme, setTheme, 
+    mode, setMode, 
+    checkboxStyle, setCheckboxStyle 
+  }), [theme, mode, checkboxStyle]);
 };
 
 // Re-export useRecipes for convenience

@@ -65,7 +65,7 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
 // --- Main App Component ---
 function App() {
   const { user, isAuthReady } = useAuth();
-  const { theme, setTheme, mode, setMode } = useTheme();
+  const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -176,6 +176,8 @@ function App() {
           setTheme={setTheme}
           mode={mode}
           setMode={setMode}
+          checkboxStyle={checkboxStyle}
+          setCheckboxStyle={setCheckboxStyle}
           onLogout={logOut}
         />
       </div>

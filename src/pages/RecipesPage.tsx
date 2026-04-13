@@ -118,7 +118,7 @@ export const RecipesPage = React.memo(({
                 </div>
                 <input
                   type="text"
-                  placeholder="Search recipes..."
+                  placeholder="Search recipes"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-high text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"

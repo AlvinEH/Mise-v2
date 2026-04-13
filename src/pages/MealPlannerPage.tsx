@@ -539,7 +539,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for a meal..."
+                      placeholder="Search for a meal"
                       autoCapitalize="words"
                       className="w-full pl-12 pr-4 py-3 rounded-2xl bg-m3-surface-container-highest border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all"
                     />

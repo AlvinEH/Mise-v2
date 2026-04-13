@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
-import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, GripVertical } from 'lucide-react';
-import { ShoppingItem } from '../../types';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
+import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft } from 'lucide-react';
+import { ShoppingItem, CheckboxStyle } from '../../types';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
 
 interface ShoppingListContentProps {
   items: ShoppingItem[];
@@ -11,7 +11,12 @@ interface ShoppingListContentProps {
   onEditItem: (item: ShoppingItem) => void;
   onClearCompleted: () => void;
   onReorder: (newItems: ShoppingItem[]) => void;
+  onReorderEnd: () => void;
   isExpanded?: boolean;
+  isEditMode?: boolean;
+  checkboxStyle: CheckboxStyle;
+  isDraggingItemRef?: React.MutableRefObject<boolean>;
+  onMoveItems: () => void;
 }
 
 const ShoppingListItem = memo(({ 
@@ -19,15 +24,22 @@ const ShoppingListItem = memo(({
   onToggleItem, 
   onDeleteItem, 
   onEditItem,
-  isExpanded 
+  isExpanded,
+  isEditMode,
+  checkboxStyle,
+  onReorderEnd,
+  isDraggingItemRef
 }: { 
   item: ShoppingItem; 
   onToggleItem: (item: ShoppingItem) => void; 
   onDeleteItem: (id: string) => void;
   onEditItem: (item: ShoppingItem) => void;
   isExpanded: boolean;
+  isEditMode?: boolean;
+  checkboxStyle: CheckboxStyle;
+  onReorderEnd: () => void;
+  isDraggingItemRef?: React.MutableRefObject<boolean>;
 }) => {
-  const controls = useDragControls();
   const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
   const isLongPress = React.useRef(false);
 
@@ -54,7 +66,7 @@ const ShoppingListItem = memo(({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (isLongPress.current) {
+    if (isDraggingItemRef?.current || isLongPress.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -62,54 +74,77 @@ const ShoppingListItem = memo(({
     onToggleItem(item);
   };
 
+  const isRecentlyMoved = item.movedAt && (Date.now() - (typeof item.movedAt.toMillis === 'function' ? item.movedAt.toMillis() : new Date(item.movedAt as any).getTime())) < 24 * 60 * 60 * 1000;
+
   return (
     <Reorder.Item 
       layout
       value={item}
       id={item.id}
-      dragListener={false}
-      dragControls={controls}
+      dragMomentum={false}
+      dragElastic={0.05}
+      onDragStart={() => {
+        if (isDraggingItemRef) isDraggingItemRef.current = true;
+      }}
+      onDragEnd={() => {
+        if (isDraggingItemRef) {
+          setTimeout(() => {
+            isDraggingItemRef.current = false;
+          }, 100);
+        }
+        onReorderEnd();
+      }}
       initial={{ opacity: 0, x: -10, height: 'auto' }}
       animate={{ opacity: 1, x: 0, height: 'auto' }}
       exit={{ opacity: 0, scale: 0.95, x: 20, height: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center justify-between py-0.5 hover:bg-m3-surface-variant/10 transition-colors group px-2 rounded-xl overflow-hidden select-none"
+      className={`flex items-center justify-between py-1 hover:bg-m3-surface-variant/10 transition-colors group px-2 rounded-xl overflow-hidden select-none ${item.completed ? 'opacity-50' : ''}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerMove={handlePointerMove}
+      style={{ touchAction: 'none' }}
     >
-      <button 
-        onClick={handleClick}
-        className="flex items-center gap-2 flex-1 text-left py-2"
-      >
-        <div className={`p-1 rounded-full transition-colors ${item.completed ? 'text-m3-primary' : 'text-m3-on-surface-variant/30 group-hover:text-m3-on-surface-variant'}`}>
-          {item.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-        </div>
-        <div className={item.completed ? 'opacity-50 line-through' : ''}>
-          <h4 className="font-black text-m3-on-surface text-sm leading-tight">{item.name}</h4>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <button 
+          onClick={handleClick}
+          className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
+            checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
+          } ${
+            item.completed 
+              ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
+              : 'border-m3-outline hover:border-m3-primary'
+          }`}
+        >
+          {item.completed && <Check size={14} strokeWidth={3} />}
+        </button>
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={handleClick}>
+          <div className="flex items-center gap-2">
+            <h4 className={`font-bold text-base text-m3-on-surface truncate leading-tight ${item.completed ? 'line-through' : ''}`}>
+              {item.name}
+            </h4>
+            {isRecentlyMoved && (
+              <span title="Recently moved">
+                <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
+              </span>
+            )}
+          </div>
           { (item.amount || item.unit || item.category) && (
-            <p className="text-m3-on-surface-variant text-[10px] font-medium">
-              {item.amount && `${item.amount} `}{item.unit && `${item.unit} `}{item.category && `• ${item.category}`}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
+              {item.amount && <span>{item.amount} {item.unit}</span>}
+              {item.category && <span>• {item.category}</span>}
+            </div>
           )}
         </div>
-      </button>
-      <div className="flex items-center gap-1">
+      </div>
+      <div className={`flex items-center gap-1 transition-opacity ${isExpanded ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}>
         <button
           onClick={() => onDeleteItem(item.id)}
-          className="p-2 text-m3-on-surface-variant/30 hover:text-m3-error transition-colors opacity-0 group-hover:opacity-100"
+          className="p-2 text-m3-on-surface-variant/40 hover:text-m3-error hover:bg-m3-error/10 rounded-md transition-colors"
+          title="Delete item"
         >
-          <Trash2 size={18} />
+          <Trash2 size={16} />
         </button>
-        {isExpanded && (
-          <div 
-            className="p-2 cursor-grab active:cursor-grabbing text-m3-on-surface-variant/30 hover:text-m3-primary transition-colors"
-            onPointerDown={(e) => controls.start(e)}
-          >
-            <GripVertical size={18} />
-          </div>
-        )}
       </div>
     </Reorder.Item>
   );
@@ -123,7 +158,12 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
   onEditItem,
   onClearCompleted,
   onReorder,
-  isExpanded = false
+  onReorderEnd,
+  isExpanded = false,
+  isEditMode = false,
+  checkboxStyle,
+  isDraggingItemRef,
+  onMoveItems
 }) => {
   const [newItemName, setNewItemName] = useState('');
 
@@ -139,7 +179,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
 
   return (
     <motion.div className={`flex flex-col h-full ${isExpanded ? 'p-4 lg:p-8' : ''}`}>
-      <motion.div className={`flex-1 ${isExpanded ? 'overflow-y-auto pr-2' : 'p-2 pb-0'} flex flex-col gap-2`}>
+      <motion.div className={`flex-1 flex flex-col gap-2 min-h-0 ${isExpanded ? '' : 'px-6 pb-2'}`}>
         {items.length > 0 ? (
           <>
             <AnimatePresence>
@@ -153,11 +193,17 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
                     duration: 0.2,
                     ease: "easeInOut"
                   }}
-                  className="flex justify-end px-2 overflow-hidden"
+                  className="flex justify-between items-center px-2 overflow-hidden shrink-0 mb-1"
                 >
                   <button
+                    onClick={onMoveItems}
+                    className="text-[10px] font-black text-m3-primary hover:underline transition-all uppercase tracking-wider py-1"
+                  >
+                    Move to Store
+                  </button>
+                  <button
                     onClick={onClearCompleted}
-                    className="text-xs font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
+                    className="text-[10px] font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
                   >
                     Clear Completed
                   </button>
@@ -165,7 +211,12 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
               )}
             </AnimatePresence>
 
-            <Reorder.Group axis="y" values={items} onReorder={onReorder} className="space-y-0">
+            <Reorder.Group 
+              axis="y" 
+              values={items} 
+              onReorder={onReorder} 
+              className={`space-y-0 ${isExpanded ? 'overflow-y-auto pr-2 flex-1' : ''}`}
+            >
               <AnimatePresence>
                 {items.map((item) => (
                   <ShoppingListItem 
@@ -174,7 +225,11 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
                     onToggleItem={onToggleItem}
                     onDeleteItem={onDeleteItem}
                     onEditItem={onEditItem}
-                    isExpanded={isExpanded}
+                    isExpanded={isExpanded || false}
+                    isEditMode={isEditMode}
+                    checkboxStyle={checkboxStyle}
+                    onReorderEnd={onReorderEnd}
+                    isDraggingItemRef={isDraggingItemRef}
                   />
                 ))}
               </AnimatePresence>
@@ -197,15 +252,15 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
         onSubmit={handleAddItem} 
         className={`${isExpanded 
           ? 'pt-4 border-t border-m3-outline/5 mt-4' 
-          : 'sticky bottom-0 bg-m3-surface-container-low p-2 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]'
+          : 'sticky bottom-0 bg-m3-surface-container-low px-6 py-4 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]'
         }`}
       >
         <input
           type="text"
-          placeholder="Add an item..."
+          placeholder="Add an item"
           value={newItemName}
           onChange={(e) => setNewItemName(e.target.value)}
-          className="w-full px-4 py-2 bg-m3-surface-variant/20 border border-m3-outline/5 rounded-xl outline-none focus:border-m3-primary/30 font-bold placeholder:text-m3-on-surface-variant/40 text-sm"
+          className="w-full px-4 py-3 bg-m3-surface-variant/20 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold placeholder:text-m3-on-surface-variant/40 text-sm transition-all"
         />
       </motion.form>
     </motion.div>

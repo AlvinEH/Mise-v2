@@ -16,6 +16,7 @@ export interface StoreList {
   id: string;
   name: string;
   userId: string;
+  order: number;
   createdAt: Timestamp;
 }
 
@@ -30,11 +31,13 @@ export interface ShoppingItem {
   order: number;
   userId: string;
   createdAt: Timestamp;
+  movedAt?: Timestamp;
 }
 
 // Theme Types
 export type Theme = 'm3' | 'catppuccin' | 'rose-pine' | 'gruvbox' | 'everforest';
 export type Mode = 'light' | 'dark';
+export type CheckboxStyle = 'square' | 'circle';
 
 // Error Handling Types
 export enum OperationType {

@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Reorder, useDragControls } from 'motion/react';
-import { GripVertical, Trash2, RefreshCw } from 'lucide-react';
+import { Reorder } from 'motion/react';
+import { Trash2, RefreshCw } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { IngredientItemProps } from '../../types';
 import { COMMON_UNITS, UNIT_CONVERSIONS } from '../../constants';
 import { parseShoppingItem } from '../../utils/shoppingItems';
 
 export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: IngredientItemProps) => {
-  const dragControls = useDragControls();
-  
   // Initialize smart input with existing ingredient data on first render
   const [smartInput, setSmartInput] = useState(() => {
     return [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
@@ -24,29 +22,26 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
     }
   }, [ing.amount, ing.unit, ing.name]);
 
-  // Handle smart input change (just update local state, no parsing)
+  // Handle smart input change (update parent state on every change)
   const handleSmartInputChange = (value: string) => {
     setSmartInput(value);
+    const parsed = parseShoppingItem(value);
+    onUpdate(index, {
+      amount: parsed.amount,
+      unit: parsed.unit,
+      name: parsed.name
+    });
   };
 
-  // Handle smart input parsing ONLY on blur or Enter key
+  // Handle smart input parsing on blur (redundant but safe)
   const handleSmartInputParse = () => {
     const value = smartInput.trim();
     if (value) {
       const parsed = parseShoppingItem(value);
-      console.log('Calling onUpdate with batch parsed values:', parsed);
-      // Use batch update to set all fields at once
       onUpdate(index, {
         amount: parsed.amount,
         unit: parsed.unit,
         name: parsed.name
-      });
-    } else {
-      // Clear all fields if input is empty using batch update
-      onUpdate(index, {
-        amount: '',
-        unit: '',
-        name: ''
       });
     }
   };
@@ -62,18 +57,8 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
   return (
     <Reorder.Item 
       value={ing}
-      dragListener={false}
-      dragControls={dragControls}
       className="relative flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl group"
     >
-      {/* Drag Handle */}
-      <div 
-        className="cursor-grab active:cursor-grabbing touch-none flex items-center justify-center text-m3-on-surface-variant/20 group-hover:text-m3-on-surface-variant/60 transition-colors"
-        onPointerDown={(e) => dragControls.start(e)}
-      >
-        <GripVertical size={20} />
-      </div>
-
       <div className="flex-1 flex flex-col gap-3">
         {useSmartInput ? (
           <div className="space-y-3">

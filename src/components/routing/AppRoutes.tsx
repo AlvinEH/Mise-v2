@@ -14,7 +14,7 @@ import { MealPlannerPage } from '../../pages/MealPlannerPage';
 import { SettingsPage } from '../../pages/SettingsPage';
 
 // Types
-import { Recipe, Theme, Mode } from '../../types';
+import { Recipe, Theme, Mode, CheckboxStyle } from '../../types';
 
 interface AppRoutesProps {
   user: User | null;
@@ -34,6 +34,8 @@ interface AppRoutesProps {
   setTheme: (theme: Theme) => void;
   mode: Mode;
   setMode: (mode: Mode) => void;
+  checkboxStyle: CheckboxStyle;
+  setCheckboxStyle: (style: CheckboxStyle) => void;
   onLogout: () => void;
 }
 
@@ -63,6 +65,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
     setTheme,
     mode,
     setMode,
+    checkboxStyle,
+    setCheckboxStyle,
     onLogout
   }
 ) => {
@@ -113,13 +117,20 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       
       <Route path="/inventory" element={
         <motion.div key="inventory" {...pageTransition}>
-          <InventoryPage onMenuClick={() => setIsSidebarOpen(true)} />
+          <InventoryPage 
+            onMenuClick={() => setIsSidebarOpen(true)} 
+            checkboxStyle={checkboxStyle}
+          />
         </motion.div>
       } />
       
       <Route path="/shopping-list" element={
         <motion.div key="shopping-list" {...pageTransition}>
-          <ShoppingListPage onMenuClick={() => setIsSidebarOpen(true)} user={user} />
+          <ShoppingListPage 
+            onMenuClick={() => setIsSidebarOpen(true)} 
+            user={user} 
+            checkboxStyle={checkboxStyle}
+          />
         </motion.div>
       } />
       
@@ -137,6 +148,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
             setTheme={setTheme}
             mode={mode}
             setMode={setMode}
+            checkboxStyle={checkboxStyle}
+            setCheckboxStyle={setCheckboxStyle}
             user={user}
             onLogout={onLogout}
           />

@@ -203,7 +203,8 @@ service cloud.firestore {
              (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
              (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
              (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
-             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000)) &&
+             (!('used' in data) || data.used is bool);
     }
 
     function isValidInventoryItemUpdate(data) {
@@ -216,7 +217,16 @@ service cloud.firestore {
              (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
              (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
              (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
-             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000)) &&
+             (!('used' in data) || data.used is bool);
+    }
+
+    function isValidInventoryLocation(data) {
+      return data.keys().hasAll(['name', 'category', 'userId', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.category in ['ingredient', 'supply'] &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
     }
 
     // ===============================================================
@@ -262,6 +272,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && isValidInventoryItem(request.resource.data);
       allow update: if isAuthenticated() && isDocOwner() && isValidInventoryItemUpdate(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+
+    match /inventoryLocations/{locationId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidInventoryLocation(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidInventoryLocation(request.resource.data);
       allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
     }
   }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { motion } from 'motion/react';
-import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff } from 'lucide-react';
-import { Theme, Mode } from '../types';
+import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon } from 'lucide-react';
+import { Theme, Mode, CheckboxStyle } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
 
 interface SettingsPageProps {
@@ -13,6 +13,8 @@ interface SettingsPageProps {
   setTheme: (t: Theme) => void;
   mode: Mode;
   setMode: (m: Mode) => void;
+  checkboxStyle: CheckboxStyle;
+  setCheckboxStyle: (s: CheckboxStyle) => void;
 }
 
 export const SettingsPage = ({ 
@@ -22,9 +24,12 @@ export const SettingsPage = ({
   theme,
   setTheme,
   mode,
-  setMode
+  setMode,
+  checkboxStyle,
+  setCheckboxStyle
 }: SettingsPageProps) => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+  const [isCheckboxDropdownOpen, setIsCheckboxDropdownOpen] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('Mise-gemini-api-key') || '');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeySaved, setApiKeySaved] = useState(false);
@@ -90,39 +95,87 @@ export const SettingsPage = ({
             </div>
 
             {/* Color Palette Dropdown */}
-            <div className="space-y-4">
-              <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Color Palette</label>
-              <div className="relative">
-                <button
-                  onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
-                  className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: currentTheme?.color }} />
-                    <span className="font-black text-m3-on-surface">{currentTheme?.label}</span>
-                  </div>
-                  <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isThemeDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isThemeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-10 overflow-hidden">
-                    {themes.map((t) => (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Color Palette</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
+                    className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: currentTheme?.color }} />
+                      <span className="font-black text-m3-on-surface">{currentTheme?.label}</span>
+                    </div>
+                    <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isThemeDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isThemeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-10 overflow-hidden">
+                      {themes.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            setTheme(t.id);
+                            setIsThemeDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-4 p-4 hover:bg-m3-surface-variant/20 transition-all ${
+                            theme === t.id ? 'bg-m3-primary/5' : ''
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: t.color }} />
+                          <span className="font-black text-m3-on-surface">{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Checkbox Style Dropdown */}
+              <div className="space-y-4">
+                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Checkbox Style</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsCheckboxDropdownOpen(!isCheckboxDropdownOpen)}
+                    className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
+                  >
+                    <div className="flex items-center gap-4 text-m3-on-surface">
+                      {checkboxStyle === 'square' ? <CheckSquare size={24} /> : <Circle size={24} />}
+                      <span className="font-black capitalize">{checkboxStyle}</span>
+                    </div>
+                    <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isCheckboxDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isCheckboxDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-10 overflow-hidden">
                       <button
-                        key={t.id}
                         onClick={() => {
-                          setTheme(t.id);
-                          setIsThemeDropdownOpen(false);
+                          setCheckboxStyle('square');
+                          setIsCheckboxDropdownOpen(false);
                         }}
                         className={`w-full flex items-center gap-4 p-4 hover:bg-m3-surface-variant/20 transition-all ${
-                          theme === t.id ? 'bg-m3-primary/5' : ''
+                          checkboxStyle === 'square' ? 'bg-m3-primary/5' : ''
                         }`}
                       >
-                        <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: t.color }} />
-                        <span className="font-black text-m3-on-surface">{t.label}</span>
+                        <CheckSquare size={24} className="text-m3-on-surface" />
+                        <span className="font-black text-m3-on-surface">Square</span>
                       </button>
-                    ))}
-                  </div>
-                )}
+                      <button
+                        onClick={() => {
+                          setCheckboxStyle('circle');
+                          setIsCheckboxDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-4 p-4 hover:bg-m3-surface-variant/20 transition-all ${
+                          checkboxStyle === 'circle' ? 'bg-m3-primary/5' : ''
+                        }`}
+                      >
+                        <Circle size={24} className="text-m3-on-surface" />
+                        <span className="font-black text-m3-on-surface">Circle</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.section>
@@ -193,21 +246,30 @@ export const SettingsPage = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-m3-surface-variant/10 rounded-[32px] p-8 border border-m3-outline/10"
+            className="space-y-8"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-black text-m3-on-surface">Account Information</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <UserIcon className="text-m3-primary" size={28} />
+                <h3 className="text-2xl font-black text-m3-on-surface">Account</h3>
+              </div>
               <button
                 onClick={onLogout}
-                className="p-3 text-m3-on-surface-variant hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/40 rounded-xl transition-all text-m3-on-surface"
                 title="Log Out"
               >
                 <LogOut size={24} />
               </button>
             </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-2xl font-black text-m3-on-surface truncate">{user.displayName}</span>
-              <span className="text-m3-on-surface-variant font-bold truncate">{user.email}</span>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Profile</label>
+                <div className="flex flex-col overflow-hidden">
+                  <span className="text-2xl font-black text-m3-on-surface truncate">{user.displayName}</span>
+                  <span className="text-m3-on-surface-variant font-bold truncate">{user.email}</span>
+                </div>
+              </div>
             </div>
           </motion.section>
         </div>

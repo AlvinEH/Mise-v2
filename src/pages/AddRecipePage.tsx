@@ -459,7 +459,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 onChange={e => setForm({...form, title: e.target.value})}
                 className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-xl font-bold text-m3-on-surface transition-all"
                 minRows={1}
-                placeholder="Enter recipe title..."
+                placeholder="Enter recipe title"
               />
             </div>
 
@@ -538,7 +538,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 value={form.instructions}
                 onChange={e => setForm({...form, instructions: e.target.value})}
                 className="w-full px-6 py-5 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[24px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium leading-relaxed"
-                placeholder="1. Preheat oven to 350°F...&#10;2. Mix ingredients...&#10;3. Bake for 25 minutes..."
+                placeholder="1. Preheat oven to 350°F&#10;2. Mix ingredients&#10;3. Bake for 25 minutes"
               />
             </div>
 
