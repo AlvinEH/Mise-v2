@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { auth } from '../firebase';
 import { Theme, Mode, CheckboxStyle } from '../types';
 
@@ -53,13 +55,27 @@ export const useTheme = () => {
       'everforest-dark': '#343c41',
     };
 
+    const color = themeColors[themeValue] || '#ebf0eb';
+
     let metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (!metaThemeColor) {
       metaThemeColor = document.createElement('meta');
       metaThemeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(metaThemeColor);
     }
-    metaThemeColor.setAttribute('content', themeColors[themeValue] || '#ebf0eb');
+    metaThemeColor.setAttribute('content', color);
+
+    // native Capacitor status bar handling
+    if (Capacitor.isNativePlatform()) {
+      try {
+        StatusBar.setBackgroundColor({ color });
+        StatusBar.setStyle({ 
+          style: mode === 'dark' ? Style.Dark : Style.Light 
+        });
+      } catch (error) {
+        console.warn('StatusBar not available', error);
+      }
+    }
     
     localStorage.setItem('Mise-theme', theme);
     localStorage.setItem('Mise-mode', mode);

@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
-import { ChevronDown, ChevronUp, Maximize2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Maximize2, Plus, Edit2, X } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
 import { InventoryListItem } from './InventoryListItem';
 
@@ -41,6 +41,8 @@ export const LocationCard = memo(({
   onReorderEnd,
   onMoveItems
 }: LocationCardProps) => {
+  const [isEditMode, setIsEditMode] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -69,7 +71,18 @@ export const LocationCard = memo(({
             {expandedCards[location] ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </div>
         </div>
-        <div className="flex items-center ml-2">
+        <div className="flex items-center ml-2 gap-1">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditMode(!isEditMode);
+              if (!expandedCards[location]) toggleCardCollapsed(location);
+            }}
+            className={`p-2 rounded-full transition-all ${isEditMode ? 'text-m3-primary bg-m3-primary/10 shadow-sm' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+            title={isEditMode ? "Done" : "Quick Edit"}
+          >
+            {isEditMode ? <X size={18} /> : <Edit2 size={18} />}
+          </button>
           <button
             onClick={() => {
               handleExpand(location);
@@ -135,6 +148,7 @@ export const LocationCard = memo(({
                         onEdit={startEdit}
                         onDelete={handleDelete}
                         isExpandedView={false}
+                        isEditMode={isEditMode}
                         checkboxStyle={checkboxStyle}
                         className="py-1 px-2 hover:bg-m3-surface-variant/10 rounded-xl"
                         isDraggingLocRef={isDraggingLocRef}

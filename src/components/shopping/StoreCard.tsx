@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { ChevronDown, ChevronUp, Maximize2, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Maximize2, Trash2, Edit2, X } from 'lucide-react';
 import { StoreList, ShoppingItem, CheckboxStyle } from '../../types';
 import { ShoppingListContent } from './ShoppingListContent';
 import { motion, AnimatePresence } from 'motion/react';
@@ -43,6 +43,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
 }) => {
   const completedCount = items.filter(i => i.completed).length;
   const totalCount = items.length;
+  const [isEditMode, setIsEditMode] = useState(false);
 
   return (
     <div className="bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm flex flex-col h-fit overflow-hidden transition-all group">
@@ -64,6 +65,17 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
         </div>
         
         <div className="flex items-center ml-2 gap-1">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditMode(!isEditMode);
+              if (isCollapsed) onToggleCollapse();
+            }}
+            className={`p-2 rounded-full transition-all ${isEditMode ? 'text-m3-primary bg-m3-primary/10 shadow-sm' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+            title={isEditMode ? "Done" : "Quick Edit"}
+          >
+            {isEditMode ? <X size={18} /> : <Edit2 size={18} />}
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -96,6 +108,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
                 onClearCompleted={onClearCompleted}
                 onReorder={onReorder}
                 onReorderEnd={onReorderEnd}
+                isEditMode={isEditMode}
                 checkboxStyle={checkboxStyle}
                 isDraggingItemRef={isDraggingItemRef}
                 onMoveItems={() => onMoveItems(list.id)}

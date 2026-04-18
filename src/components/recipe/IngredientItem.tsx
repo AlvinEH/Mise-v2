@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Reorder } from 'motion/react';
+import { Reorder, useDragControls } from 'motion/react';
 import { Trash2, RefreshCw } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { IngredientItemProps } from '../../types';
@@ -7,6 +7,7 @@ import { COMMON_UNITS, UNIT_CONVERSIONS } from '../../constants';
 import { parseShoppingItem } from '../../utils/shoppingItems';
 
 export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: IngredientItemProps) => {
+  const dragControls = useDragControls();
   // Initialize smart input with existing ingredient data on first render
   const [smartInput, setSmartInput] = useState(() => {
     return [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
@@ -57,9 +58,23 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
   return (
     <Reorder.Item 
       value={ing}
+      dragListener={false}
+      dragControls={dragControls}
       className="relative flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl group"
     >
-      <div className="flex-1 flex flex-col gap-3">
+      <div 
+        className="flex-1 flex flex-col gap-3 cursor-grab active:cursor-grabbing"
+        onPointerDown={(e) => {
+          // Only start drag if not typing in an input/textarea
+          if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          dragControls.start(e);
+        }}
+        style={{ touchAction: 'none' }}
+      >
         {useSmartInput ? (
           <div className="space-y-3">
             <div className="relative">
@@ -161,7 +176,12 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
         )}
       </div>
 
-      <div className="flex flex-col gap-2 relative z-20">
+      <div 
+        onPointerDownCapture={(e) => e.stopPropagation()}
+        onTouchStartCapture={(e) => e.stopPropagation()}
+        onMouseDownCapture={(e) => e.stopPropagation()}
+        className="flex flex-col gap-2 relative z-20"
+      >
         <button 
           type="button"
           onClick={() => {

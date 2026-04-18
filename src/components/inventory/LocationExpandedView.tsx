@@ -114,8 +114,8 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full p-4 lg:p-6">
-            <div className="flex-1 overflow-y-auto space-y-2 lg:space-y-3">
+          <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full p-4 lg:p-8">
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
               {(() => {
                 const expandedItems = filteredItems.filter(item => item.location === location);
                 const usedCount = expandedItems.filter(i => i.used).length;
@@ -151,7 +151,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                         axis="y"
                         values={expandedItems}
                         onReorder={(newItems) => handleReorderItems(location, newItems)}
-                        className="flex-1 overflow-y-auto pr-2"
+                        className="flex-1 flex flex-col gap-2 overflow-y-auto pr-2"
                       >
                         <AnimatePresence>
                           {expandedItems.map((item) => (
@@ -164,7 +164,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                               isExpandedView={true}
                               isEditMode={isEditMode}
                               checkboxStyle={checkboxStyle}
-                              className="p-3 sm:p-4 bg-m3-surface-variant/10 rounded-xl lg:rounded-2xl hover:bg-m3-surface-variant/20"
+                              className="py-1 px-2 hover:bg-m3-surface-variant/10 rounded-xl transition-colors"
                               onReorderEnd={() => syncReorderedItems(location)}
                             />
                           ))}

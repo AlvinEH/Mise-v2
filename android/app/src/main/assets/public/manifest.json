@@ -1,0 +1,21 @@
+{
+  "name": "Mise Smart Kitchen",
+  "short_name": "Mise",
+  "description": "Smart meal planning and inventory management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfdf8",
+  "theme_color": "#ebf0eb",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/mise_icon/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/mise_icon/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

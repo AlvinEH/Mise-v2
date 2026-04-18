@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { X } from 'lucide-react';
 import { ShoppingItem } from '../../types';
 
 interface EditItemModalProps {
@@ -31,8 +32,15 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md bg-m3-surface-container-high rounded-[28px] shadow-2xl overflow-hidden"
           >
-            <div className="p-6 border-b border-m3-outline-variant/20">
+            <div className="p-6 border-b border-m3-outline-variant/20 flex items-center justify-between">
               <h2 className="text-xl font-black text-m3-on-surface">Edit Item</h2>
+              <button
+                onClick={onClose}
+                className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+                title="Close"
+              >
+                <X size={20} />
+              </button>
             </div>
             <form onSubmit={onUpdate} className="p-6 space-y-4">
               <input

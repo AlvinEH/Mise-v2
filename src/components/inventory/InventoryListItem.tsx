@@ -1,6 +1,6 @@
 import React, { memo, useRef } from 'react';
-import { Reorder } from 'motion/react';
-import { Check, Trash2, ArrowRightLeft } from 'lucide-react';
+import { Reorder, useDragControls } from 'motion/react';
+import { Check, Trash2, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
 
@@ -31,6 +31,7 @@ export const InventoryListItem = memo(({
 }: InventoryListItemProps) => {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
+  const dragControls = useDragControls();
 
   const isDraggingItem = useRef(false);
 
@@ -65,7 +66,11 @@ export const InventoryListItem = memo(({
       e.stopPropagation();
       return;
     }
-    onToggleUsed(item);
+    if (isEditMode) {
+      onEdit(item);
+    } else {
+      onToggleUsed(item);
+    }
   };
 
   const isRecentlyMoved = isItemSessionMoved(item.id);
@@ -75,6 +80,8 @@ export const InventoryListItem = memo(({
       layout
       value={item}
       id={item.id}
+      dragListener={false}
+      dragControls={dragControls}
       dragMomentum={false}
       dragElastic={0.05}
       onDragStart={() => {
@@ -101,22 +108,40 @@ export const InventoryListItem = memo(({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerMove={handlePointerMove}
-      style={{ touchAction: 'none' }}
     >
-      <button
+      {!isEditMode && (
+        <button
+          onClick={handleClick}
+          onPointerDownCapture={(e) => e.stopPropagation()}
+          onTouchStartCapture={(e) => e.stopPropagation()}
+          onMouseDownCapture={(e) => e.stopPropagation()}
+          className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
+            checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
+          } ${
+            item.used 
+              ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
+              : 'border-m3-outline hover:border-m3-primary'
+          }`}
+        >
+          {item.used && <Check size={14} strokeWidth={3} />}
+        </button>
+      )}
+      <div 
+        className="flex-1 min-w-0 cursor-pointer"
         onClick={handleClick}
-        className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
-          checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
-        } ${
-          item.used 
-            ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
-            : 'border-m3-outline hover:border-m3-primary'
-        }`}
       >
-        {item.used && <Check size={14} strokeWidth={3} />}
-      </button>
-      <div className="flex-1 min-w-0 cursor-pointer" onClick={handleClick}>
-        <div className="flex items-center gap-2">
+        <div 
+          className={`w-fit max-w-full ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          onPointerDown={(e) => {
+            if (isEditMode) {
+              e.preventDefault();
+              e.stopPropagation();
+              dragControls.start(e);
+            }
+          }}
+          style={{ touchAction: isEditMode ? 'none' : 'auto' }}
+        >
+          <div className="flex items-center gap-2">
           <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.used ? 'line-through' : ''}`}>
             {item.name}
           </h4>
@@ -126,6 +151,7 @@ export const InventoryListItem = memo(({
             </span>
           )}
         </div>
+      </div>
         <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
           {item.quantity && (
             <span>
@@ -144,7 +170,12 @@ export const InventoryListItem = memo(({
           )}
         </div>
       </div>
-      <div className={`flex items-center gap-2 transition-opacity ${isExpandedView ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}>
+      <div 
+        onPointerDownCapture={(e) => e.stopPropagation()}
+        onTouchStartCapture={(e) => e.stopPropagation()}
+        onMouseDownCapture={(e) => e.stopPropagation()}
+        className={`flex items-center gap-2 transition-opacity ${isExpandedView ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
+      >
         <button
           onClick={() => onDelete(item)}
           className={`p-2 rounded-md transition-colors ${isExpandedView ? 'text-m3-on-surface-variant hover:text-red-600 hover:bg-red-50' : 'text-m3-on-surface-variant/40 hover:text-red-600 hover:bg-red-50'}`}

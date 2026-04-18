@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { X } from 'lucide-react';
 import { InventoryItem } from '../../types';
 import { INVENTORY_UNITS } from '../../constants/units';
 
@@ -61,9 +62,18 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
             exit={{ opacity: 0, scale: 0.95 }}
             className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-lg shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
           >
-            <h3 className="text-2xl font-black text-m3-on-surface mb-6">
-              {editingItem ? 'Edit' : 'Add'} {activeTab === 'ingredients' ? 'Ingredient' : 'Supply'}
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-black text-m3-on-surface">
+                {editingItem ? 'Edit' : 'Add'} {activeTab === 'ingredients' ? 'Ingredient' : 'Supply'}
+              </h3>
+              <button
+                onClick={onClose}
+                className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+                title="Close"
+              >
+                <X size={24} />
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Smart Input for Items */}

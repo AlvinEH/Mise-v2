@@ -1,8 +1,8 @@
 import React, { memo, useState } from 'react';
-import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft } from 'lucide-react';
+import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { ShoppingItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
-import { motion, AnimatePresence, Reorder } from 'motion/react';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
 
 interface ShoppingListContentProps {
   items: ShoppingItem[];
@@ -45,6 +45,7 @@ const ShoppingListItem = memo(({
   const isLongPress = React.useRef(false);
 
   const isDraggingItem = React.useRef(false);
+  const dragControls = useDragControls();
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDraggingItem.current = false;
@@ -77,7 +78,11 @@ const ShoppingListItem = memo(({
       e.stopPropagation();
       return;
     }
-    onToggleItem(item);
+    if (isEditMode) {
+      onEditItem(item);
+    } else {
+      onToggleItem(item);
+    }
   };
 
   const isRecentlyMoved = isItemSessionMoved(item.id);
@@ -87,6 +92,8 @@ const ShoppingListItem = memo(({
       layout
       value={item}
       id={item.id}
+      dragListener={false}
+      dragControls={dragControls}
       dragMomentum={false}
       dragElastic={0.05}
       onDragStart={() => {
@@ -113,23 +120,41 @@ const ShoppingListItem = memo(({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
       onPointerMove={handlePointerMove}
-      style={{ touchAction: 'none' }}
     >
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <button 
+        {!isEditMode && (
+          <button 
+            onClick={handleClick}
+            onPointerDownCapture={(e) => e.stopPropagation()}
+            onTouchStartCapture={(e) => e.stopPropagation()}
+            onMouseDownCapture={(e) => e.stopPropagation()}
+            className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
+              checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
+            } ${
+              item.completed 
+                ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
+                : 'border-m3-outline hover:border-m3-primary'
+            }`}
+          >
+            {item.completed && <Check size={14} strokeWidth={3} />}
+          </button>
+        )}
+        <div 
+          className="flex-1 min-w-0 cursor-pointer"
           onClick={handleClick}
-          className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
-            checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
-          } ${
-            item.completed 
-              ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
-              : 'border-m3-outline hover:border-m3-primary'
-          }`}
         >
-          {item.completed && <Check size={14} strokeWidth={3} />}
-        </button>
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={handleClick}>
-          <div className="flex items-center gap-2">
+          <div 
+            className={`w-fit max-w-full ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            onPointerDown={(e) => {
+              if (isEditMode) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragControls.start(e);
+              }
+            }}
+            style={{ touchAction: isEditMode ? 'none' : 'auto' }}
+          >
+            <div className="flex items-center gap-2">
             <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.completed ? 'line-through' : ''}`}>
               {item.name}
             </h4>
@@ -147,7 +172,13 @@ const ShoppingListItem = memo(({
           )}
         </div>
       </div>
-      <div className={`flex items-center gap-1 transition-opacity ${isExpanded ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}>
+    </div>
+      <div 
+        onPointerDownCapture={(e) => e.stopPropagation()}
+        onTouchStartCapture={(e) => e.stopPropagation()}
+        onMouseDownCapture={(e) => e.stopPropagation()}
+        className={`flex items-center gap-1 transition-opacity ${isExpanded ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
+      >
         <button
           onClick={() => onDeleteItem(item.id)}
           className="p-2 text-m3-on-surface-variant/40 hover:text-m3-error hover:bg-m3-error/10 rounded-md transition-colors"
