@@ -1,6 +1,7 @@
 import React, { memo, useState } from 'react';
 import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft } from 'lucide-react';
 import { ShoppingItem, CheckboxStyle } from '../../types';
+import { isItemSessionMoved } from '../../utils/session';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 
 interface ShoppingListContentProps {
@@ -43,11 +44,16 @@ const ShoppingListItem = memo(({
   const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
   const isLongPress = React.useRef(false);
 
+  const isDraggingItem = React.useRef(false);
+
   const handlePointerDown = (e: React.PointerEvent) => {
+    isDraggingItem.current = false;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      onEditItem(item);
+      if (!isDraggingItem.current) {
+        isLongPress.current = true;
+        onEditItem(item);
+      }
     }, 500);
   };
 
@@ -66,7 +72,7 @@ const ShoppingListItem = memo(({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (isDraggingItemRef?.current || isLongPress.current) {
+    if (isDraggingItemRef?.current || isDraggingItem.current || isLongPress.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -74,7 +80,7 @@ const ShoppingListItem = memo(({
     onToggleItem(item);
   };
 
-  const isRecentlyMoved = item.movedAt && (Date.now() - (typeof item.movedAt.toMillis === 'function' ? item.movedAt.toMillis() : new Date(item.movedAt as any).getTime())) < 24 * 60 * 60 * 1000;
+  const isRecentlyMoved = isItemSessionMoved(item.id);
 
   return (
     <Reorder.Item 
@@ -84,14 +90,18 @@ const ShoppingListItem = memo(({
       dragMomentum={false}
       dragElastic={0.05}
       onDragStart={() => {
+        isDraggingItem.current = true;
         if (isDraggingItemRef) isDraggingItemRef.current = true;
       }}
       onDragEnd={() => {
         if (isDraggingItemRef) {
           setTimeout(() => {
             isDraggingItemRef.current = false;
-          }, 100);
+          }, 200);
         }
+        setTimeout(() => {
+          isDraggingItem.current = false;
+        }, 200);
         onReorderEnd();
       }}
       initial={{ opacity: 0, x: -10, height: 'auto' }}
@@ -120,7 +130,7 @@ const ShoppingListItem = memo(({
         </button>
         <div className="flex-1 min-w-0 cursor-pointer" onClick={handleClick}>
           <div className="flex items-center gap-2">
-            <h4 className={`font-bold text-base text-m3-on-surface truncate leading-tight ${item.completed ? 'line-through' : ''}`}>
+            <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.completed ? 'line-through' : ''}`}>
               {item.name}
             </h4>
             {isRecentlyMoved && (
@@ -205,7 +215,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
                     onClick={onClearCompleted}
                     className="text-[10px] font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
                   >
-                    Clear Completed
+                    Purchased
                   </button>
                 </motion.div>
               )}

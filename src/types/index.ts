@@ -34,6 +34,24 @@ export interface ShoppingItem {
   movedAt?: Timestamp;
 }
 
+// Inventory Types
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: 'ingredient' | 'supply';
+  quantity?: string;
+  unit?: string;
+  location?: string;
+  purchasedOn?: string;
+  notes?: string;
+  used?: boolean;
+  userId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  movedAt?: Timestamp;
+  order?: number;
+}
+
 // Theme Types
 export type Theme = 'm3' | 'catppuccin' | 'rose-pine' | 'gruvbox' | 'everforest';
 export type Mode = 'light' | 'dark';

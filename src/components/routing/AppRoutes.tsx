@@ -73,13 +73,13 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
   return (
     <Routes>
       <Route path="/" element={
-        <motion.div key="home" {...pageTransition}>
+        <motion.div key="home" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <HomePage onMenuClick={() => setIsSidebarOpen(true)} />
         </motion.div>
       } />
       
       <Route path="/recipes" element={
-        <motion.div key="recipes" {...pageTransition}>
+        <motion.div key="recipes" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <RecipesPage
             onMenuClick={() => setIsSidebarOpen(true)}
             recipes={recipes}
@@ -116,32 +116,33 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       } />
       
       <Route path="/inventory" element={
-        <motion.div key="inventory" {...pageTransition}>
+        <motion.div key="inventory" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <InventoryPage 
             onMenuClick={() => setIsSidebarOpen(true)} 
+            user={user!}
             checkboxStyle={checkboxStyle}
           />
         </motion.div>
       } />
       
       <Route path="/shopping-list" element={
-        <motion.div key="shopping-list" {...pageTransition}>
+        <motion.div key="shopping-list" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <ShoppingListPage 
             onMenuClick={() => setIsSidebarOpen(true)} 
-            user={user} 
+            user={user!} 
             checkboxStyle={checkboxStyle}
           />
         </motion.div>
       } />
       
       <Route path="/meal-planner" element={
-        <motion.div key="meal-planner" {...pageTransition}>
+        <motion.div key="meal-planner" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <MealPlannerPage onMenuClick={() => setIsSidebarOpen(true)} />
         </motion.div>
       } />
       
       <Route path="/settings" element={
-        <motion.div key="settings" {...pageTransition}>
+        <motion.div key="settings" {...pageTransition} className="flex-1 flex flex-col min-h-0">
           <SettingsPage 
             onMenuClick={() => setIsSidebarOpen(true)} 
             theme={theme}

@@ -18,3 +18,8 @@ export const UNIT_CONVERSIONS: Record<string, Record<string, number>> = {
   "g": { "oz": 1/28.3495, "lb": 1/453.592, "kg": 0.001 },
   "kg": { "g": 1000, "lb": 2.20462 },
 };
+
+export const INVENTORY_UNITS = {
+  ingredients: ['cups', 'tbsp', 'tsp', 'oz', 'lbs', 'g', 'kg', 'ml', 'L', 'pieces', 'cans', 'bottles', 'bags', 'Racks'],
+  supplies: ['pieces', 'rolls', 'boxes', 'packs', 'sets', 'bottles', 'tubes', 'sheets']
+};

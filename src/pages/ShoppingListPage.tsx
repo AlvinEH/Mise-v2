@@ -14,16 +14,21 @@ import {
   writeBatch,
   getDocs
 } from 'firebase/firestore';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
-import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft } from 'lucide-react';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
+import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 import { db } from '../firebase';
 import { StoreList, ShoppingItem, OperationType } from '../types';
 import { handleFirestoreError } from '../utils';
 import { parseShoppingItem } from '../utils/shoppingItems';
+import { markItemAsSessionMoved } from '../utils/session';
 import { PageHeader } from '../components/layout/PageHeader';
-import { StoreCard } from '../components/shopping/StoreCard';
-import { ShoppingListContent } from '../components/shopping/ShoppingListContent';
+import { StoreCardWrapper } from '../components/shopping/StoreCardWrapper';
+import { SortStoresModal } from '../components/shopping/SortStoresModal';
+import { EditItemModal } from '../components/shopping/EditItemModal';
+import { DeleteStoreModal } from '../components/shopping/DeleteStoreModal';
+import { MoveStoreItemsModal } from '../components/shopping/MoveStoreItemsModal';
+import { StoreExpandedView } from '../components/shopping/StoreExpandedView';
 import { CheckboxStyle } from '../types';
 
 interface ShoppingListPageProps {
@@ -32,107 +37,6 @@ interface ShoppingListPageProps {
   checkboxStyle: CheckboxStyle;
 }
 
-const ReorderableStoreCard = memo(({ 
-  list, 
-  index, 
-  shoppingItems, 
-  handleAddItem, 
-  handleToggleItem, 
-  handleDeleteItem, 
-  handleEditItem, 
-  handleDeleteStore, 
-  handleClearCompleted, 
-  handleReorder, 
-  syncReorderedItems, 
-  handleExpand, 
-  expandedCardId, 
-  setExpandedCardId, 
-  checkboxStyle,
-  setIsDraggingList,
-  syncReorderedLists,
-  isDraggingListRef,
-  isDraggingItemRef,
-  onMoveItems
-}: {
-  list: StoreList;
-  index: number;
-  shoppingItems: ShoppingItem[];
-  handleAddItem: (id: string, name: string) => void;
-  handleToggleItem: (item: ShoppingItem) => void;
-  handleDeleteItem: (id: string) => void;
-  handleEditItem: (item: ShoppingItem) => void;
-  handleDeleteStore: (id: string) => void;
-  handleClearCompleted: (id: string) => void;
-  handleReorder: (id: string, items: ShoppingItem[]) => void;
-  syncReorderedItems: (id: string) => void;
-  handleExpand: (id: string) => void;
-  expandedCardId: string | null;
-  setExpandedCardId: (id: string | null) => void;
-  checkboxStyle: CheckboxStyle;
-  setIsDraggingList: (isDragging: boolean) => void;
-  syncReorderedLists: () => void;
-  isDraggingListRef: React.MutableRefObject<boolean>;
-  isDraggingItemRef: React.MutableRefObject<boolean>;
-  onMoveItems: (id: string) => void;
-}) => {
-  return (
-    <Reorder.Item
-      key={list.id}
-      value={list}
-      dragMomentum={false}
-      dragElastic={0.1}
-      whileDrag={{ scale: 1.02, zIndex: 50 }}
-      onDragStart={() => {
-        setIsDraggingList(true);
-        isDraggingListRef.current = true;
-      }}
-      onDragEnd={() => {
-        setIsDraggingList(false);
-        // Delay resetting the ref so click handlers can check it
-        setTimeout(() => {
-          isDraggingListRef.current = false;
-        }, 100);
-        syncReorderedLists();
-      }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      layout="position"
-      transition={{ 
-        type: "spring",
-        stiffness: 300,
-        damping: 30
-      }}
-      className="relative group"
-      style={{ touchAction: 'none' }}
-    >
-      <StoreCard 
-        list={list} 
-        items={shoppingItems.filter(item => item.storeListId === list.id)}
-        onAddItem={(name) => handleAddItem(list.id, name)}
-        onToggleItem={handleToggleItem}
-        onDeleteItem={handleDeleteItem}
-        onEditItem={handleEditItem}
-        onDeleteStore={() => handleDeleteStore(list.id)}
-        onClearCompleted={() => handleClearCompleted(list.id)}
-        onReorder={(newItems) => handleReorder(list.id, newItems)}
-        onReorderEnd={() => syncReorderedItems(list.id)}
-        onExpand={() => {
-          if (isDraggingListRef.current) return;
-          handleExpand(list.id);
-        }}
-        isCollapsed={expandedCardId !== list.id}
-        onToggleCollapse={() => {
-          if (isDraggingListRef.current) return;
-          setExpandedCardId(expandedCardId === list.id ? null : list.id);
-        }}
-        checkboxStyle={checkboxStyle}
-        isDraggingItemRef={isDraggingItemRef}
-        onMoveItems={onMoveItems}
-      />
-    </Reorder.Item>
-  );
-});
-
 export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingListPageProps) => {
   const [storeLists, setStoreLists] = useState<StoreList[]>([]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
@@ -140,6 +44,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSortingStores, setIsSortingStores] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [isDraggingList, setIsDraggingList] = useState(false);
@@ -148,6 +53,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
   const [storeToDelete, setStoreToDelete] = useState<StoreList | null>(null);
   const [storeToMove, setStoreToMove] = useState<string | null>(null);
   const [isEditingStoreName, setIsEditingStoreName] = useState(false);
+  const [inventoryLocations, setInventoryLocations] = useState<any[]>([]);
   const [editStoreNameValue, setEditStoreNameValue] = useState('');
   const pendingUpdatesRef = React.useRef<Map<string, ShoppingItem[]>>(new Map());
   const isSyncingRef = React.useRef(false);
@@ -166,11 +72,12 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
         else if (isEditingStoreName) setIsEditingStoreName(false);
         else if (isEditMode) setIsEditMode(false);
         else if (expandedListId) setExpandedListId(null);
+        else if (isSortingStores) setIsSortingStores(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAddingStore, editingItem, storeToDelete, isEditingStoreName, isEditMode, expandedListId]);
+  }, [isAddingStore, editingItem, storeToDelete, isEditingStoreName, isEditMode, expandedListId, isSortingStores]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -201,36 +108,87 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
 
     const qLists = query(
       collection(db, 'storeLists'),
-      where('userId', '==', user.uid),
-      orderBy('name', 'asc')
+      where('userId', '==', user.uid)
     );
     const unsubscribeLists = onSnapshot(qLists, (snapshot) => {
       if (!isSyncingListsRef.current && !isDraggingListRef.current) {
         const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreList));
         // Sort in memory to handle documents without the 'order' field
-        setStoreLists(lists.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+        setStoreLists(lists.sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.name.localeCompare(b.name);
+        }));
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'storeLists'));
 
     const qItems = query(
       collection(db, 'shoppingItems'),
-      where('userId', '==', user.uid),
-      orderBy('order', 'asc'),
-      orderBy('createdAt', 'asc')
+      where('userId', '==', user.uid)
     );
     const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
       // Only update if we're not in the middle of an optimistic reorder sync
       // and not dragging a list (since list contents might shift)
       if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
-        setShoppingItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem)));
+        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
+        setShoppingItems(items.sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.id.localeCompare(b.id);
+        }));
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
+
+    const qInvLocs = query(
+      collection(db, 'inventoryLocations'),
+      where('userId', '==', user.uid)
+    );
+    const unsubscribeInvLocs = onSnapshot(qInvLocs, (snapshot) => {
+      setInventoryLocations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventoryLocations'));
 
     return () => {
       unsubscribeLists();
       unsubscribeItems();
+      unsubscribeInvLocs();
     };
   }, [user]);
+
+  const handleMoveStoreOrder = async (index: number, direction: 'up' | 'down') => {
+    const lists = [...storeLists].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === lists.length - 1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const temp = lists[index];
+    lists[index] = lists[newIndex];
+    lists[newIndex] = temp;
+
+    // Update orders
+    const updatedLists = lists.map((list, i) => ({
+      ...list,
+      order: i
+    }));
+
+    // Update local state
+    setStoreLists(updatedLists);
+
+    // Update DB
+    try {
+      const batch = writeBatch(db);
+      updatedLists.forEach(list => {
+        batch.update(doc(db, 'storeLists', list.id), {
+          order: list.order
+        });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('Failed to update store order:', error);
+    }
+  };
 
   const handleAddStore = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,6 +246,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
 
       itemsToMove.forEach((item) => {
         maxOrder++;
+        markItemAsSessionMoved(item.id);
         batch.update(doc(db, 'shoppingItems', item.id), {
           storeListId: targetStoreId,
           order: maxOrder,
@@ -408,7 +367,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   };
 
-  const getInventoryLocationAndCategory = (itemName: string): { location: string; category: 'ingredient' | 'supply' } => {
+  const getInventoryLocationAndCategory = (itemName: string, currentLocations: any[]): { location: string; category: 'ingredient' | 'supply' } => {
     const name = itemName.toLowerCase();
     
     // Washroom items
@@ -420,32 +379,63 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       'cleanser', 'moisturizer', 'serum', 'toner', 'hair spray', 'hair gel', 
       'toothbrush', 'dental'
     ];
-    // Closet items
-    const closetItems = [
-      'paper towels', 'tissue paper', 'tissue', 'filter', 'dish soap', 
-      'detergent', 'trash bag', 'recycle bag', 'swiffer', 'duster',
-      'cleaning', 'sponge', 'bleach', 'windex', 'multipurpose cleaner', 'air freshener'
+
+    // Sink items (Dish soap, recycle bags, trash bags)
+    const sinkItems = ['dish soap', 'recycle bag', 'trash bag'];
+    
+    // Laundry Room items
+    const laundryItems = [
+      'air freshener', 'swiffer', 'duster', 'laundry', 'vacuum bag', 'vacuum soap', 
+      'sponge', 'water filter', 'detergent', 'bleach'
     ];
+
+    // Closet items (Remaining)
+    const closetItems = [
+      'paper towels', 'tissue paper', 'tissue', 'cleaning', 'windex', 'multipurpose cleaner'
+    ];
+
     // Freezer keywords
-    const freezerKeywords = ['frozen', 'ice cream', 'sorbet', 'gelato', 'popsicle', 'frozen vegetables', 'frozen fruit'];
+    const freezerKeywords = [
+      'frozen', 'ice cream', 'sorbet', 'gelato', 'popsicle', 'frozen vegetables', 
+      'frozen fruit', 'pizza', 'burger', 'patty', 'nugget', 'fries', 'tater tots', 
+      'hash brown', 'waffle', 'dumpling', 'pierogi'
+    ];
+    
     // Pantry keywords
     const pantryKeywords = [
-      'flour', 'sugar', 'rice', 'pasta', 'canned', 'dry', 'spice', 'oil', 'vinegar', 
-      'honey', 'cereal', 'snack', 'nut', 'seed', 'bean', 'lentil', 'grain', 'baking',
-      'salt', 'pepper', 'coffee', 'tea', 'pasta sauce', 'tomato sauce', 'broth',
-      'stock', 'cracker', 'chip', 'cookie', 'bread', 'oats', 'syrup', 'jam', 'peanut butter',
-      'mirin'
+      'flour', 'sugar', 'rice', 'pasta', 'spaghetti', 'penne', 'fusilli', 'rotini', 
+      'rigatoni', 'farfalle', 'macaroni', 'linguine', 'fettuccine', 'lasagna', 'gnocchi', 
+      'vermicelli', 'ziti', 'shell', 'noodle', 'couscous', 'quinoa', 'canned', 'dry', 
+      'spice', 'oil', 'vinegar', 'honey', 'cereal', 'snack', 'nut', 'seed', 'bean', 
+      'lentil', 'grain', 'baking', 'salt', 'pepper', 'coffee', 'tea', 'sauce', 
+      'pasta sauce', 'tomato sauce', 'broth', 'stock', 'cracker', 'chip', 'cookie', 
+      'bread', 'oats', 'syrup', 'jam', 'peanut butter', 'mirin', 'soy sauce', 
+      'ketchup', 'mustard', 'mayo', 'mayonnaise', 'starch', 'cornstarch', 'potato starch',
+      'yeast', 'baking powder', 'baking soda', 'cocoa', 'chocolate chip', 'vanilla'
     ];
+
+    if (sinkItems.some(item => name.includes(item))) {
+      // Find any location with "Sink" in it
+      const sinkLocation = currentLocations.find(loc => loc.name.toLowerCase().includes('sink'))?.name || 'Under Sink';
+      return { location: sinkLocation, category: 'supply' };
+    }
+
+    if (laundryItems.some(item => name.includes(item))) {
+      return { location: 'Laundry Room', category: 'supply' };
+    }
 
     if (washroomItems.some(item => name.includes(item))) {
       return { location: 'Washroom', category: 'supply' };
     }
+
     if (closetItems.some(item => name.includes(item))) {
       return { location: 'Closet', category: 'supply' };
     }
+
     if (freezerKeywords.some(keyword => name.includes(keyword))) {
       return { location: 'Freezer', category: 'ingredient' };
     }
+
     if (pantryKeywords.some(keyword => name.includes(keyword))) {
       return { location: 'Pantry', category: 'ingredient' };
     }
@@ -466,7 +456,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     const batch = writeBatch(db);
     
     for (const item of completedItems) {
-      const { location, category } = getInventoryLocationAndCategory(item.name);
+      const { location, category } = getInventoryLocationAndCategory(item.name, inventoryLocations);
       
       const newInventoryRef = doc(collection(db, 'inventory'));
       batch.set(newInventoryRef, {
@@ -476,6 +466,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
         quantity: item.amount || '',
         unit: item.unit || '',
         used: false,
+        purchasedOn: new Date().toISOString().split('T')[0],
         notes: storeName ? `Bought from ${storeName}` : '',
         userId: user.uid,
         createdAt: Timestamp.now(),
@@ -490,7 +481,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'shoppingItems/clearCompleted');
     }
-  }, [shoppingItems, user.uid, storeLists]);
+  }, [shoppingItems, user.uid, storeLists, inventoryLocations]);
 
   const handleReorder = React.useCallback((storeListId: string, newItems: ShoppingItem[]) => {
     // 1. Update local state immediately for buttery smooth UI
@@ -570,6 +561,15 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       <PageHeader 
         title="Shopping List" 
         onMenuClick={onMenuClick} 
+        actions={
+          <button
+            onClick={() => setIsSortingStores(true)}
+            className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+            title="Sort Stores"
+          >
+            <ArrowUpDown size={20} />
+          </button>
+        }
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
@@ -623,37 +623,29 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
           </AnimatePresence>
 
           {storeLists.length > 0 ? (
-            <Reorder.Group 
-              values={storeLists} 
-              onReorder={handleReorderLists}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8"
-            >
-              {storeLists.map((list, index) => (
-                <ReorderableStoreCard
-                  key={list.id}
-                  list={list}
-                  index={index}
-                  shoppingItems={shoppingItems}
-                  handleAddItem={handleAddItem}
-                  handleToggleItem={handleToggleItem}
-                  handleDeleteItem={handleDeleteItem}
-                  handleEditItem={handleEditItem}
-                  handleDeleteStore={handleDeleteStore}
-                  handleClearCompleted={handleClearCompleted}
-                  handleReorder={handleReorder}
-                  syncReorderedItems={syncReorderedItems}
-                  handleExpand={handleExpand}
-                  expandedCardId={expandedCardId}
-                  setExpandedCardId={setExpandedCardId}
-                  checkboxStyle={checkboxStyle}
-                  setIsDraggingList={setIsDraggingList}
-                  syncReorderedLists={syncReorderedLists}
-                  isDraggingListRef={isDraggingListRef}
-                  isDraggingItemRef={isDraggingItemRef}
-                  onMoveItems={setStoreToMove}
-                />
-              ))}
-            </Reorder.Group>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
+              {storeLists.map((list) => (
+                  <StoreCardWrapper
+                    key={list.id}
+                    list={list}
+                    shoppingItems={shoppingItems}
+                    handleAddItem={handleAddItem}
+                    handleToggleItem={handleToggleItem}
+                    handleDeleteItem={handleDeleteItem}
+                    handleEditItem={handleEditItem}
+                    handleDeleteStore={handleDeleteStore}
+                    handleClearCompleted={handleClearCompleted}
+                    handleReorder={handleReorder}
+                    syncReorderedItems={syncReorderedItems}
+                    handleExpand={handleExpand}
+                    expandedCardId={expandedCardId}
+                    setExpandedCardId={setExpandedCardId}
+                    checkboxStyle={checkboxStyle}
+                    isDraggingItemRef={isDraggingItemRef}
+                    onMoveItems={setStoreToMove}
+                  />
+                ))}
+            </div>
           ) : (
             <div className="text-center py-32 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm">
               <h3 className="text-2xl font-black text-m3-on-surface mb-2">No shopping lists yet</h3>
@@ -662,6 +654,14 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
           )}
         </div>
       </main>
+
+          {/* Sort Stores Modal */}
+          <SortStoresModal
+            isOpen={isSortingStores}
+            onClose={() => setIsSortingStores(false)}
+            storeLists={storeLists}
+            handleMoveStoreOrder={handleMoveStoreOrder}
+          />
 
       {/* Floating Action Button */}
       <AnimatePresence>
@@ -700,241 +700,54 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {expandedListId && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-0 bg-m3-surface z-[100] flex flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
-          >
-            <div className="p-4 lg:p-6 border-b border-m3-outline/10 flex items-center justify-between bg-m3-surface">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                {isEditingStoreName ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    value={editStoreNameValue}
-                    onChange={(e) => setEditStoreNameValue(e.target.value)}
-                    onBlur={handleUpdateStoreName}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleUpdateStoreName();
-                      if (e.key === 'Escape') setIsEditingStoreName(false);
-                    }}
-                    className="text-2xl font-black text-m3-on-surface bg-m3-surface-variant/20 px-2 py-1 rounded-lg outline-none focus:ring-2 focus:ring-m3-primary w-full max-w-md"
-                  />
-                ) : (
-                  <h2 
-                    onClick={() => {
-                      const list = storeLists.find(l => l.id === expandedListId);
-                      if (list) handleStartEditStoreName(list.name);
-                    }}
-                    className="text-2xl font-black text-m3-on-surface truncate cursor-pointer hover:text-m3-primary transition-colors"
-                    title="Click to rename"
-                  >
-                    {isEditMode ? 'Editing ' : ''}{storeLists.find(l => l.id === expandedListId)?.name}
-                  </h2>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold transition-all ${
-                    isEditMode 
-                      ? 'bg-m3-primary text-m3-on-primary shadow-md' 
-                      : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
-                  }`}
-                  title={isEditMode ? 'Done' : 'Edit'}
-                >
-                  {isEditMode ? <X size={20} /> : <Edit2 size={20} />}
-                </button>
-                <button 
-                  onClick={handleCollapse}
-                  className="flex items-center justify-center w-10 h-10 text-m3-on-surface-variant/60 font-bold hover:text-m3-primary hover:bg-m3-primary/10 rounded-xl transition-all"
-                  title="Reduce"
-                >
-                  <Minimize2 size={20} />
-                </button>
-                <button 
-                  onClick={() => {
-                    const list = storeLists.find(l => l.id === expandedListId);
-                    if (list) setStoreToDelete(list);
-                  }}
-                  className="flex items-center justify-center w-10 h-10 text-m3-error font-bold hover:bg-m3-error/10 rounded-xl transition-all"
-                  title="Delete Store"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
-              {(() => {
-                const expandedList = storeLists.find(l => l.id === expandedListId);
-                if (!expandedList) return null;
-                return (
-                  <ShoppingListContent 
-                    items={shoppingItems.filter(item => item.storeListId === expandedList.id)}
-                    onAddItem={(name) => handleAddItem(expandedList.id, name)}
-                    onToggleItem={handleToggleItem}
-                    onDeleteItem={handleDeleteItem}
-                    onEditItem={handleEditItem}
-                    onClearCompleted={() => handleClearCompleted(expandedList.id)}
-                    onReorder={(newItems) => handleReorder(expandedList.id, newItems)}
-                    onReorderEnd={() => syncReorderedItems(expandedList.id)}
-                    isExpanded={true}
-                    isEditMode={isEditMode}
-                    checkboxStyle={checkboxStyle}
-                    onMoveItems={() => setStoreToMove(expandedList.id)}
-                  />
-                );
-              })()}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <StoreExpandedView
+        expandedListId={expandedListId}
+        onClose={handleCollapse}
+        storeLists={storeLists}
+        shoppingItems={shoppingItems}
+        isEditMode={isEditMode}
+        setIsEditMode={setIsEditMode}
+        isEditingStoreName={isEditingStoreName}
+        setIsEditingStoreName={setIsEditingStoreName}
+        editStoreNameValue={editStoreNameValue}
+        setEditStoreNameValue={setEditStoreNameValue}
+        handleUpdateStoreName={handleUpdateStoreName}
+        handleStartEditStoreName={handleStartEditStoreName}
+        setStoreToDelete={setStoreToDelete}
+        handleAddItem={handleAddItem}
+        handleToggleItem={handleToggleItem}
+        handleDeleteItem={handleDeleteItem}
+        handleEditItem={handleEditItem}
+        handleClearCompleted={handleClearCompleted}
+        handleReorder={handleReorder}
+        syncReorderedItems={syncReorderedItems}
+        checkboxStyle={checkboxStyle}
+        onMoveItems={setStoreToMove}
+      />
 
       {/* Edit Item Modal */}
-      <AnimatePresence>
-        {editingItem && (
-          <div 
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-            onClick={() => setEditingItem(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-m3-surface-container-high rounded-[28px] shadow-2xl overflow-hidden"
-            >
-              <div className="p-6 border-b border-m3-outline-variant/20">
-                <h2 className="text-xl font-black text-m3-on-surface">Edit Item</h2>
-              </div>
-              <form onSubmit={handleUpdateItem} className="p-6 space-y-4">
-                <input
-                  type="text"
-                  value={editItemName}
-                  onChange={(e) => setEditItemName(e.target.value)}
-                  autoFocus
-                  className="w-full px-4 py-3 rounded-2xl bg-m3-surface-container-highest border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all font-bold"
-                />
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingItem(null)}
-                    className="flex-1 py-3 rounded-2xl border border-m3-outline text-m3-primary font-bold hover:bg-m3-primary/5 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 rounded-2xl bg-m3-primary text-m3-on-primary font-bold hover:shadow-lg transition-all active:scale-95"
-                  >
-                    Save
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <EditItemModal
+        editingItem={editingItem}
+        onClose={() => setEditingItem(null)}
+        editItemName={editItemName}
+        setEditItemName={setEditItemName}
+        onUpdate={handleUpdateItem}
+      />
 
       {/* Delete Store Confirmation Modal */}
-      <AnimatePresence>
-        {storeToDelete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[200]"
-            onClick={() => setStoreToDelete(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-m3-surface-container-high rounded-[28px] p-8 w-full max-w-md shadow-2xl border border-m3-outline/10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-2xl font-medium text-m3-on-surface mb-4">
-                Delete {storeToDelete.name}?
-              </h3>
-              <p className="text-m3-on-surface-variant mb-8">
-                This will permanently delete this store and all its items. This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setStoreToDelete(null)}
-                  className="px-6 py-2.5 text-m3-primary font-medium hover:bg-m3-primary/8 rounded-full transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleDeleteStore(storeToDelete.id)}
-                  className="px-6 py-2.5 bg-m3-error text-m3-on-error font-medium hover:bg-m3-error/90 rounded-full shadow-sm hover:shadow-md transition-all"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <DeleteStoreModal
+        storeToDelete={storeToDelete}
+        onClose={() => setStoreToDelete(null)}
+        onConfirm={handleDeleteStore}
+      />
 
       {/* Move Store Modal */}
-      <AnimatePresence>
-        {storeToMove && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[200]"
-            onClick={() => setStoreToMove(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-m3-surface-container-high rounded-[28px] p-6 w-full max-w-sm shadow-2xl border border-m3-outline/10"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-m3-primary/10 rounded-full flex items-center justify-center text-m3-primary">
-                    <MoveHorizontal size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-m3-on-surface leading-tight">Move Items</h3>
-                    <p className="text-xs text-m3-on-surface-variant/60">
-                      From {storeLists.find(s => s.id === storeToMove)?.name}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
-                  {storeLists.filter(s => s.id !== storeToMove).map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => handleMoveStoreItems(storeToMove, s.id)}
-                      className="w-full text-left px-4 py-3 hover:bg-m3-primary/5 rounded-xl transition-all flex items-center justify-between group"
-                    >
-                      <span className="font-bold text-sm text-m3-on-surface group-hover:text-m3-primary transition-colors">{s.name}</span>
-                      <ChevronDown size={16} className="text-m3-on-surface-variant/20 -rotate-90" />
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setStoreToMove(null)}
-                  className="w-full px-4 py-3 text-m3-on-surface-variant font-bold text-sm hover:bg-m3-surface-variant/10 rounded-xl transition-all"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MoveStoreItemsModal
+        storeToMove={storeToMove}
+        onClose={() => setStoreToMove(null)}
+        storeLists={storeLists}
+        onMove={handleMoveStoreItems}
+      />
     </div>
   );
 };

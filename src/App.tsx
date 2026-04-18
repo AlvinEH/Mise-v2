@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn } from 'lucide-react';
@@ -15,7 +15,8 @@ import { useAuth, useTheme, useRecipes } from './hooks';
 import { Recipe } from './types';
 
 // Services
-import { signIn, logOut } from './firebase';
+import { signIn, logOut, db } from './firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 // --- Delete Modal Component ---
 const DeleteModal = ({ recipe, onCancel, onDelete }: { 
@@ -67,6 +68,7 @@ function App() {
   const { user, isAuthReady } = useAuth();
   const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const hasResetRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -81,6 +83,52 @@ function App() {
     setSortBy,
     handleDelete: baseHandleDelete
   } = useRecipes(user);
+
+  // Reset checkboxes on reload
+  useEffect(() => {
+    if (!user || hasResetRef.current) return;
+    hasResetRef.current = true;
+
+    const resetCheckboxes = async () => {
+      try {
+        const batch = writeBatch(db);
+        let hasChanges = false;
+
+        // Reset Shopping Items
+        const qShopping = query(
+          collection(db, 'shoppingItems'),
+          where('userId', '==', user.uid),
+          where('completed', '==', true)
+        );
+        const shoppingSnap = await getDocs(qShopping);
+        shoppingSnap.docs.forEach(doc => {
+          batch.update(doc.ref, { completed: false });
+          hasChanges = true;
+        });
+
+        // Reset Inventory Items
+        const qInventory = query(
+          collection(db, 'inventory'),
+          where('userId', '==', user.uid),
+          where('used', '==', true)
+        );
+        const inventorySnap = await getDocs(qInventory);
+        inventorySnap.docs.forEach(doc => {
+          batch.update(doc.ref, { used: false });
+          hasChanges = true;
+        });
+
+        if (hasChanges) {
+          await batch.commit();
+          console.log('Checkboxes reset on reload');
+        }
+      } catch (error) {
+        console.error('Error resetting checkboxes:', error);
+      }
+    };
+
+    resetCheckboxes();
+  }, [user]);
 
   const handleDelete = useCallback(async (id: string) => {
     await baseHandleDelete(id);

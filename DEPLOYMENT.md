@@ -6,37 +6,34 @@ The project has been configured for GitHub Pages deployment with the following c
 
 ### Files Modified/Created:
 
-1. **vite.config.ts** - Added base path configuration for GitHub Pages
-2. **package.json** - Added deploy script and gh-pages dependency
-3. **src/main.tsx** - Added basename to BrowserRouter for proper routing
-4. **.github/workflows/deploy.yml** - GitHub Actions workflow for auto-deployment
-5. **public/.nojekyll** - Prevents Jekyll processing of Vite assets
-6. **README.md** - Updated with deployment instructions
+1. **vite.config.ts** - Set `base: './'` for universal path compatibility.
+2. **src/main.tsx** - Switched to `HashRouter` to ensure routing works without server-side redirects (404s).
+3. **.github/workflows/deploy.yml** - Added GitHub Actions workflow for zero-config auto-deployment.
+4. **public/.nojekyll** - Prevents Jekyll from ignoring Vite-generated asset folders (like those starting with `_`).
 
 ### Configuration Details:
 
-- **Base Path**: `/Mise/` (matches repository name)
-- **Build Output**: `dist/` directory
-- **Deployment Method**: GitHub Actions + GitHub Pages
+- **Base Path**: `./` (Relative paths ensure the app works in any repo name or subdirectory)
+- **Routing**: `HashRouter` (User URLs will look like `#/recipes` instead of `/recipes`)
+- **Deployment Method**: GitHub Actions + GitHub Pages (Source: "GitHub Actions")
 
 ## 🚀 Deployment Setup
 
 ### On GitHub:
 
-1. **Push changes** to your GitHub repository
+1. **Push your code** to GitHub.
 2. **Enable GitHub Pages**:
-   - Go to repository Settings → Pages
-   - Set Source to "GitHub Actions"
-   - Branch will auto-deploy on push to main/master
-
-3. **Repository Settings**:
-   - Ensure Actions have write permissions
-   - Check that Pages is enabled
+   - Go to your repository **Settings** → **Pages**.
+   - Under **Build and deployment** > **Source**, select **GitHub Actions**.
+3. **Check Progress**:
+   - Go to the **Actions** tab in your repository.
+   - You will see the "Deploy to GitHub Pages" workflow running.
+   - Once it finishes, your site will be live!
 
 ### Live URL:
 Your app will be available at:
 ```
-https://[your-username].github.io/Mise/
+https://[your-username].github.io/[repo-name]/
 ```
 
 ## 📋 Commands
