@@ -70,8 +70,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const hasResetRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -137,13 +136,10 @@ function App() {
 
   // Close dropdowns and modals when clicking outside
   const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (isSortDropdownOpen && !(event.target as Element).closest('.sort-dropdown')) {
-      setIsSortDropdownOpen(false);
+    if (isSortModalOpen && !(event.target as Element).closest('.sort-dropdown') && !(event.target as Element).closest('.sort-modal')) {
+      setIsSortModalOpen(false);
     }
-    if (showFilterModal && !(event.target as Element).closest('.filter-modal')) {
-      setShowFilterModal(false);
-    }
-  }, [isSortDropdownOpen, showFilterModal]);
+  }, [isSortModalOpen]);
 
   useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
@@ -215,10 +211,8 @@ function App() {
           setSearchQuery={setSearchQuery}
           sortBy={sortBy}
           setSortBy={setSortBy}
-          isSortDropdownOpen={isSortDropdownOpen}
-          setIsSortDropdownOpen={setIsSortDropdownOpen}
-          showFilterModal={showFilterModal}
-          setShowFilterModal={setShowFilterModal}
+          isSortModalOpen={isSortModalOpen}
+          setIsSortModalOpen={setIsSortModalOpen}
           setIsSidebarOpen={handleSidebarOpen}
           theme={theme}
           setTheme={setTheme}

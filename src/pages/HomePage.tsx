@@ -14,29 +14,29 @@ export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
       icon: Calendar,
       title: 'Meal Planner',
       path: '/meal-planner',
-      bgColor: 'bg-m3-primary-container',
-      iconColor: 'text-m3-on-primary-container'
+      bgColor: 'bg-m3-primary',
+      iconColor: 'text-m3-on-primary'
     },
     {
       icon: ShoppingCart,
       title: 'Shopping List',
       path: '/shopping-list',
-      bgColor: 'bg-m3-secondary-container',
-      iconColor: 'text-m3-on-secondary-container'
+      bgColor: 'bg-m3-primary',
+      iconColor: 'text-m3-on-primary'
     },
     {
       icon: Package,
       title: 'Inventory',
       path: '/inventory',
-      bgColor: 'bg-m3-surface-variant',
-      iconColor: 'text-m3-on-surface-variant'
+      bgColor: 'bg-m3-primary',
+      iconColor: 'text-m3-on-primary'
     },
     {
       icon: BookOpen,
       title: 'Recipes',
       path: '/recipes',
-      bgColor: 'bg-m3-primary-container',
-      iconColor: 'text-m3-on-primary-container'
+      bgColor: 'bg-m3-primary',
+      iconColor: 'text-m3-on-primary'
     }
   ];
 
@@ -62,7 +62,7 @@ export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
               >
                 <Link
                   to={page.path}
-                  className="group flex items-center gap-4 p-4 rounded-[24px] bg-m3-surface-container hover:bg-m3-surface-container-high border border-m3-outline/5 transition-all duration-300 hover:shadow-md block"
+                  className="group flex items-center gap-4 p-4 rounded-[24px] bg-m3-surface-variant hover:bg-m3-surface-container-high border border-m3-outline/5 transition-all duration-300 hover:shadow-md block"
                 >
                   <div className={`flex-shrink-0 p-3 rounded-xl ${page.bgColor} ${page.iconColor} transition-colors`}>
                     <page.icon size={22} strokeWidth={2.5} />

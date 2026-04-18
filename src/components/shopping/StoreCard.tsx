@@ -47,7 +47,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   return (
     <div className="bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm flex flex-col h-fit overflow-hidden transition-all group">
       {/* Header Section */}
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low">
         <div 
           className="flex items-center gap-3 cursor-pointer flex-1 hover:bg-m3-surface-variant/10 -m-2 p-2 rounded-xl transition-colors"
           onClick={onToggleCollapse}

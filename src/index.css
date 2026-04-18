@@ -80,9 +80,9 @@
     --m3-on-surface: #4c4f69;
     --m3-surface-variant: #ccd0da;
     --m3-on-surface-variant: #6c6f85;
-    --m3-surface-container-low: #e6e9ef;
-    --m3-surface-container: #eff1f5;
-    --m3-surface-container-high: #ccd0da;
+    --m3-surface-container-low: #f2f3f7;
+    --m3-surface-container: #e6e9ef;
+    --m3-surface-container-high: #dce0e8;
     --m3-outline: #9ca0b0;
   }
 
@@ -100,8 +100,8 @@
     --m3-surface-variant: #313244;
     --m3-on-surface-variant: #a6adc8;
     --m3-surface-container-low: #181825;
-    --m3-surface-container: #1e1e2e;
-    --m3-surface-container-high: #313244;
+    --m3-surface-container: #232332;
+    --m3-surface-container-high: #2b2b3a;
     --m3-outline: #585b70;
   }
 
@@ -119,9 +119,9 @@
     --m3-on-surface: #575279;
     --m3-surface-variant: #fffaf3;
     --m3-on-surface-variant: #797593;
-    --m3-surface-container-low: #f2e9e1;
-    --m3-surface-container: #faf4ed;
-    --m3-surface-container-high: #fffaf3;
+    --m3-surface-container-low: #f8f1e9;
+    --m3-surface-container: #f2e9e1;
+    --m3-surface-container-high: #ebe2d9;
     --m3-outline: #9893a5;
   }
 
@@ -139,7 +139,7 @@
     --m3-surface-variant: #26233a;
     --m3-on-surface-variant: #908caa;
     --m3-surface-container-low: #1f1d2e;
-    --m3-surface-container: #191724;
+    --m3-surface-container: #211f32;
     --m3-surface-container-high: #26233a;
     --m3-outline: #524f67;
   }
@@ -158,9 +158,9 @@
     --m3-on-surface: #3c3836;
     --m3-surface-variant: #ebdbb2;
     --m3-on-surface-variant: #7c6f64;
-    --m3-surface-container-low: #ebdbb2;
-    --m3-surface-container: #fbf1c7;
-    --m3-surface-container-high: #ebdbb2;
+    --m3-surface-container-low: #f2e5bc;
+    --m3-surface-container: #ebdbb2;
+    --m3-surface-container-high: #d5c4a1;
     --m3-outline: #a89984;
   }
 
@@ -178,7 +178,7 @@
     --m3-surface-variant: #3c3836;
     --m3-on-surface-variant: #a89984;
     --m3-surface-container-low: #1d2021;
-    --m3-surface-container: #282828;
+    --m3-surface-container: #32302f;
     --m3-surface-container-high: #3c3836;
     --m3-outline: #928374;
   }
@@ -197,9 +197,9 @@
     --m3-on-surface: #5c6a72;
     --m3-surface-variant: #f3ead3;
     --m3-on-surface-variant: #939f91;
-    --m3-surface-container-low: #f3ead3;
-    --m3-surface-container: #fdf6e3;
-    --m3-surface-container-high: #f3ead3;
+    --m3-surface-container-low: #f9f0d9;
+    --m3-surface-container: #f3ead3;
+    --m3-surface-container-high: #e8decd;
     --m3-outline: #859289;
   }
 
@@ -217,7 +217,7 @@
     --m3-surface-variant: #3d484d;
     --m3-on-surface-variant: #9da9a0;
     --m3-surface-container-low: #232a2e;
-    --m3-surface-container: #2d353b;
+    --m3-surface-container: #343c41;
     --m3-surface-container-high: #3d484d;
     --m3-outline: #859289;
   }

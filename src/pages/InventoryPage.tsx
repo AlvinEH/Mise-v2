@@ -786,7 +786,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoCapitalize="words"
-                  className="w-full h-14 pl-11 pr-14 bg-m3-surface-container-high border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base sm:text-lg font-medium placeholder:text-xs sm:placeholder:text-base placeholder:text-m3-on-surface-variant/60 transition-all shadow-sm hover:shadow-md focus:shadow-md"
+                  className="w-full h-14 pl-11 pr-14 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base sm:text-lg font-medium placeholder:text-m3-on-surface-variant/60 transition-all shadow-sm hover:shadow-md focus:shadow-md"
                 />
                 {searchQuery && (
                   <button

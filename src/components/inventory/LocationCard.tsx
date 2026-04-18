@@ -51,10 +51,10 @@ export const LocationCard = memo(({
         stiffness: 300,
         damping: 30
       }}
-      className="bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm flex flex-col h-fit relative group"
+      className="bg-m3-surface border border-m3-outline/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col h-fit relative group"
     >
       {/* Header Section */}
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low">
         <div 
           className="flex items-center gap-3 cursor-pointer flex-1 hover:bg-m3-surface-variant/10 -m-2 p-2 rounded-xl transition-colors"
           onClick={() => toggleCardCollapsed(location)}

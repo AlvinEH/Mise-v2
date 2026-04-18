@@ -22,7 +22,7 @@ export const PageHeader: React.FC<PageHeaderProps> = memo(({ title, onMenuClick,
   };
 
   return (
-    <header className="flex flex-col border-b border-m3-outline/5 bg-m3-surface sticky top-0 z-40 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+    <header className="flex flex-col border-b border-m3-outline/5 bg-m3-surface-container sticky top-0 z-40 pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <div className="flex items-center justify-between px-4 py-3 lg:px-8 lg:py-4">
         <div className="flex items-center gap-4">
           {showBack ? (

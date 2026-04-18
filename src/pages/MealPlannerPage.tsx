@@ -373,6 +373,15 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       <PageHeader 
         title="Meal Planner" 
         onMenuClick={onMenuClick} 
+        actions={
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+            title="Search meals"
+          >
+            <Search size={22} />
+          </button>
+        }
       />
       
       <main className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -392,13 +401,6 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
             >
               <CalendarIcon size={18} className="text-m3-on-primary" />
               Today
-            </button>
-            <button 
-              onClick={() => setShowSearchModal(true)}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-m3-surface-container text-m3-on-surface hover:shadow-md transition-all active:scale-95"
-              title="Filter"
-            >
-              <Filter size={18} className="text-m3-primary" />
             </button>
           </div>
         </div>
@@ -533,7 +535,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
               </div>
 
               <div className="p-6 overflow-y-auto">
-                <form onSubmit={handleSearch} className="mb-6">
+                <form onSubmit={handleSearch}>
                   <div className="relative">
                     <input
                       type="text"
@@ -541,7 +543,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search for a meal"
                       autoCapitalize="words"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-m3-surface-container-highest border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-m3-surface-container-low border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all shadow-sm"
                     />
                     <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant" />
                   </div>
@@ -554,50 +556,48 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
                   </button>
                 </form>
 
-                <div className="space-y-4">
-                  {searchResults.length > 0 ? (
-                    <>
-                      <p className="text-sm font-medium text-m3-on-surface-variant px-1">Recent Results</p>
-                      {searchResults.map((result) => (
-                        <button
-                          key={result.date}
-                          onClick={() => goToResultDate(result.date, result.meals)}
-                          className="w-full p-4 rounded-2xl bg-m3-surface-container-highest hover:bg-m3-surface-container-highest/80 transition-all text-left group"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-bold text-m3-primary">
-                              {format(parseISO(result.date), 'EEEE, MMM d')}
-                            </span>
-                            <Search size={14} className="text-m3-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <div className="space-y-1">
-                            {result.meals.lunch && (
-                              <p className="text-sm text-m3-on-surface flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Lunch</span>
-                                {result.meals.lunch.recipeName}
-                              </p>
-                            )}
-                            {result.meals.dinner && (
-                              <p className="text-sm text-m3-on-surface flex items-center gap-2">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Dinner</span>
-                                {result.meals.dinner.recipeName}
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </>
-                  ) : hasSearched && !isSearching ? (
-                    <div className="text-center py-8">
-                      <Search size={48} className="mx-auto mb-4 text-m3-on-surface-variant/20" />
-                      <p className="text-m3-on-surface-variant">No meals found matching "{searchQuery}"</p>
-                    </div>
-                  ) : !isSearching && (
-                    <div className="text-center py-8">
-                      <p className="text-m3-on-surface-variant text-sm italic opacity-60">Find past or future meals by name</p>
-                    </div>
-                  )}
-                </div>
+                {(searchResults.length > 0 || (hasSearched && !isSearching)) && (
+                  <div className="space-y-4 mt-6">
+                    {searchResults.length > 0 ? (
+                      <>
+                        <p className="text-sm font-medium text-m3-on-surface-variant px-1">Recent Results</p>
+                        {searchResults.map((result) => (
+                          <button
+                            key={result.date}
+                            onClick={() => goToResultDate(result.date, result.meals)}
+                            className="w-full p-4 rounded-2xl bg-m3-surface-container-low hover:bg-m3-surface-container-low/80 transition-all text-left group shadow-sm"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-bold text-m3-primary">
+                                {format(parseISO(result.date), 'EEEE, MMM d')}
+                              </span>
+                              <Search size={14} className="text-m3-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <div className="space-y-1">
+                              {result.meals.lunch && (
+                                <p className="text-sm text-m3-on-surface flex items-center gap-2">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Lunch</span>
+                                  {result.meals.lunch.recipeName}
+                                </p>
+                              )}
+                              {result.meals.dinner && (
+                                <p className="text-sm text-m3-on-surface flex items-center gap-2">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Dinner</span>
+                                  {result.meals.dinner.recipeName}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Search size={48} className="mx-auto mb-4 text-m3-on-surface-variant/20" />
+                        <p className="text-m3-on-surface-variant">No meals found matching "{searchQuery}"</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

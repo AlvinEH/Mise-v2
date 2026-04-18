@@ -25,10 +25,8 @@ interface AppRoutesProps {
   setSearchQuery: (query: string) => void;
   sortBy: 'newest' | 'oldest' | 'alpha';
   setSortBy: (sort: 'newest' | 'oldest' | 'alpha') => void;
-  isSortDropdownOpen: boolean;
-  setIsSortDropdownOpen: (open: boolean) => void;
-  showFilterModal: boolean;
-  setShowFilterModal: (show: boolean) => void;
+  isSortModalOpen: boolean;
+  setIsSortModalOpen: (open: boolean) => void;
   setIsSidebarOpen: (open: boolean) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -56,10 +54,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
     setSearchQuery,
     sortBy,
     setSortBy,
-    isSortDropdownOpen,
-    setIsSortDropdownOpen,
-    showFilterModal,
-    setShowFilterModal,
+    isSortModalOpen,
+    setIsSortModalOpen,
     setIsSidebarOpen,
     theme,
     setTheme,
@@ -87,10 +83,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
             setSearchQuery={setSearchQuery}
             sortBy={sortBy}
             setSortBy={setSortBy}
-            isSortDropdownOpen={isSortDropdownOpen}
-            setIsSortDropdownOpen={setIsSortDropdownOpen}
-            showFilterModal={showFilterModal}
-            setShowFilterModal={setShowFilterModal}
+            isSortModalOpen={isSortModalOpen}
+            setIsSortModalOpen={setIsSortModalOpen}
             onEdit={onEdit}
             onDelete={onDelete}
           />

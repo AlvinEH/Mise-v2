@@ -14,10 +14,8 @@ interface RecipesPageProps {
   setSearchQuery: (query: string) => void;
   sortBy: 'newest' | 'oldest' | 'alpha';
   setSortBy: (sort: 'newest' | 'oldest' | 'alpha') => void;
-  isSortDropdownOpen: boolean;
-  setIsSortDropdownOpen: (open: boolean) => void;
-  showFilterModal: boolean;
-  setShowFilterModal: (show: boolean) => void;
+  isSortModalOpen: boolean;
+  setIsSortModalOpen: (open: boolean) => void;
   onEdit: (recipe: Recipe) => void;
   onDelete: (recipe: Recipe) => void;
 }
@@ -29,14 +27,21 @@ export const RecipesPage = React.memo(({
   setSearchQuery,
   sortBy,
   setSortBy,
-  isSortDropdownOpen,
-  setIsSortDropdownOpen,
-  showFilterModal,
-  setShowFilterModal,
+  isSortModalOpen,
+  setIsSortModalOpen,
   onEdit,
   onDelete
 }: RecipesPageProps) => {
   const navigate = useNavigate();
+  const [isInternalDropdownOpen, setIsInternalDropdownOpen] = useState(false);
+
+  const sortOptions = [
+    { id: 'alpha', label: 'Alphabetical' },
+    { id: 'newest', label: 'Newest First' },
+    { id: 'oldest', label: 'Oldest First' }
+  ];
+
+  const currentSort = sortOptions.find(o => o.id === sortBy);
 
   const sortedAndFilteredRecipes = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -105,48 +110,43 @@ export const RecipesPage = React.memo(({
       <PageHeader 
         title="Recipe Library" 
         onMenuClick={onMenuClick} 
+        actions={
+          <button
+            onClick={() => setIsSortModalOpen(true)}
+            className={`p-2 rounded-full transition-all ${
+              sortBy !== 'alpha' 
+                ? 'text-m3-primary bg-m3-primary/10' 
+                : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
+            }`}
+            title="Sort recipes"
+          >
+            <ArrowUpDown size={20} />
+          </button>
+        }
       />
       
       <main className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-10">
-          {/* Pinned Search and Filter */}
           <div className="sticky top-0 z-20 bg-m3-surface pt-6 pb-4 sm:pt-10 sm:pb-6">
-            <div className="flex gap-3">
-              <div className="relative flex-1 group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant">
-                  <Search size={24} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search recipes"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-high text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
+            <div className="relative group max-w-4xl mx-auto">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant">
+                <Search size={24} />
               </div>
-              
-              <button
-                onClick={() => setShowFilterModal(true)}
-                className={`relative h-14 w-14 flex items-center justify-center rounded-full transition-all ${
-                  searchQuery || sortBy !== 'alpha' 
-                    ? 'bg-m3-primary-container text-m3-on-primary-container shadow-md' 
-                    : 'bg-m3-surface-container-high text-m3-on-surface-variant hover:bg-m3-surface-container-highest'
-                }`}
-                title="Sort recipes"
-              >
-                <ArrowUpDown size={24} />
-                {(searchQuery || sortBy !== 'alpha') && (
-                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-m3-primary rounded-full border-2 border-m3-primary-container" />
-                )}
-              </button>
+              <input
+                type="text"
+                placeholder="Search recipes"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-low text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -193,56 +193,82 @@ export const RecipesPage = React.memo(({
         <FABMenu onNavigate={navigate} />
       </div>
 
-      {/* Filter Modal */}
+      {/* Sort Modal */}
       <AnimatePresence>
-        {showFilterModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowFilterModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="filter-modal bg-m3-surface-container-high rounded-[28px] w-full max-w-sm p-6 space-y-6 shadow-2xl border border-m3-outline/5"
+        {isSortModalOpen && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+              onClick={() => {
+                setIsSortModalOpen(false);
+                setIsInternalDropdownOpen(false);
+              }}
             >
-              <div className="flex items-center justify-between">
-                <h3 className="text-2xl font-medium text-m3-on-surface">Sort</h3>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="sort-modal w-full max-w-sm bg-m3-surface rounded-[32px] shadow-2xl border border-m3-outline/10 p-6 overflow-visible"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-m3-on-surface">Sort Recipes</h2>
+                <button 
+                  onClick={() => {
+                    setIsSortModalOpen(false);
+                    setIsInternalDropdownOpen(false);
+                  }}
+                  className="p-2 hover:bg-m3-surface-variant/20 rounded-full transition-colors"
+                >
+                  <X size={24} />
+                </button>
               </div>
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    { id: 'alpha', label: 'Alphabetical' },
-                    { id: 'newest', label: 'Newest First' },
-                    { id: 'oldest', label: 'Oldest First' }
-                  ].map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => {
-                        setSortBy(option.id as any);
-                        setShowFilterModal(false);
-                      }}
-                      className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                        sortBy === option.id 
-                          ? 'bg-m3-secondary-container text-m3-on-secondary-container font-bold' 
-                          : 'bg-m3-surface-container text-m3-on-surface hover:bg-m3-surface-container-highest'
-                      }`}
-                    >
-                      <span>{option.label}</span>
-                      {sortBy === option.id && (
-                        <div className="w-2 h-2 bg-m3-primary rounded-full" />
-                      )}
-                    </button>
-                  ))}
+              <div className="space-y-4">
+                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant ml-1">Order By</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsInternalDropdownOpen(!isInternalDropdownOpen)}
+                    className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
+                  >
+                    <span className="font-black text-m3-on-surface">{currentSort?.label}</span>
+                    <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isInternalDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isInternalDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-20 overflow-hidden"
+                      >
+                        {sortOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            onClick={() => {
+                              setSortBy(option.id as any);
+                              setIsInternalDropdownOpen(false);
+                              setIsSortModalOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between p-4 hover:bg-m3-surface-variant/20 transition-all ${
+                              sortBy === option.id ? 'bg-m3-primary/5' : ''
+                            }`}
+                          >
+                            <span className={`font-black ${sortBy === option.id ? 'text-m3-primary' : 'text-m3-on-surface'}`}>
+                              {option.label}
+                            </span>
+                            {sortBy === option.id && (
+                              <div className="w-1.5 h-1.5 bg-m3-primary rounded-full" />
+                            )}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
