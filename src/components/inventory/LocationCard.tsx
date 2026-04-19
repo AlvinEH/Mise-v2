@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
-import { ChevronDown, ChevronUp, Maximize2, Plus, Edit2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Maximize2, Plus, Edit2, X, ShoppingCart } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
 import { InventoryListItem } from './InventoryListItem';
 
@@ -16,11 +16,13 @@ interface LocationCardProps {
   handleDelete: (item: InventoryItem) => void;
   checkboxStyle: CheckboxStyle;
   handleClearUsed: (loc: string) => void;
+  handleRestockUsed: (loc: string) => void;
   startAddWithLocation: (loc: string) => void;
   isDraggingLocRef: React.MutableRefObject<boolean>;
   onReorderItems: (location: string, newItems: InventoryItem[]) => void;
   onReorderEnd: (location: string) => void;
   onMoveItems: (location: string) => void;
+  onListRef: (location: string, el: HTMLDivElement | null) => void;
 }
 
 export const LocationCard = memo(({ 
@@ -35,11 +37,13 @@ export const LocationCard = memo(({
   handleDelete, 
   checkboxStyle,
   handleClearUsed,
+  handleRestockUsed,
   startAddWithLocation,
   isDraggingLocRef,
   onReorderItems,
   onReorderEnd,
-  onMoveItems
+  onMoveItems,
+  onListRef
 }: LocationCardProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -103,12 +107,12 @@ export const LocationCard = memo(({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="flex flex-col overflow-hidden"
-            style={{ 
-              maxHeight: locationItems.length === 0 ? '280px' : Math.min(10, locationItems.length) * 45 + 120 + 'px'
-            }}
+            className="flex flex-col"
           >
-            <div className={`space-y-0.5 px-6 pb-2 ${locationItems.length > 10 ? 'overflow-y-auto' : ''}`}>
+            <div 
+              ref={(el) => onListRef(location, el)}
+              className="space-y-0.5 px-4 pb-2"
+            >
               <AnimatePresence>
                 {locationItems.some(i => i.used) && (
                   <motion.div 
@@ -122,12 +126,6 @@ export const LocationCard = memo(({
                       className="text-[10px] font-black text-m3-primary hover:underline transition-all uppercase tracking-wider py-1"
                     >
                       Move to Location
-                    </button>
-                    <button
-                      onClick={() => handleClearUsed(location)}
-                      className="text-[10px] font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
-                    >
-                      Clear Used
                     </button>
                   </motion.div>
                 )}
@@ -150,7 +148,7 @@ export const LocationCard = memo(({
                         isExpandedView={false}
                         isEditMode={isEditMode}
                         checkboxStyle={checkboxStyle}
-                        className="py-1 px-2 hover:bg-m3-surface-variant/10 rounded-xl"
+                        className="py-1 px-0 hover:bg-m3-surface-variant/10 rounded-xl"
                         isDraggingLocRef={isDraggingLocRef}
                         onReorderEnd={() => onReorderEnd(location)}
                       />
@@ -167,7 +165,85 @@ export const LocationCard = memo(({
             </div>
             
             {/* Footer Section - Part of collapsible content */}
-            <div className="sticky bottom-0 bg-m3-surface-container-low px-6 py-4 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]">
+            <div className="bg-m3-surface-container-low px-4 py-4 border-t border-m3-outline/5 flex flex-col">
+              <AnimatePresence>
+                {(() => {
+                  const usedItems = locationItems.filter(i => i.used);
+                  const hasUsed = usedItems.length > 0;
+
+                  if (!hasUsed) return null;
+
+                  return (
+                    <motion.div
+                      variants={{
+                        hidden: { opacity: 0, height: 0, marginTop: 0 },
+                        visible: { 
+                          opacity: 1, 
+                          height: 'auto', 
+                          marginTop: 12,
+                          transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                        },
+                        exit: { 
+                          opacity: 0, 
+                          height: 0, 
+                          marginTop: 0,
+                          transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                        }
+                      }}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      className="flex flex-col px-3.5 pb-3.5 pt-0 bg-m3-surface-variant/10 rounded-2xl border border-m3-outline/5 overflow-hidden"
+                    >
+                      <motion.div
+                        variants={{
+                          hidden: { opacity: 0, y: 5 },
+                          visible: { 
+                            opacity: 1, 
+                            y: 0,
+                            transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                          },
+                          exit: { 
+                            opacity: 0, 
+                            y: 5,
+                            transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                          }
+                        }}
+                        className="flex flex-col gap-3.5"
+                      >
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[10px] font-bold text-m3-on-surface-variant/50 uppercase tracking-widest">
+                            Batch Actions
+                          </span>
+                          <div className="flex gap-2">
+                             <span className="text-[10px] font-bold text-m3-on-surface-variant/40">
+                               {usedItems.length} Used
+                             </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleClearUsed(location)}
+                            className="flex-1 py-2 bg-m3-surface text-m3-on-surface-variant rounded-xl hover:bg-m3-error hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10"
+                            title="Clear used items"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => handleRestockUsed(location)}
+                            className="flex-1 py-2 bg-m3-primary text-m3-on-primary rounded-xl hover:opacity-90 transition-all text-xs font-bold shadow-sm"
+                            title="Clear and add to shopping list"
+                          >
+                            Restock
+                          </button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
+
               <button
                 onClick={() => startAddWithLocation(location)}
                 className="w-full p-2 bg-m3-primary/10 text-m3-primary rounded-xl hover:bg-m3-primary/20 transition-all flex items-center justify-center gap-2 text-base font-medium"

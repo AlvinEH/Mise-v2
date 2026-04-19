@@ -68,7 +68,7 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
               </h3>
               <button
                 onClick={onClose}
-                className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+                className="p-2 text-m3-on-surface-variant/40 hover:text-m3-primary rounded-full transition-all"
                 title="Close"
               >
                 <X size={24} />

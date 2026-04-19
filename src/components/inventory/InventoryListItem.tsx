@@ -1,6 +1,6 @@
-import React, { memo, useRef } from 'react';
+import React, { memo, useRef, useMemo } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
-import { Check, Trash2, ArrowRightLeft, GripVertical } from 'lucide-react';
+import { Check, Trash2, ArrowRightLeft, GripVertical, ShoppingCart } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
 
@@ -75,6 +75,29 @@ export const InventoryListItem = memo(({
 
   const isRecentlyMoved = isItemSessionMoved(item.id);
 
+  const hasDigit = (str: string) => /\d/.test(str);
+  const useDotBetweenQuantityAndUnit = !!(item.quantity && item.unit && hasDigit(item.quantity) && hasDigit(item.unit));
+
+  const metadata: { text: string; type: 'quantity_unit' | 'other' }[] = [];
+  
+  if (useDotBetweenQuantityAndUnit) {
+    if (item.quantity) metadata.push({ text: item.quantity, type: 'quantity_unit' });
+    if (item.unit) metadata.push({ text: item.unit, type: 'quantity_unit' });
+  } else if (item.quantity || item.unit) {
+    metadata.push({ 
+      text: `${item.quantity || ''}${item.quantity && item.unit ? ' ' : ''}${item.unit || ''}`.trim(),
+      type: 'quantity_unit'
+    });
+  }
+  
+  if (item.purchasedOn) {
+    metadata.push({ text: new Date(item.purchasedOn).toLocaleDateString(), type: 'other' });
+  }
+  
+  if (isExpandedView && item.notes) {
+    metadata.push({ text: item.notes, type: 'other' });
+  }
+
   return (
     <Reorder.Item
       layout
@@ -142,40 +165,41 @@ export const InventoryListItem = memo(({
           style={{ touchAction: isEditMode ? 'none' : 'auto' }}
         >
           <div className="flex items-center gap-2">
-          <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.used ? 'line-through' : ''}`}>
-            {item.name}
-          </h4>
-          {isRecentlyMoved && (
-            <span title="Recently moved">
-              <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
-            </span>
-          )}
+            <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.used ? 'line-through' : ''}`}>
+              {item.name}
+            </h4>
+            {isRecentlyMoved && (
+              <span title="Recently moved">
+                <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-        <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
-          {item.quantity && (
-            <span>
-              {item.quantity} {item.unit}
-            </span>
-          )}
-          {item.purchasedOn && (
-            <span>
-              {item.quantity ? '• ' : ''}{new Date(item.purchasedOn).toLocaleDateString()}
-            </span>
-          )}
-          {isExpandedView && item.notes && (
-            <span className="italic">
-              {(item.quantity || item.purchasedOn) ? '• ' : ''}{item.notes}
-            </span>
-          )}
+        <div className="flex items-center text-xs font-medium overflow-hidden">
+          {metadata.map((part, idx) => (
+            <React.Fragment key={idx}>
+              <span className={`
+                ${idx === (metadata.length - 1) && idx >= (useDotBetweenQuantityAndUnit ? 3 : 2) ? "italic truncate" : "shrink-0"}
+                ${part.type === 'quantity_unit' ? 'text-m3-primary' : 'text-m3-on-surface-variant/60'}
+              `}>
+                {part.text}
+              </span>
+              {idx < metadata.length - 1 && (
+                <span className="mx-1 shrink-0 text-[10px] text-m3-on-surface-variant/40">•</span>
+              )}
+            </React.Fragment>
+          ))}
         </div>
       </div>
       <div 
         onPointerDownCapture={(e) => e.stopPropagation()}
         onTouchStartCapture={(e) => e.stopPropagation()}
         onMouseDownCapture={(e) => e.stopPropagation()}
-        className={`flex items-center gap-2 transition-opacity ${isExpandedView ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
+        className={`flex items-center gap-1 transition-opacity ${isExpandedView ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
       >
+        {isExpandedView && !isEditMode && (
+          <div className="w-8 shrink-0" /> // Spacer for balanced alignment in expanded view
+        )}
         <button
           onClick={() => onDelete(item)}
           className={`p-2 rounded-md transition-colors ${isExpandedView ? 'text-m3-on-surface-variant hover:text-red-600 hover:bg-red-50' : 'text-m3-on-surface-variant/40 hover:text-red-600 hover:bg-red-50'}`}

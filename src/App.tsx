@@ -83,52 +83,6 @@ function App() {
     handleDelete: baseHandleDelete
   } = useRecipes(user);
 
-  // Reset checkboxes on reload
-  useEffect(() => {
-    if (!user || hasResetRef.current) return;
-    hasResetRef.current = true;
-
-    const resetCheckboxes = async () => {
-      try {
-        const batch = writeBatch(db);
-        let hasChanges = false;
-
-        // Reset Shopping Items
-        const qShopping = query(
-          collection(db, 'shoppingItems'),
-          where('userId', '==', user.uid),
-          where('completed', '==', true)
-        );
-        const shoppingSnap = await getDocs(qShopping);
-        shoppingSnap.docs.forEach(doc => {
-          batch.update(doc.ref, { completed: false });
-          hasChanges = true;
-        });
-
-        // Reset Inventory Items
-        const qInventory = query(
-          collection(db, 'inventory'),
-          where('userId', '==', user.uid),
-          where('used', '==', true)
-        );
-        const inventorySnap = await getDocs(qInventory);
-        inventorySnap.docs.forEach(doc => {
-          batch.update(doc.ref, { used: false });
-          hasChanges = true;
-        });
-
-        if (hasChanges) {
-          await batch.commit();
-          console.log('Checkboxes reset on reload');
-        }
-      } catch (error) {
-        console.error('Error resetting checkboxes:', error);
-      }
-    };
-
-    resetCheckboxes();
-  }, [user]);
-
   const handleDelete = useCallback(async (id: string) => {
     await baseHandleDelete(id);
     navigate('/recipes');

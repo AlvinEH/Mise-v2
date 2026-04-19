@@ -16,7 +16,7 @@ const capitalizeWords = (str: string): string => {
 // Common unit patterns that should be extracted
 const UNIT_PATTERNS = [
   // Recipe ingredient patterns (amount unit name) - check these first
-  { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|litres?|fl\s*oz|fluid\s+ounces?)\s+(cans?|bottles?)\s+(.+)$/i, format: (amount: string, unit: string, container: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: `${unit.toLowerCase()} ${container.toLowerCase()}` }) },
+  { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|litres?|fl\s*oz|fluid\s+ounces?)\s+(cans?|bottles?|bags?|boxes?|packs?|jars?|cartons?|pouches?|tubes?|tubs?|sachets?)\s+(.+)$/i, format: (amount: string, unit: string, container: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: `${unit.toLowerCase()} ${container.toLowerCase()}` }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(cups?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'cup' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(tbsp|tablespoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'tbsp' }) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?)\s*(tsp|teaspoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => ({ name: capitalizeWords(name.trim()), amount: amount.trim(), unit: 'tsp' }) },
@@ -83,6 +83,37 @@ const UNIT_PATTERNS = [
  */
 export const parseShoppingItem = (itemName: string): ParsedItem => {
   const trimmedName = itemName.trim();
+  
+  // 1. Check for multiplier at start (e.g., "2x 6lb bag potatoes", "2x apples")
+  const startMultiplierMatch = trimmedName.match(/^(\d+(?:\.\d+)?)\s*[xX]\s*(.+)$/i);
+  if (startMultiplierMatch) {
+    const amount = startMultiplierMatch[1];
+    const remainder = startMultiplierMatch[2].trim();
+    if (remainder) {
+      const inner = parseShoppingItem(remainder);
+      return {
+        name: inner.name,
+        amount: amount,
+        unit: inner.amount ? `${inner.amount}${inner.unit ? ' ' + inner.unit : ''}` : inner.unit
+      };
+    }
+  }
+
+  // 2. Check for multiplier at end (e.g., "6lb bag potatoes x2", "6lb bag potatoes 2x")
+  const endMultiplierMatch = trimmedName.match(/^(.+?)\s*[xX](\d+(?:\.\d+)?)\s*$|^(.+?)\s+(\d+(?:\.\d+)?)\s*[xX]\s*$/i);
+  if (endMultiplierMatch) {
+    const remainder = (endMultiplierMatch[1] || endMultiplierMatch[3]).trim();
+    const amount = endMultiplierMatch[2] || endMultiplierMatch[4];
+    if (remainder) {
+      const inner = parseShoppingItem(remainder);
+      return {
+        name: inner.name,
+        amount: amount,
+        unit: inner.amount ? `${inner.amount}${inner.unit ? ' ' + inner.unit : ''}` : inner.unit
+      };
+    }
+  }
+
   console.log('parseShoppingItem called with:', trimmedName);
   
   for (let i = 0; i < UNIT_PATTERNS.length; i++) {

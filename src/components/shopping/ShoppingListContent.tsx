@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useMemo, useRef } from 'react';
 import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { ShoppingItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
@@ -41,10 +41,10 @@ const ShoppingListItem = memo(({
   onReorderEnd: () => void;
   isDraggingItemRef?: React.MutableRefObject<boolean>;
 }) => {
-  const longPressTimer = React.useRef<NodeJS.Timeout | null>(null);
-  const isLongPress = React.useRef(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
 
-  const isDraggingItem = React.useRef(false);
+  const isDraggingItem = useRef(false);
   const dragControls = useDragControls();
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -87,6 +87,21 @@ const ShoppingListItem = memo(({
 
   const isRecentlyMoved = isItemSessionMoved(item.id);
 
+  const hasDigit = (str: string) => /\d/.test(str);
+  const useDotBetweenAmountAndUnit = !!(item.amount && item.unit && hasDigit(item.amount) && hasDigit(item.unit));
+
+  const metadata: { text: string; type: 'amount_unit' | 'category' }[] = [];
+  if (useDotBetweenAmountAndUnit) {
+    if (item.amount) metadata.push({ text: item.amount, type: 'amount_unit' });
+    if (item.unit) metadata.push({ text: item.unit, type: 'amount_unit' });
+  } else if (item.amount || item.unit) {
+    metadata.push({ 
+      text: `${item.amount || ''}${item.amount && item.unit ? ' ' : ''}${item.unit || ''}`.trim(),
+      type: 'amount_unit'
+    });
+  }
+  if (item.category) metadata.push({ text: item.category, type: 'category' });
+
   return (
     <Reorder.Item 
       layout
@@ -115,7 +130,7 @@ const ShoppingListItem = memo(({
       animate={{ opacity: 1, x: 0, height: 'auto' }}
       exit={{ opacity: 0, scale: 0.95, x: 20, height: 0 }}
       transition={{ duration: 0.2 }}
-      className={`flex items-center justify-between py-1 hover:bg-m3-surface-variant/10 transition-colors group px-2 rounded-xl overflow-hidden select-none ${item.completed ? 'opacity-50' : ''}`}
+      className={`flex items-center justify-between py-1 hover:bg-m3-surface-variant/10 transition-colors group px-0 rounded-xl overflow-hidden select-none ${item.completed ? 'opacity-50' : ''}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
@@ -155,24 +170,30 @@ const ShoppingListItem = memo(({
             style={{ touchAction: isEditMode ? 'none' : 'auto' }}
           >
             <div className="flex items-center gap-2">
-            <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.completed ? 'line-through' : ''}`}>
-              {item.name}
-            </h4>
-            {isRecentlyMoved && (
-              <span title="Recently moved">
-                <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
-              </span>
-            )}
-          </div>
-          { (item.amount || item.unit || item.category) && (
-            <div className="flex items-center gap-2 text-xs text-m3-on-surface-variant/60 font-medium">
-              {item.amount && <span>{item.amount} {item.unit}</span>}
-              {item.category && <span>• {item.category}</span>}
+              <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.completed ? 'line-through' : ''}`}>
+                {item.name}
+              </h4>
+              {isRecentlyMoved && (
+                <span title="Recently moved">
+                  <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
+                </span>
+              )}
             </div>
-          )}
+          </div>
+          <div className="flex items-center text-xs font-medium overflow-hidden">
+            {metadata.map((part, idx) => (
+              <React.Fragment key={idx}>
+                <span className={`shrink-0 ${part.type === 'amount_unit' ? 'text-m3-primary' : 'text-m3-on-surface-variant/60'}`}>
+                  {part.text}
+                </span>
+                {idx < metadata.length - 1 && (
+                  <span className="mx-1 shrink-0 text-[10px] text-m3-on-surface-variant/40">•</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
       <div 
         onPointerDownCapture={(e) => e.stopPropagation()}
         onTouchStartCapture={(e) => e.stopPropagation()}
@@ -220,7 +241,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
 
   return (
     <motion.div className={`flex flex-col h-full ${isExpanded ? 'p-4 lg:p-8' : ''}`}>
-      <motion.div className={`flex-1 flex flex-col gap-2 min-h-0 ${isExpanded ? '' : 'px-6 pb-2'}`}>
+      <motion.div className={`flex-1 flex flex-col gap-2 min-h-0 ${isExpanded ? '' : 'px-4 pb-2'}`}>
         {items.length > 0 ? (
           <>
             <AnimatePresence>

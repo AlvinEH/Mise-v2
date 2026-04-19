@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
-import { X, Edit2, Minimize2, Trash2, Plus } from 'lucide-react';
+import { X, Edit2, Minimize2, Trash2, Plus, ShoppingCart } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
 import { InventoryListItem } from './InventoryListItem';
 
@@ -22,6 +22,7 @@ interface LocationExpandedViewProps {
   startEdit: (item: InventoryItem) => void;
   handleDelete: (item: InventoryItem) => void;
   handleClearUsed: (loc: string) => void;
+  handleRestockUsed: (loc: string) => void;
   handleReorderItems: (loc: string, items: InventoryItem[]) => void;
   syncReorderedItems: (loc: string) => void;
   startAddWithLocation: (loc: string) => void;
@@ -46,6 +47,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
   startEdit,
   handleDelete,
   handleClearUsed,
+  handleRestockUsed,
   handleReorderItems,
   syncReorderedItems,
   startAddWithLocation,
@@ -90,7 +92,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                 onClick={() => setIsEditMode(!isEditMode)}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold transition-all ${
                   isEditMode 
-                    ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+                    ? 'text-m3-primary hover:bg-m3-primary/10' 
                     : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
                 }`}
                 title={isEditMode ? 'Done' : 'Edit'}
@@ -114,7 +116,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full p-4 lg:p-8">
+          <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full px-2 py-4 lg:px-6 lg:py-8">
             <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
               {(() => {
                 const expandedItems = filteredItems.filter(item => item.location === location);
@@ -125,23 +127,67 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                     <AnimatePresence>
                       {usedCount > 0 && (
                         <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="flex justify-between items-center px-2 overflow-hidden mb-2"
+                          variants={{
+                            hidden: { opacity: 0, height: 0, marginBottom: 0 },
+                            visible: { 
+                              opacity: 1, 
+                              height: 'auto', 
+                              marginBottom: 32,
+                              transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                            },
+                            exit: { 
+                              opacity: 0, 
+                              height: 0, 
+                              marginBottom: 0,
+                              transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                            }
+                          }}
+                          initial="hidden"
+                          animate="visible"
+                          exit="exit"
+                          className="flex flex-col bg-m3-surface-variant/10 px-5 pb-5 pt-0 rounded-3xl border border-m3-outline/5 overflow-hidden"
                         >
-                          <button
-                            onClick={() => setLocationToMove(location)}
-                            className="text-xs font-black text-m3-primary hover:underline transition-all uppercase tracking-wider py-1"
+                          <motion.div
+                            variants={{
+                              hidden: { opacity: 0, y: 8 },
+                              visible: { 
+                                opacity: 1, 
+                                y: 0,
+                                transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                              },
+                              exit: { 
+                                opacity: 0, 
+                                y: 8,
+                                transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                              }
+                            }}
+                            className="flex flex-col gap-5"
                           >
-                            Move to Location
-                          </button>
-                          <button
-                            onClick={() => handleClearUsed(location)}
-                            className="text-xs font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
-                          >
-                            Clear Used
-                          </button>
+                            <div className="flex justify-between items-center px-1">
+                              <h3 className="text-xs font-black text-m3-on-surface-variant/40 uppercase tracking-[0.2em]">Batch Operations</h3>
+                              <button
+                                onClick={() => setLocationToMove(location)}
+                                className="text-xs font-bold text-m3-primary hover:underline transition-all uppercase tracking-wider"
+                              >
+                                Move Selected
+                              </button>
+                            </div>
+                            
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => handleClearUsed(location)}
+                                className="flex-1 py-3 bg-m3-surface text-m3-on-surface-variant rounded-2xl hover:bg-m3-error hover:text-white transition-all text-sm font-bold shadow-sm border border-m3-outline/10"
+                              >
+                                Clear {usedCount} Used
+                              </button>
+                              <button
+                                onClick={() => handleRestockUsed(location)}
+                                className="flex-1 py-3 bg-m3-primary text-m3-on-primary rounded-2xl hover:opacity-90 transition-all text-sm font-bold shadow-sm"
+                              >
+                                Restock Used
+                              </button>
+                            </div>
+                          </motion.div>
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -164,7 +210,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                               isExpandedView={true}
                               isEditMode={isEditMode}
                               checkboxStyle={checkboxStyle}
-                              className="py-1 px-2 hover:bg-m3-surface-variant/10 rounded-xl transition-colors"
+                              className="py-1 px-0 hover:bg-m3-surface-variant/10 rounded-xl transition-colors"
                               onReorderEnd={() => syncReorderedItems(location)}
                             />
                           ))}

@@ -45,6 +45,7 @@ export interface InventoryItem {
   purchasedOn?: string;
   notes?: string;
   used?: boolean;
+  isLow?: boolean;
   userId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;

@@ -59,6 +59,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const isDraggingLocRef = useRef(false);
   const [isDraggingLoc, setIsDraggingLoc] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const locationListRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -180,30 +181,36 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     }
   };
 
-  const handleClearUsed = async (location: string) => {
-    const usedItems = items.filter(item => item.location === location && item.used);
+  const toggleItemLow = async (item: InventoryItem) => {
+    try {
+      await updateDoc(doc(db, 'inventory', item.id), {
+        isLow: !item.isLow,
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'inventory/' + item.id);
+    }
+  };
+
+  const handleAddLowToShoppingList = async (location: string) => {
+    const lowItems = items.filter(item => item.location === location && item.isLow && !item.used);
+    if (lowItems.length === 0) return;
+
     const batch = writeBatch(db);
 
-    for (const item of usedItems) {
-      // 1. Determine the appropriate shopping list
+    for (const item of lowItems) {
       let targetStoreId = '';
-      
-      // Try to get store name from notes: "Bought from Store Name"
       const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
       if (boughtFromMatch) {
         const storeName = boughtFromMatch[1].trim();
         const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
-        if (store) {
-          targetStoreId = store.id;
-        }
+        if (store) targetStoreId = store.id;
       }
 
-      // If no store found from notes, use the first available store
       if (!targetStoreId && storeLists.length > 0) {
         targetStoreId = storeLists[0].id;
       }
 
-      // 2. Add to shopping list if a store was found
       if (targetStoreId) {
         const shoppingItemRef = doc(collection(db, 'shoppingItems'));
         batch.set(shoppingItemRef, {
@@ -214,64 +221,146 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           completed: false,
           userId: user?.uid,
           createdAt: Timestamp.now(),
-          order: 0 // Will be at the top
+          order: 0
+        });
+
+        // Toggle low state off since it's now on the shopping list
+        batch.update(doc(db, 'inventory', item.id), {
+          isLow: false,
+          updatedAt: Timestamp.now()
         });
       }
+    }
 
-      // 3. Delete from inventory
+    try {
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'inventory/addLowToShoppingList');
+    }
+  };
+
+  const handleClearUsed = async (location: string) => {
+    const usedItems = items.filter(item => item.location === location && item.used);
+    const batch = writeBatch(db);
+
+    for (const item of usedItems) {
       batch.delete(doc(db, 'inventory', item.id));
     }
 
     try {
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory/clearUsed');
+      handleFirestoreError(error, OperationType.DELETE, 'inventory/clearUsed');
+    }
+  };
+
+  const handleRestockUsed = async (location: string) => {
+    const usedItems = items.filter(item => item.location === location && item.used);
+    const batch = writeBatch(db);
+
+    for (const item of usedItems) {
+      let targetStoreId = '';
+      const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
+      if (boughtFromMatch) {
+        const storeName = boughtFromMatch[1].trim();
+        const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
+        if (store) targetStoreId = store.id;
+      }
+
+      if (!targetStoreId && storeLists.length > 0) {
+        targetStoreId = storeLists[0].id;
+      }
+
+      if (targetStoreId) {
+        const shoppingItemRef = doc(collection(db, 'shoppingItems'));
+        batch.set(shoppingItemRef, {
+          name: item.name,
+          amount: item.quantity || '',
+          unit: item.unit || '',
+          storeListId: targetStoreId,
+          completed: false,
+          userId: user?.uid,
+          createdAt: Timestamp.now(),
+          order: 0
+        });
+      }
+
+      batch.delete(doc(db, 'inventory', item.id));
+    }
+
+    try {
+      await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'inventory/restockUsed');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !user) return;
+    if (!user) return;
+
+    let finalName = formData.name.trim();
+    let finalQuantity = formData.quantity.trim();
+    let finalUnit = formData.unit.trim();
+
+    if (useSmartInput) {
+      if (!smartInput.trim()) return;
+      const parsed = parseShoppingItem(smartInput.trim());
+      finalName = parsed.name;
+      finalQuantity = parsed.amount;
+      finalUnit = parsed.unit;
+    }
+
+    if (!finalName) return;
 
     try {
       const itemData: any = {
-        name: formData.name.trim(),
+        name: finalName,
         category: activeTab === 'ingredients' ? 'ingredient' : 'supply',
         userId: user.uid,
         updatedAt: Timestamp.now()
       };
 
-      // Only add optional fields if they have values
-      if (formData.quantity.trim()) {
-        itemData.quantity = formData.quantity.trim();
-      }
-      if (formData.unit.trim()) {
-        itemData.unit = formData.unit.trim();
-      }
-      if (formData.location.trim()) {
-        itemData.location = formData.location.trim();
-      }
-      if (formData.purchasedOn) {
-        itemData.purchasedOn = formData.purchasedOn;
-      }
-      if (formData.notes.trim()) {
-        itemData.notes = formData.notes.trim();
-      }
-
       if (editingItem) {
+        // When updating, we must explicitly set or clear these fields
+        itemData.quantity = finalQuantity || '';
+        itemData.unit = finalUnit || '';
+        itemData.location = formData.location.trim() || '';
+        itemData.purchasedOn = formData.purchasedOn || '';
+        itemData.notes = formData.notes.trim() || '';
+        
         await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
       } else {
+        // When creating, we only add if they have values
+        if (finalQuantity) itemData.quantity = finalQuantity;
+        if (finalUnit) itemData.unit = finalUnit;
+        if (formData.location.trim()) itemData.location = formData.location.trim();
+        if (formData.purchasedOn) itemData.purchasedOn = formData.purchasedOn;
+        if (formData.notes.trim()) itemData.notes = formData.notes.trim();
+
         // Get current max order for this location to append at the end
         const locationItems = items.filter(i => i.location === (formData.location.trim() || 'Uncategorized'));
         const maxOrder = locationItems.length > 0 
           ? Math.max(...locationItems.map(i => i.order ?? 0)) 
           : -1;
 
-        await addDoc(collection(db, 'inventory'), {
+        const newDoc = await addDoc(collection(db, 'inventory'), {
           ...itemData,
           order: maxOrder + 1,
           createdAt: Timestamp.now()
         });
+
+        // Scroll to bottom of the card list
+        const loc = formData.location.trim() || 'Uncategorized';
+        setTimeout(() => {
+          const listElement = locationListRefs.current[loc];
+          if (listElement) {
+            listElement.scrollTo({
+              top: listElement.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
       }
 
       resetForm();
@@ -399,6 +488,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     setActiveTab(tab);
     setSearchQuery('');
     setIsAddingLocation(false);
+    setExpandedCards({});
+    setExpandedLocation(null);
   };
 
   const handleAddLocation = async (e: React.FormEvent) => {
@@ -899,11 +990,15 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                   handleDelete={handleDelete}
                   checkboxStyle={checkboxStyle}
                   handleClearUsed={handleClearUsed}
+                  handleRestockUsed={handleRestockUsed}
                   startAddWithLocation={startAddWithLocation}
                   isDraggingLocRef={isDraggingLocRef}
                   onReorderItems={handleReorderItems}
                   onReorderEnd={syncReorderedItems}
                   onMoveItems={setLocationToMove}
+                  onListRef={(loc, el) => {
+                    locationListRefs.current[loc] = el;
+                  }}
                 />
               ))}
             </div>
@@ -924,11 +1019,15 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                   handleDelete={handleDelete}
                   checkboxStyle={checkboxStyle}
                   handleClearUsed={handleClearUsed}
+                  handleRestockUsed={handleRestockUsed}
                   startAddWithLocation={startAddWithLocation}
                   isDraggingLocRef={isDraggingLocRef}
                   onReorderItems={handleReorderItems}
                   onReorderEnd={syncReorderedItems}
                   onMoveItems={setLocationToMove}
+                  onListRef={(loc, el) => {
+                    locationListRefs.current[loc] = el;
+                  }}
                 />
               ))}
             </div>
@@ -981,6 +1080,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         startEdit={startEdit}
         handleDelete={handleDelete}
         handleClearUsed={handleClearUsed}
+        handleRestockUsed={handleRestockUsed}
         handleReorderItems={handleReorderItems}
         syncReorderedItems={syncReorderedItems}
         startAddWithLocation={startAddWithLocation}

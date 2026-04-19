@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { 
   collection, 
@@ -55,13 +55,13 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
   const [isEditingStoreName, setIsEditingStoreName] = useState(false);
   const [inventoryLocations, setInventoryLocations] = useState<any[]>([]);
   const [editStoreNameValue, setEditStoreNameValue] = useState('');
-  const pendingUpdatesRef = React.useRef<Map<string, ShoppingItem[]>>(new Map());
-  const isSyncingRef = React.useRef(false);
-  const isSyncingListsRef = React.useRef(false);
-  const pendingListsRef = React.useRef<StoreList[] | null>(null);
+  const pendingUpdatesRef = useRef<Map<string, ShoppingItem[]>>(new Map());
+  const isSyncingRef = useRef(false);
+  const isSyncingListsRef = useRef(false);
+  const pendingListsRef = useRef<StoreList[] | null>(null);
 
-  const isDraggingListRef = React.useRef(false);
-  const isDraggingItemRef = React.useRef(false);
+  const isDraggingListRef = useRef(false);
+  const isDraggingItemRef = useRef(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -90,12 +90,12 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     return () => window.removeEventListener('popstate', handlePopState);
   }, [expandedListId]);
 
-  const handleExpand = React.useCallback((id: string) => {
+  const handleExpand = useCallback((id: string) => {
     setExpandedListId(id);
     window.history.pushState({ expanded: id }, '');
   }, []);
 
-  const handleCollapse = React.useCallback(() => {
+  const handleCollapse = useCallback(() => {
     if (expandedListId) {
       setExpandedListId(null);
       setIsEditMode(false);
@@ -263,7 +263,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   };
 
-  const handleAddItem = React.useCallback(async (storeListId: string, name: string) => {
+  const handleAddItem = useCallback(async (storeListId: string, name: string) => {
     if (!name.trim()) return;
     
     // Parse the item name to extract units
@@ -292,7 +292,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   }, [user.uid, shoppingItems]);
 
-  const handleToggleItem = React.useCallback(async (item: ShoppingItem) => {
+  const handleToggleItem = useCallback(async (item: ShoppingItem) => {
     try {
       await updateDoc(doc(db, 'shoppingItems', item.id), {
         completed: !item.completed
@@ -302,7 +302,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   }, []);
 
-  const handleDeleteItem = React.useCallback(async (id: string) => {
+  const handleDeleteItem = useCallback(async (id: string) => {
     try {
       await deleteDoc(doc(db, 'shoppingItems', id));
     } catch (error) {
@@ -310,7 +310,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   }, []);
 
-  const handleEditItem = React.useCallback((item: ShoppingItem) => {
+  const handleEditItem = useCallback((item: ShoppingItem) => {
     setEditingItem(item);
     setEditItemName(`${item.amount ? item.amount + ' ' : ''}${item.unit ? item.unit + ' ' : ''}${item.name}`);
   }, []);
@@ -394,6 +394,11 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       'paper towels', 'tissue paper', 'tissue', 'cleaning', 'windex', 'multipurpose cleaner'
     ];
 
+    // Cat items
+    const catItems = [
+      'cat food', 'litter', 'fancy feast', 'sheba', 'meow mix', 'delectables', 'churu', 'catnip', 'cat treat', 'kitty'
+    ];
+
     // Freezer keywords
     const freezerKeywords = [
       'frozen', 'ice cream', 'sorbet', 'gelato', 'popsicle', 'frozen vegetables', 
@@ -410,9 +415,15 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       'lentil', 'grain', 'baking', 'salt', 'pepper', 'coffee', 'tea', 'sauce', 
       'pasta sauce', 'tomato sauce', 'broth', 'stock', 'cracker', 'chip', 'cookie', 
       'bread', 'oats', 'syrup', 'jam', 'peanut butter', 'mirin', 'soy sauce', 
-      'ketchup', 'mustard', 'mayo', 'mayonnaise', 'starch', 'cornstarch', 'potato starch',
+      'ketchup', 'mustard', 'mayo', 'mayonnaise', 'starch', 'cornstarch', 'potato starch', 'potato',
       'yeast', 'baking powder', 'baking soda', 'cocoa', 'chocolate chip', 'vanilla'
     ];
+
+    if (catItems.some(item => name.includes(item)) || name.includes('cat ')) {
+      // Find any location with "Cat" in it
+      const catLocation = currentLocations.find(loc => loc.name.toLowerCase().includes('cat'))?.name || 'Cat Supplies';
+      return { location: catLocation, category: 'supply' };
+    }
 
     if (sinkItems.some(item => name.includes(item))) {
       // Find any location with "Sink" in it
@@ -444,7 +455,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     return { location: 'Refrigerator', category: 'ingredient' };
   };
 
-  const handleClearCompleted = React.useCallback(async (storeListId: string) => {
+  const handleClearCompleted = useCallback(async (storeListId: string) => {
     const completedItems = shoppingItems.filter(item => item.storeListId === storeListId && item.completed);
     
     if (completedItems.length === 0) return;
@@ -483,7 +494,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   }, [shoppingItems, user.uid, storeLists, inventoryLocations]);
 
-  const handleReorder = React.useCallback((storeListId: string, newItems: ShoppingItem[]) => {
+  const handleReorder = useCallback((storeListId: string, newItems: ShoppingItem[]) => {
     // 1. Update local state immediately for buttery smooth UI
     setShoppingItems(prevItems => {
       const otherItems = prevItems.filter(item => item.storeListId !== storeListId);
@@ -494,7 +505,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     pendingUpdatesRef.current.set(storeListId, newItems);
   }, []);
 
-  const syncReorderedItems = React.useCallback(async (storeListId: string) => {
+  const syncReorderedItems = useCallback(async (storeListId: string) => {
     const newItems = pendingUpdatesRef.current.get(storeListId);
     if (!newItems || isSyncingRef.current) return;
 
@@ -523,12 +534,12 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   }, []);
 
-  const handleReorderLists = React.useCallback((newLists: StoreList[]) => {
+  const handleReorderLists = useCallback((newLists: StoreList[]) => {
     setStoreLists(newLists);
     pendingListsRef.current = newLists;
   }, []);
 
-  const syncReorderedLists = React.useCallback(async () => {
+  const syncReorderedLists = useCallback(async () => {
     if (!pendingListsRef.current || isSyncingListsRef.current) return;
     
     const listsToSync = [...pendingListsRef.current];

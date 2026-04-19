@@ -21,22 +21,22 @@ export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
       icon: ShoppingCart,
       title: 'Shopping List',
       path: '/shopping-list',
-      bgColor: 'bg-m3-primary',
-      iconColor: 'text-m3-on-primary'
+      bgColor: 'bg-m3-secondary',
+      iconColor: 'text-m3-on-secondary'
     },
     {
       icon: Package,
       title: 'Inventory',
       path: '/inventory',
-      bgColor: 'bg-m3-primary',
-      iconColor: 'text-m3-on-primary'
+      bgColor: 'bg-m3-tertiary',
+      iconColor: 'text-m3-on-tertiary'
     },
     {
       icon: BookOpen,
       title: 'Recipes',
       path: '/recipes',
-      bgColor: 'bg-m3-primary',
-      iconColor: 'text-m3-on-primary'
+      bgColor: 'bg-m3-primary-container',
+      iconColor: 'text-m3-on-primary-container'
     }
   ];
 

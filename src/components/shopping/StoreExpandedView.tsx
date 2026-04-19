@@ -96,7 +96,7 @@ export const StoreExpandedView: React.FC<StoreExpandedViewProps> = ({
                 onClick={() => setIsEditMode(!isEditMode)}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl font-bold transition-all ${
                   isEditMode 
-                    ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+                    ? 'text-m3-primary hover:bg-m3-primary/10' 
                     : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
                 }`}
                 title={isEditMode ? 'Done' : 'Edit'}
