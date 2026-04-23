@@ -19,6 +19,7 @@ import { AutoSortSettingsModal } from '../components/inventory/AutoSortSettingsM
 import { INVENTORY_UNITS } from '../constants/units';
 import { markItemAsSessionMoved } from '../utils/session';
 import { useToast } from '../contexts/ToastContext';
+import { STORAGE_KEYS, cacheData, getCachedData } from '../utils/cache';
 
 interface InventoryPageProps {
   onMenuClick: () => void;
@@ -28,12 +29,12 @@ interface InventoryPageProps {
 
 export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: InventoryPageProps) => {
   const [activeTab, setActiveTab] = useState<'ingredients' | 'supplies'>('ingredients');
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>(() => getCachedData<InventoryItem[]>(STORAGE_KEYS.INVENTORY_ITEMS) || []);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingLocation, setIsAddingLocation] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
-  const [dbLocations, setDbLocations] = useState<any[]>([]);
+  const [dbLocations, setDbLocations] = useState<any[]>(() => getCachedData<any[]>(STORAGE_KEYS.INVENTORY_LOCATIONS) || []);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -62,7 +63,11 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const pendingItemsRef = useRef<InventoryItem[] | null>(null);
   const isDraggingLocRef = useRef(false);
   const [isDraggingLoc, setIsDraggingLoc] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(() => {
+    const cachedItems = getCachedData<InventoryItem[]>(STORAGE_KEYS.INVENTORY_ITEMS);
+    const cachedLocs = getCachedData<any[]>(STORAGE_KEYS.INVENTORY_LOCATIONS);
+    return !(cachedItems && cachedItems.length > 0) && !(cachedLocs && cachedLocs.length > 0);
+  });
   const locationListRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const getCategoryLocations = useCallback((category: 'ingredient' | 'supply') => {
@@ -200,12 +205,14 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           ...doc.data()
         } as InventoryItem));
         // Sort in memory to handle documents without the 'order' field
-        setItems(inventoryData.sort((a, b) => {
+        const sortedItems = inventoryData.sort((a, b) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
           return a.id.localeCompare(b.id);
-        }));
+        });
+        setItems(sortedItems);
+        cacheData(STORAGE_KEYS.INVENTORY_ITEMS, sortedItems);
         setIsInitialLoad(false);
       }
     }, (error) => {
@@ -221,12 +228,14 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       if (!isSyncingLocsRef.current && !isDraggingLocRef.current) {
         const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         // Sort in memory to handle documents without the 'order' field
-        setDbLocations(locs.sort((a, b) => {
+        const sortedLocs = locs.sort((a, b) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
           return a.name.localeCompare(b.name);
-        }));
+        });
+        setDbLocations(sortedLocs);
+        cacheData(STORAGE_KEYS.INVENTORY_LOCATIONS, sortedLocs);
         setIsInitialLoad(false);
       }
     }, (error) => {
@@ -1103,33 +1112,37 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           </AnimatePresence>
 
           {/* Content Display */}
-          {isInitialLoad ? (
-            <div className="flex-1 flex items-center justify-center py-32">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-m3-primary/20 border-t-m3-primary rounded-full animate-spin" />
-                <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading inventory...</p>
-              </div>
-            </div>
-          ) : (
-            <div className="relative">
-              {/* Ingredients Tab */}
+          <AnimatePresence mode="wait">
+            {isInitialLoad ? (
               <motion.div 
-                initial={false}
-                animate={{ 
-                  opacity: activeTab === 'ingredients' ? 1 : 0,
-                  x: activeTab === 'ingredients' ? 0 : -20,
-                  scale: activeTab === 'ingredients' ? 1 : 0.98,
-                  display: activeTab === 'ingredients' ? 'block' : 'none'
-                }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex-1 flex items-center justify-center py-32"
               >
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-m3-primary/20 border-t-m3-primary rounded-full animate-spin" />
+                  <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading inventory...</p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
+                className="relative"
+              >
+                {/* Locations Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {displayIngredientLocations.map((location, index) => (
+                  {(activeTab === 'ingredients' ? displayIngredientLocations : displaySupplyLocations).map((location, index) => (
                     <LocationCard
-                      key={`ingredient-${location}`}
+                      key={`${activeTab}-${location}`}
                       location={location}
                       index={index}
-                      locationItems={ingredientItems.filter(item => item.location === location)}
+                      locationItems={(activeTab === 'ingredients' ? ingredientItems : supplyItems).filter(item => item.location === location)}
                       toggleCardCollapsed={toggleCardCollapsed}
                       expandedCards={expandedCards}
                       handleExpand={handleExpand}
@@ -1152,49 +1165,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                   ))}
                 </div>
               </motion.div>
-
-              {/* Supplies Tab */}
-              <motion.div 
-                initial={false}
-                animate={{ 
-                  opacity: activeTab === 'supplies' ? 1 : 0,
-                  x: activeTab === 'supplies' ? 0 : 20,
-                  scale: activeTab === 'supplies' ? 1 : 0.98,
-                  display: activeTab === 'supplies' ? 'block' : 'none'
-                }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {displaySupplyLocations.map((location, index) => (
-                    <LocationCard
-                      key={`supply-${location}`}
-                      location={location}
-                      index={index}
-                      locationItems={supplyItems.filter(item => item.location === location)}
-                      toggleCardCollapsed={toggleCardCollapsed}
-                      expandedCards={expandedCards}
-                      handleExpand={handleExpand}
-                      toggleItemUsed={toggleItemUsed}
-                      startEdit={startEdit}
-                      handleDelete={handleDelete}
-                      checkboxStyle={checkboxStyle}
-                      handleClearUsed={handleClearUsed}
-                      handleRestockUsed={handleRestockUsed}
-                      handleClearAndRestockUsed={handleClearAndRestockUsed}
-                      startAddWithLocation={startAddWithLocation}
-                      isDraggingLocRef={isDraggingLocRef}
-                      onReorderItems={handleReorderItems}
-                      onReorderEnd={syncReorderedItems}
-                      onMoveItems={setLocationToMove}
-                      onListRef={(loc, el) => {
-                        locationListRefs.current[loc] = el;
-                      }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
 
           {/* Sort Locations Modal */}
           <SortLocationsModal

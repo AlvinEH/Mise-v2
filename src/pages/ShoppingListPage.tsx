@@ -31,6 +31,7 @@ import { EditItemModal } from '../components/shopping/EditItemModal';
 import { DeleteStoreModal } from '../components/shopping/DeleteStoreModal';
 import { MoveStoreItemsModal } from '../components/shopping/MoveStoreItemsModal';
 import { StoreExpandedView } from '../components/shopping/StoreExpandedView';
+import { STORAGE_KEYS, cacheData, getCachedData } from '../utils/cache';
 import { CheckboxStyle } from '../types';
 
 interface ShoppingListPageProps {
@@ -42,8 +43,8 @@ interface ShoppingListPageProps {
 
 export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
   const { addToast } = useToast();
-  const [storeLists, setStoreLists] = useState<StoreList[]>([]);
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const [storeLists, setStoreLists] = useState<StoreList[]>(() => getCachedData<StoreList[]>(STORAGE_KEYS.SHOPPING_LISTS) || []);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => getCachedData<ShoppingItem[]>(STORAGE_KEYS.SHOPPING_ITEMS) || []);
   const [newStoreName, setNewStoreName] = useState('');
   const [isAddingStore, setIsAddingStore] = useState(false);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
@@ -67,6 +68,11 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
 
   const isDraggingListRef = useRef(false);
   const isDraggingItemRef = useRef(false);
+
+  const [isInitialLoad, setIsInitialLoad] = useState(() => {
+    const cachedLists = getCachedData<StoreList[]>(STORAGE_KEYS.SHOPPING_LISTS);
+    return !(cachedLists && cachedLists.length > 0);
+  });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -119,12 +125,15 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       if (!isSyncingListsRef.current && !isDraggingListRef.current) {
         const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreList));
         // Sort in memory to handle documents without the 'order' field
-        setStoreLists(lists.sort((a, b) => {
+        const sortedLists = lists.sort((a, b) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
           return a.name.localeCompare(b.name);
-        }));
+        });
+        setStoreLists(sortedLists);
+        cacheData(STORAGE_KEYS.SHOPPING_LISTS, sortedLists);
+        setIsInitialLoad(false);
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'storeLists'));
 
@@ -137,12 +146,14 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       // and not dragging a list (since list contents might shift)
       if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
-        setShoppingItems(items.sort((a, b) => {
+        const sortedItems = items.sort((a, b) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
           return a.id.localeCompare(b.id);
-        }));
+        });
+        setShoppingItems(sortedItems);
+        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 
@@ -581,8 +592,17 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          <AnimatePresence>
-            {isAddingStore && (
+          {isInitialLoad ? (
+            <div className="flex-1 flex items-center justify-center py-32">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-m3-primary/20 border-t-m3-primary rounded-full animate-spin" />
+                <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading shopping list...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <AnimatePresence>
+                {isAddingStore && (
               <motion.div 
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
@@ -662,6 +682,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
               </div>
             )}
           </LayoutGroup>
+          </>
+          )}
         </div>
       </main>
 
