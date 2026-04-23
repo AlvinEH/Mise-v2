@@ -31,6 +31,9 @@ export const useTheme = () => {
   const [checkboxStyle, setCheckboxStyle] = useState<CheckboxStyle>(() => 
     (localStorage.getItem('Mise-checkbox-style') as CheckboxStyle) || 'square'
   );
+  const [aiAutoSort, setAiAutoSort] = useState<boolean>(() => 
+    localStorage.getItem('Mise-ai-auto-sort') === 'true'
+  );
 
   useEffect(() => {
     const themeValue = theme === 'm3' ? (mode === 'light' ? '' : 'm3-dark') : `${theme}-${mode}`;
@@ -80,13 +83,15 @@ export const useTheme = () => {
     localStorage.setItem('Mise-theme', theme);
     localStorage.setItem('Mise-mode', mode);
     localStorage.setItem('Mise-checkbox-style', checkboxStyle);
-  }, [theme, mode, checkboxStyle]);
+    localStorage.setItem('Mise-ai-auto-sort', String(aiAutoSort));
+  }, [theme, mode, checkboxStyle, aiAutoSort]);
 
   return useMemo(() => ({ 
     theme, setTheme, 
     mode, setMode, 
-    checkboxStyle, setCheckboxStyle 
-  }), [theme, mode, checkboxStyle]);
+    checkboxStyle, setCheckboxStyle,
+    aiAutoSort, setAiAutoSort
+  }), [theme, mode, checkboxStyle, aiAutoSort]);
 };
 
 // Re-export useRecipes for convenience

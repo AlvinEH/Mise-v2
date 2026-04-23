@@ -14,7 +14,7 @@ import {
   writeBatch,
   getDocs
 } from 'firebase/firestore';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
+import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
 import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -23,6 +23,8 @@ import { handleFirestoreError } from '../utils';
 import { parseShoppingItem } from '../utils/shoppingItems';
 import { markItemAsSessionMoved } from '../utils/session';
 import { PageHeader } from '../components/layout/PageHeader';
+import { useToast } from '../contexts/ToastContext';
+import { suggestLocationsBatched } from '../services/geminiService';
 import { StoreCardWrapper } from '../components/shopping/StoreCardWrapper';
 import { SortStoresModal } from '../components/shopping/SortStoresModal';
 import { EditItemModal } from '../components/shopping/EditItemModal';
@@ -35,9 +37,11 @@ interface ShoppingListPageProps {
   onMenuClick: () => void;
   user: User;
   checkboxStyle: CheckboxStyle;
+  aiAutoSort?: boolean;
 }
 
-export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingListPageProps) => {
+export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
+  const { addToast } = useToast();
   const [storeLists, setStoreLists] = useState<StoreList[]>([]);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [newStoreName, setNewStoreName] = useState('');
@@ -54,6 +58,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
   const [storeToMove, setStoreToMove] = useState<string | null>(null);
   const [isEditingStoreName, setIsEditingStoreName] = useState(false);
   const [inventoryLocations, setInventoryLocations] = useState<any[]>([]);
+  const [autoSortRules, setAutoSortRules] = useState<any[]>([]);
   const [editStoreNameValue, setEditStoreNameValue] = useState('');
   const pendingUpdatesRef = useRef<Map<string, ShoppingItem[]>>(new Map());
   const isSyncingRef = useRef(false);
@@ -149,10 +154,19 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       setInventoryLocations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventoryLocations'));
 
+    const qRules = query(
+      collection(db, 'inventoryAutoSortRules'),
+      where('userId', '==', user.uid)
+    );
+    const unsubscribeRules = onSnapshot(qRules, (snapshot) => {
+      setAutoSortRules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventoryAutoSortRules'));
+
     return () => {
       unsubscribeLists();
       unsubscribeItems();
       unsubscribeInvLocs();
+      unsubscribeRules();
     };
   }, [user]);
 
@@ -221,6 +235,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
         batch.delete(doc(db, 'shoppingItems', item.id));
       });
       await batch.commit();
+      addToast(`Store and its items deleted`, 'success');
 
       if (expandedListId === id) {
         setExpandedListId(null);
@@ -257,6 +272,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
       });
 
       await batch.commit();
+      addToast(`${itemsToMove.length} items moved to target store`, 'move');
       setStoreToMove(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'shopping/moveStore');
@@ -367,88 +383,13 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     }
   };
 
-  const getInventoryLocationAndCategory = (itemName: string, currentLocations: any[]): { location: string; category: 'ingredient' | 'supply' } => {
+  const getInventoryLocationAndCategory = (itemName: string, _currentLocations: any[]): { location: string; category: 'ingredient' | 'supply' } => {
     const name = itemName.toLowerCase();
     
-    // Washroom items
-    const washroomItems = [
-      'toilet cleaner', 'toilet paper', 'toothpaste', 'face wash', 'tooth paste', 
-      'soap', 'shampoo', 'conditioner', 'body wash', 'hand wash', 'mouthwash', 
-      'floss', 'razor', 'shaving', 'deodorant', 'lotion', 'sunscreen', 'cotton', 
-      'q-tip', 'tampon', 'sanitary', 'pad', 'liner', 'diaper', 'wipe', 'shower gel', 'bath', 
-      'cleanser', 'moisturizer', 'serum', 'toner', 'hair spray', 'hair gel', 
-      'toothbrush', 'dental'
-    ];
-
-    // Sink items (Dish soap, recycle bags, trash bags)
-    const sinkItems = ['dish soap', 'recycle bag', 'trash bag'];
-    
-    // Laundry Room items
-    const laundryItems = [
-      'air freshener', 'swiffer', 'duster', 'laundry', 'vacuum bag', 'vacuum soap', 
-      'sponge', 'water filter', 'detergent', 'bleach'
-    ];
-
-    // Closet items (Remaining)
-    const closetItems = [
-      'paper towels', 'tissue paper', 'tissue', 'cleaning', 'windex', 'multipurpose cleaner'
-    ];
-
-    // Cat items
-    const catItems = [
-      'cat food', 'litter', 'fancy feast', 'sheba', 'meow mix', 'delectables', 'churu', 'catnip', 'cat treat', 'kitty'
-    ];
-
-    // Freezer keywords
-    const freezerKeywords = [
-      'frozen', 'ice cream', 'sorbet', 'gelato', 'popsicle', 'frozen vegetables', 
-      'frozen fruit', 'pizza', 'burger', 'patty', 'nugget', 'fries', 'tater tots', 
-      'hash brown', 'waffle', 'dumpling', 'pierogi'
-    ];
-    
-    // Pantry keywords
-    const pantryKeywords = [
-      'flour', 'sugar', 'rice', 'pasta', 'spaghetti', 'penne', 'fusilli', 'rotini', 
-      'rigatoni', 'farfalle', 'macaroni', 'linguine', 'fettuccine', 'lasagna', 'gnocchi', 
-      'vermicelli', 'ziti', 'shell', 'noodle', 'couscous', 'quinoa', 'canned', 'dry', 
-      'spice', 'oil', 'vinegar', 'honey', 'cereal', 'snack', 'nut', 'seed', 'bean', 
-      'lentil', 'grain', 'baking', 'salt', 'pepper', 'coffee', 'tea', 'sauce', 
-      'pasta sauce', 'tomato sauce', 'broth', 'stock', 'cracker', 'chip', 'cookie', 
-      'bread', 'oats', 'syrup', 'jam', 'peanut butter', 'mirin', 'soy sauce', 
-      'ketchup', 'mustard', 'mayo', 'mayonnaise', 'starch', 'cornstarch', 'potato starch', 'potato',
-      'yeast', 'baking powder', 'baking soda', 'cocoa', 'chocolate chip', 'vanilla'
-    ];
-
-    if (catItems.some(item => name.includes(item)) || name.includes('cat ')) {
-      // Find any location with "Cat" in it
-      const catLocation = currentLocations.find(loc => loc.name.toLowerCase().includes('cat'))?.name || 'Cat Supplies';
-      return { location: catLocation, category: 'supply' };
-    }
-
-    if (sinkItems.some(item => name.includes(item))) {
-      // Find any location with "Sink" in it
-      const sinkLocation = currentLocations.find(loc => loc.name.toLowerCase().includes('sink'))?.name || 'Under Sink';
-      return { location: sinkLocation, category: 'supply' };
-    }
-
-    if (laundryItems.some(item => name.includes(item))) {
-      return { location: 'Laundry Room', category: 'supply' };
-    }
-
-    if (washroomItems.some(item => name.includes(item))) {
-      return { location: 'Washroom', category: 'supply' };
-    }
-
-    if (closetItems.some(item => name.includes(item))) {
-      return { location: 'Closet', category: 'supply' };
-    }
-
-    if (freezerKeywords.some(keyword => name.includes(keyword))) {
-      return { location: 'Freezer', category: 'ingredient' };
-    }
-
-    if (pantryKeywords.some(keyword => name.includes(keyword))) {
-      return { location: 'Pantry', category: 'ingredient' };
+    // 1. Check unified rules (Highest priority)
+    const rule = autoSortRules.find(rule => name.includes(rule.keyword.toLowerCase()));
+    if (rule) {
+      return { location: rule.location, category: rule.category };
     }
     
     // Default to Refrigerator for groceries
@@ -466,9 +407,61 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
 
     const batch = writeBatch(db);
     
+    // AI Auto-Sort logic if enabled
+    let aiSuggestions = new Map<string, { location: string; category: 'ingredient' | 'supply' }>();
+    if (aiAutoSort) {
+      const itemsToSuggest = completedItems
+        .filter(item => {
+          const name = item.name.toLowerCase();
+          // Only ask AI if no dynamic user rule exists
+          return !autoSortRules.find(rule => name.includes(rule.keyword.toLowerCase()));
+        })
+        .map(item => item.name);
+
+      if (itemsToSuggest.length > 0) {
+        addToast('AI is auto-sorting new items...', 'info');
+        try {
+          aiSuggestions = await suggestLocationsBatched(itemsToSuggest, autoSortRules);
+        } catch (error) {
+          console.error("AI Auto-sort failed, falling back to defaults", error);
+        }
+      }
+    }
+    
+    const addedRuleKeywords = new Set<string>();
+
     for (const item of completedItems) {
-      const { location, category } = getInventoryLocationAndCategory(item.name, inventoryLocations);
+      let { location, category } = getInventoryLocationAndCategory(item.name, inventoryLocations);
       
+      // If AI suggested something, check if we should use it
+      const itemNameLower = item.name.toLowerCase();
+      const aiSuggestion = aiSuggestions.get(itemNameLower);
+      if (aiSuggestion) {
+        // Find existing location that matches suggested location (fuzzy)
+        const existingLoc = inventoryLocations.find(loc => 
+          loc.name.toLowerCase() === aiSuggestion.location.toLowerCase() ||
+          loc.name.toLowerCase().includes(aiSuggestion.location.toLowerCase()) ||
+          aiSuggestion.location.toLowerCase().includes(loc.name.toLowerCase())
+        );
+        
+        location = existingLoc ? existingLoc.name : aiSuggestion.location;
+        category = aiSuggestion.category;
+
+        // Auto-save the AI suggestion as a rule for next time
+        const ruleExists = autoSortRules.some(r => r.keyword.toLowerCase() === itemNameLower);
+        if (!ruleExists && !addedRuleKeywords.has(itemNameLower)) {
+          const newRuleRef = doc(collection(db, 'inventoryAutoSortRules'));
+          batch.set(newRuleRef, {
+            keyword: itemNameLower,
+            location,
+            category,
+            userId: user.uid,
+            createdAt: Timestamp.now()
+          });
+          addedRuleKeywords.add(itemNameLower);
+        }
+      }
+
       const newInventoryRef = doc(collection(db, 'inventory'));
       batch.set(newInventoryRef, {
         name: item.name,
@@ -489,10 +482,14 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
     
     try {
       await batch.commit();
+      const rulesMessage = addedRuleKeywords.size > 0 
+        ? ` (AI learned ${addedRuleKeywords.size} new rules)` 
+        : '';
+      addToast(`${completedItems.length} items moved to inventory${rulesMessage}`, 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'shoppingItems/clearCompleted');
     }
-  }, [shoppingItems, user.uid, storeLists, inventoryLocations]);
+  }, [shoppingItems, user.uid, storeLists, inventoryLocations, aiAutoSort, autoSortRules, getInventoryLocationAndCategory]);
 
   const handleReorder = useCallback((storeListId: string, newItems: ShoppingItem[]) => {
     // 1. Update local state immediately for buttery smooth UI
@@ -611,18 +608,18 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
                       className="w-full px-4 py-3 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold text-sm transition-all"
                     />
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex items-center justify-end gap-2 pt-2">
                     <button 
                       type="button"
                       onClick={() => setIsAddingStore(false)}
-                      className="flex-1 px-4 py-3 text-m3-on-surface-variant font-bold text-sm hover:bg-m3-surface-variant/10 rounded-xl transition-all"
+                      className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                     >
                       Cancel
                     </button>
                     <button 
                       type="submit"
                       disabled={!newStoreName.trim()}
-                      className="flex-[2] px-4 py-3 bg-m3-primary text-m3-on-primary font-bold text-sm rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none transition-all"
+                      className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
                     >
                       Create
                     </button>
@@ -633,36 +630,38 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle }: ShoppingL
             )}
           </AnimatePresence>
 
-          {storeLists.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
-              {storeLists.map((list) => (
-                  <StoreCardWrapper
-                    key={list.id}
-                    list={list}
-                    shoppingItems={shoppingItems}
-                    handleAddItem={handleAddItem}
-                    handleToggleItem={handleToggleItem}
-                    handleDeleteItem={handleDeleteItem}
-                    handleEditItem={handleEditItem}
-                    handleDeleteStore={handleDeleteStore}
-                    handleClearCompleted={handleClearCompleted}
-                    handleReorder={handleReorder}
-                    syncReorderedItems={syncReorderedItems}
-                    handleExpand={handleExpand}
-                    expandedCardId={expandedCardId}
-                    setExpandedCardId={setExpandedCardId}
-                    checkboxStyle={checkboxStyle}
-                    isDraggingItemRef={isDraggingItemRef}
-                    onMoveItems={setStoreToMove}
-                  />
-                ))}
-            </div>
-          ) : (
-            <div className="text-center py-32 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm">
-              <h3 className="text-2xl font-black text-m3-on-surface mb-2">No shopping lists yet</h3>
-              <p className="text-m3-on-surface-variant/60 font-medium mb-8">Add a store to start organizing your groceries.</p>
-            </div>
-          )}
+          <LayoutGroup id="shopping-lists">
+            {storeLists.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
+                {storeLists.map((list) => (
+                    <StoreCardWrapper
+                      key={list.id}
+                      list={list}
+                      shoppingItems={shoppingItems}
+                      handleAddItem={handleAddItem}
+                      handleToggleItem={handleToggleItem}
+                      handleDeleteItem={handleDeleteItem}
+                      handleEditItem={handleEditItem}
+                      handleDeleteStore={handleDeleteStore}
+                      handleClearCompleted={handleClearCompleted}
+                      handleReorder={handleReorder}
+                      syncReorderedItems={syncReorderedItems}
+                      handleExpand={handleExpand}
+                      expandedCardId={expandedCardId}
+                      setExpandedCardId={setExpandedCardId}
+                      checkboxStyle={checkboxStyle}
+                      isDraggingItemRef={isDraggingItemRef}
+                      onMoveItems={setStoreToMove}
+                    />
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-32 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm">
+                <h3 className="text-2xl font-black text-m3-on-surface mb-2">No shopping lists yet</h3>
+                <p className="text-m3-on-surface-variant/60 font-medium mb-8">Add a store to start organizing your groceries.</p>
+              </div>
+            )}
+          </LayoutGroup>
         </div>
       </main>
 

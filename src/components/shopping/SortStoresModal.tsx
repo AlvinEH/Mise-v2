@@ -20,17 +20,24 @@ export const SortStoresModal: React.FC<SortStoresModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          key="sort-stores-wrapper"
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[110]"
-          onClick={onClose}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4"
         >
           <motion.div
+            key="sort-stores-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          <motion.div
+            key="sort-stores-content"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-m3-surface rounded-[32px] p-6 w-full max-w-md shadow-xl border border-m3-outline/10"
+            className="relative bg-m3-surface rounded-[32px] p-6 w-full max-w-md shadow-xl border border-m3-outline/10"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">

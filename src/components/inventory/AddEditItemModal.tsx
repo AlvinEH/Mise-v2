@@ -48,19 +48,25 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          key="add-edit-item-wrapper"
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[110]"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onClose();
-          }}
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4"
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-lg shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
+            key="add-edit-item-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          <motion.div
+            key="add-edit-item-content"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative bg-m3-surface rounded-[32px] p-6 lg:p-8 w-full max-w-lg shadow-xl border border-m3-outline/10 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-black text-m3-on-surface">
@@ -227,17 +233,17 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex items-center justify-end gap-2 pt-6">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-[0.4] py-2.5 px-6 border border-m3-outline text-m3-primary rounded-[20px] font-medium hover:bg-m3-primary/8 transition-all"
+                  className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-[0.6] py-2.5 px-6 bg-m3-primary text-m3-on-primary rounded-[20px] font-medium hover:bg-m3-primary/90 shadow-sm hover:shadow-md transition-all"
+                  className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
                 >
                   {editingItem ? 'Update' : 'Add'}
                 </button>

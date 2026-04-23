@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { motion } from 'motion/react';
-import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon } from 'lucide-react';
+import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon, Sparkles } from 'lucide-react';
 import { Theme, Mode, CheckboxStyle } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
 
@@ -15,6 +15,8 @@ interface SettingsPageProps {
   setMode: (m: Mode) => void;
   checkboxStyle: CheckboxStyle;
   setCheckboxStyle: (s: CheckboxStyle) => void;
+  aiAutoSort: boolean;
+  setAiAutoSort: (v: boolean) => void;
 }
 
 export const SettingsPage = ({ 
@@ -26,7 +28,9 @@ export const SettingsPage = ({
   mode,
   setMode,
   checkboxStyle,
-  setCheckboxStyle
+  setCheckboxStyle,
+  aiAutoSort,
+  setAiAutoSort
 }: SettingsPageProps) => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isCheckboxDropdownOpen, setIsCheckboxDropdownOpen] = useState(false);
@@ -221,10 +225,10 @@ export const SettingsPage = ({
                 </div>
                 <button
                   onClick={saveApiKey}
-                  className={`px-6 py-3 rounded-[20px] font-bold transition-all ${
+                  className={`px-8 py-2.5 rounded-full font-semibold text-sm transition-all active:scale-95 ${
                     apiKeySaved 
                       ? 'bg-green-500 text-white' 
-                      : 'bg-m3-primary text-m3-on-primary hover:bg-m3-primary/90'
+                      : 'bg-m3-primary text-m3-on-primary shadow-sm hover:shadow-md'
                   }`}
                 >
                   {apiKeySaved ? 'Saved!' : 'Save'}
@@ -232,10 +236,36 @@ export const SettingsPage = ({
               </div>
               
               {geminiApiKey && (
-                <div className="p-4 bg-m3-primary/10 rounded-[20px] border border-m3-primary/20">
-                  <p className="text-sm text-m3-primary font-bold">
-                    ✓ API key configured. You can now extract recipes from URLs!
-                  </p>
+                <div className="space-y-4 pt-4 border-t border-m3-outline/10">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={16} className="text-m3-primary" />
+                        <span className="text-sm font-black text-m3-on-surface">AI Auto-Sort Items</span>
+                      </div>
+                      <p className="text-xs text-m3-on-surface-variant font-medium">
+                        Automatically sort purchased items to Pantry, Freezer, or Refrigerator using AI.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setAiAutoSort(!aiAutoSort)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none focus:ring-2 focus:ring-m3-primary focus:ring-offset-2 ${
+                        aiAutoSort ? 'bg-m3-primary' : 'bg-m3-surface-variant/40'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          aiAutoSort ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-m3-primary/10 rounded-[20px] border border-m3-primary/20">
+                    <p className="text-sm text-m3-primary font-bold">
+                      ✓ API key configured. You can now extract recipes and enable AI auto-sort!
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

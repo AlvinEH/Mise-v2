@@ -46,7 +46,7 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   const [isEditMode, setIsEditMode] = useState(false);
 
   return (
-    <div className="bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm flex flex-col h-fit overflow-hidden transition-all group">
+    <div className="bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm flex flex-col h-fit overflow-hidden group">
       {/* Header Section */}
       <div className="flex items-center justify-between px-6 py-4 bg-m3-surface-container-low">
         <div 
@@ -96,24 +96,22 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="bg-transparent"
+            className="bg-transparent flex flex-col overflow-hidden max-h-[400px] lg:max-h-[600px]"
           >
-            <div className="max-h-[400px] overflow-y-auto">
-              <ShoppingListContent 
-                items={items}
-                onAddItem={onAddItem}
-                onToggleItem={onToggleItem}
-                onDeleteItem={onDeleteItem}
-                onEditItem={onEditItem}
-                onClearCompleted={onClearCompleted}
-                onReorder={onReorder}
-                onReorderEnd={onReorderEnd}
-                isEditMode={isEditMode}
-                checkboxStyle={checkboxStyle}
-                isDraggingItemRef={isDraggingItemRef}
-                onMoveItems={() => onMoveItems(list.id)}
-              />
-            </div>
+            <ShoppingListContent 
+              items={items}
+              onAddItem={onAddItem}
+              onToggleItem={onToggleItem}
+              onDeleteItem={onDeleteItem}
+              onEditItem={onEditItem}
+              onClearCompleted={onClearCompleted}
+              onReorder={onReorder}
+              onReorderEnd={onReorderEnd}
+              isEditMode={isEditMode}
+              checkboxStyle={checkboxStyle}
+              isDraggingItemRef={isDraggingItemRef}
+              onMoveItems={() => onMoveItems(list.id)}
+            />
           </motion.div>
         )}
       </AnimatePresence>

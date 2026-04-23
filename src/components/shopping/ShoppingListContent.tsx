@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useRef } from 'react';
+import React, { memo, useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { ShoppingItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
@@ -104,7 +104,6 @@ const ShoppingListItem = memo(({
 
   return (
     <Reorder.Item 
-      layout
       value={item}
       id={item.id}
       dragListener={false}
@@ -228,6 +227,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
   onMoveItems
 }) => {
   const [newItemName, setNewItemName] = useState('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,91 +240,103 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
   const completedCount = items.filter(i => i.completed).length;
 
   return (
-    <motion.div className={`flex flex-col h-full ${isExpanded ? 'p-4 lg:p-8' : ''}`}>
-      <motion.div className={`flex-1 flex flex-col gap-2 min-h-0 ${isExpanded ? '' : 'px-4 pb-2'}`}>
+    <div 
+      className={`flex flex-col h-full bg-m3-surface overflow-hidden ${isExpanded ? '' : 'rounded-b-[24px]'}`}
+    >
+      <div 
+        ref={scrollContainerRef}
+        className={`flex-1 overflow-y-auto min-h-0 flex flex-col ${isExpanded ? 'pt-4 lg:pt-8 px-4 lg:px-8' : 'px-4 py-2'}`}
+        style={{ overflowAnchor: 'none' }}
+      >
         {items.length > 0 ? (
-          <>
+          <Reorder.Group 
+            axis="y" 
+            values={items} 
+            onReorder={onReorder} 
+            className="flex flex-col gap-0 pb-2"
+          >
             <AnimatePresence>
-              {completedCount > 0 && (
-                <motion.div 
-                  layout
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ 
-                    duration: 0.2,
-                    ease: "easeInOut"
-                  }}
-                  className="flex justify-between items-center px-2 overflow-hidden shrink-0 mb-1"
-                >
+              {items.map((item) => (
+                <ShoppingListItem 
+                  key={item.id}
+                  item={item}
+                  onToggleItem={onToggleItem}
+                  onDeleteItem={onDeleteItem}
+                  onEditItem={onEditItem}
+                  isExpanded={isExpanded || false}
+                  isEditMode={isEditMode}
+                  checkboxStyle={checkboxStyle}
+                  onReorderEnd={onReorderEnd}
+                  isDraggingItemRef={isDraggingItemRef}
+                />
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
+        ) : (
+          <div className="py-4 text-center">
+            <p className="text-m3-on-surface-variant/40 text-sm font-medium italic">Your list is empty</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Area Group */}
+      <div 
+        className="bg-m3-surface-container-low border-t border-m3-outline/5 shrink-0 flex flex-col overflow-hidden"
+      >
+        <AnimatePresence initial={false}>
+          {completedCount > 0 && (
+            <motion.div 
+              key="batch-actions-footer"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col overflow-hidden"
+            >
+              <div className="px-6 py-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-bold text-m3-on-surface-variant/50 uppercase tracking-widest">
+                    Batch Actions
+                  </span>
+                  <span className="text-[10px] font-bold text-m3-on-surface-variant/40">
+                    {completedCount} SELECTED
+                  </span>
+                </div>
+                
+                <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={onMoveItems}
-                    className="text-[10px] font-black text-m3-primary hover:underline transition-all uppercase tracking-wider py-1"
+                    className="flex-1 py-2 bg-m3-surface text-m3-tertiary rounded-xl hover:bg-m3-tertiary hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10 text-center"
                   >
-                    Move to Store
+                    Move
                   </button>
                   <button
+                    type="button"
                     onClick={onClearCompleted}
-                    className="text-[10px] font-black text-m3-error hover:underline transition-all uppercase tracking-wider py-1"
+                    className="flex-1 py-2 bg-m3-surface text-m3-primary rounded-xl hover:bg-m3-primary hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10 text-center"
                   >
                     Purchased
                   </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            <Reorder.Group 
-              axis="y" 
-              values={items} 
-              onReorder={onReorder} 
-              className={`space-y-0 ${isExpanded ? 'overflow-y-auto pr-2 flex-1' : ''}`}
-            >
-              <AnimatePresence>
-                {items.map((item) => (
-                  <ShoppingListItem 
-                    key={item.id}
-                    item={item}
-                    onToggleItem={onToggleItem}
-                    onDeleteItem={onDeleteItem}
-                    onEditItem={onEditItem}
-                    isExpanded={isExpanded || false}
-                    isEditMode={isEditMode}
-                    checkboxStyle={checkboxStyle}
-                    onReorderEnd={onReorderEnd}
-                    isDraggingItemRef={isDraggingItemRef}
-                  />
-                ))}
-              </AnimatePresence>
-            </Reorder.Group>
-          </>
-        ) : (
-          <motion.div 
-            layout
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="py-4 text-center"
-          >
-            <p className="text-m3-on-surface-variant/40 text-sm font-medium italic">Your list is empty</p>
-          </motion.div>
-        )}
-      </motion.div>
-
-      <motion.form 
-        layout
-        onSubmit={handleAddItem} 
-        className={`${isExpanded 
-          ? 'pt-4 border-t border-m3-outline/5 mt-4' 
-          : 'sticky bottom-0 bg-m3-surface-container-low px-6 py-4 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.05)]'
-        }`}
-      >
-        <input
-          type="text"
-          placeholder="Add an item"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          className="w-full px-4 py-3 bg-m3-surface-variant/20 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold placeholder:text-m3-on-surface-variant/40 text-sm transition-all"
-        />
-      </motion.form>
-    </motion.div>
+        <form 
+          onSubmit={handleAddItem} 
+          className="px-4 py-4"
+        >
+          <input
+            type="text"
+            placeholder="Add an item"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            className="w-full h-12 px-6 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 font-bold placeholder:text-m3-on-surface-variant/40 text-sm transition-all shadow-sm"
+          />
+        </form>
+      </div>
+    </div>
   );
 });

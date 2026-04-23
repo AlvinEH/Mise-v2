@@ -34,6 +34,8 @@ interface AppRoutesProps {
   setMode: (mode: Mode) => void;
   checkboxStyle: CheckboxStyle;
   setCheckboxStyle: (style: CheckboxStyle) => void;
+  aiAutoSort: boolean;
+  setAiAutoSort: (value: boolean) => void;
   onLogout: () => void;
 }
 
@@ -63,6 +65,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
     setMode,
     checkboxStyle,
     setCheckboxStyle,
+    aiAutoSort,
+    setAiAutoSort,
     onLogout
   }
 ) => {
@@ -125,6 +129,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
             onMenuClick={() => setIsSidebarOpen(true)} 
             user={user!} 
             checkboxStyle={checkboxStyle}
+            aiAutoSort={aiAutoSort}
           />
         </motion.div>
       } />
@@ -145,6 +150,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
             setMode={setMode}
             checkboxStyle={checkboxStyle}
             setCheckboxStyle={setCheckboxStyle}
+            aiAutoSort={aiAutoSort}
+            setAiAutoSort={setAiAutoSort}
             user={user}
             onLogout={onLogout}
           />

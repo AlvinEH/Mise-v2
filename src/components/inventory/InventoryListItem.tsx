@@ -1,4 +1,4 @@
-import React, { memo, useRef, useMemo } from 'react';
+import React, { memo, useRef, useMemo, useEffect } from 'react';
 import { Reorder, useDragControls } from 'motion/react';
 import { Check, Trash2, ArrowRightLeft, GripVertical, ShoppingCart } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
@@ -100,7 +100,6 @@ export const InventoryListItem = memo(({
 
   return (
     <Reorder.Item
-      layout
       value={item}
       id={item.id}
       dragListener={false}
@@ -165,7 +164,7 @@ export const InventoryListItem = memo(({
           style={{ touchAction: isEditMode ? 'none' : 'auto' }}
         >
           <div className="flex items-center gap-2">
-            <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.used ? 'line-through' : ''}`}>
+            <h4 className="font-bold text-base text-m3-on-surface leading-tight">
               {item.name}
             </h4>
             {isRecentlyMoved && (

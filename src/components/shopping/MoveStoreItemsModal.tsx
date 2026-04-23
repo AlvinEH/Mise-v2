@@ -22,17 +22,24 @@ export const MoveStoreItemsModal: React.FC<MoveStoreItemsModalProps> = ({
     <AnimatePresence>
       {storeToMove && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          key="move-store-items-wrapper"
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[200]"
-          onClick={onClose}
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="bg-m3-surface-container-high rounded-[28px] p-6 w-full max-w-sm shadow-2xl border border-m3-outline/10"
+            key="move-store-items-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          <motion.div
+            key="move-store-items-content"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative bg-m3-surface-container-high rounded-[28px] p-6 w-full max-w-sm shadow-2xl border border-m3-outline/10"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex flex-col gap-4">
@@ -61,12 +68,14 @@ export const MoveStoreItemsModal: React.FC<MoveStoreItemsModalProps> = ({
                 ))}
               </div>
 
-              <button
-                onClick={onClose}
-                className="w-full px-4 py-3 text-m3-on-surface-variant font-bold text-sm hover:bg-m3-surface-variant/10 rounded-xl transition-all"
-              >
-                Cancel
-              </button>
+              <div className="pt-2">
+                <button
+                  onClick={onClose}
+                  className="w-full px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>

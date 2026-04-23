@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
-import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch } from 'firebase/firestore';
+import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
+import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings } from 'lucide-react';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -15,8 +15,10 @@ import { AddEditItemModal } from '../components/inventory/AddEditItemModal';
 import { DeleteLocationModal } from '../components/inventory/DeleteLocationModal';
 import { MoveItemsModal } from '../components/inventory/MoveItemsModal';
 import { LocationExpandedView } from '../components/inventory/LocationExpandedView';
+import { AutoSortSettingsModal } from '../components/inventory/AutoSortSettingsModal';
 import { INVENTORY_UNITS } from '../constants/units';
 import { markItemAsSessionMoved } from '../utils/session';
+import { useToast } from '../contexts/ToastContext';
 
 interface InventoryPageProps {
   onMenuClick: () => void;
@@ -48,6 +50,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSortingLocations, setIsSortingLocations] = useState(false);
   const [isEditingLocationName, setIsEditingLocationName] = useState(false);
+  const [isAutoSortModalOpen, setIsAutoSortModalOpen] = useState(false);
+  const { addToast } = useToast();
   const [editLocationNameValue, setEditLocationNameValue] = useState('');
   const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
   const [locationToMove, setLocationToMove] = useState<string | null>(null);
@@ -60,6 +64,126 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const [isDraggingLoc, setIsDraggingLoc] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const locationListRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const getCategoryLocations = useCallback((category: 'ingredient' | 'supply') => {
+    const fromDb = dbLocations
+      .filter(loc => loc.category === category)
+      .map(loc => loc.name);
+    
+    const defaults = category === 'ingredient' 
+      ? ['Refrigerator', 'Freezer', 'Pantry'] 
+      : ['Closet', 'Washroom'];
+      
+    const fromItems = items
+      .filter(item => item.category === category)
+      .map(item => item.location)
+      .filter((loc): loc is string => !!loc);
+
+    const allNames = Array.from(new Set([...defaults, ...fromDb, ...fromItems]));
+    
+    return allNames.sort((a, b) => {
+      const locA = dbLocations.find(l => l.name === a && l.category === category);
+      const locB = dbLocations.find(l => l.name === b && l.category === category);
+      
+      const defaultOrderA = defaults.indexOf(a);
+      const defaultOrderB = defaults.indexOf(b);
+      
+      const orderA = locA?.order ?? (defaultOrderA !== -1 ? defaultOrderA : 999);
+      const orderB = locB?.order ?? (defaultOrderB !== -1 ? defaultOrderB : 999);
+      
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b);
+    });
+  }, [dbLocations, items]);
+
+  const ingredientLocations = useMemo(() => getCategoryLocations('ingredient'), [getCategoryLocations]);
+  const supplyLocations = useMemo(() => getCategoryLocations('supply'), [getCategoryLocations]);
+
+  const currentLocations = useMemo(() => {
+    return activeTab === 'ingredients' ? ingredientLocations : supplyLocations;
+  }, [activeTab, ingredientLocations, supplyLocations]);
+
+  const allFilteredItems = useMemo(() => items.filter(item => {
+    const matchesSearch = searchQuery === '' || 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.location?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
+  }), [items, searchQuery]);
+
+  const ingredientItems = useMemo(() => allFilteredItems.filter(i => i.category === 'ingredient'), [allFilteredItems]);
+  const supplyItems = useMemo(() => allFilteredItems.filter(i => i.category === 'supply'), [allFilteredItems]);
+
+  const getDisplayLocations = useCallback((locations: string[], categoryItems: InventoryItem[]) => {
+    return locations.filter(location => {
+      const locationItems = categoryItems.filter(item => item.location === location);
+      const hasMatchingItems = searchQuery === '' || locationItems.length > 0;
+      return hasMatchingItems;
+    });
+  }, [searchQuery]);
+
+  const displayIngredientLocations = useMemo(() => getDisplayLocations(ingredientLocations, ingredientItems), [getDisplayLocations, ingredientLocations, ingredientItems]);
+  const displaySupplyLocations = useMemo(() => getDisplayLocations(supplyLocations, supplyItems), [getDisplayLocations, supplyLocations, supplyItems]);
+
+  const currentFilteredItems = useMemo(() => {
+    return activeTab === 'ingredients' ? ingredientItems : supplyItems;
+  }, [activeTab, ingredientItems, supplyItems]);
+
+  useEffect(() => {
+    if (!user || isInitialLoad) return;
+
+    const migrationKey = `Mise-rules-migrated-v2-${user.uid}`;
+    const migrated = localStorage.getItem(migrationKey);
+
+    if (!migrated) {
+      const migrateRules = async () => {
+        try {
+          // Check if user already has custom rules to avoid overwriting or duplicates
+          const rulesRef = collection(db, 'inventoryAutoSortRules');
+          const q = query(rulesRef, where('userId', '==', user.uid));
+          const snapshot = await getDocs(q);
+          const existingKeywords = snapshot.docs.map(doc => doc.data().keyword.toLowerCase());
+
+          const batch = writeBatch(db);
+          const rulesToSeed = [
+            { keyword: 'dish soap', location: 'Under Sink', category: 'supply' },
+            { keyword: 'trash bag', location: 'Under Sink', category: 'supply' },
+            { keyword: 'recycle bag', location: 'Under Sink', category: 'supply' },
+            { keyword: 'paper towel', location: 'Closet', category: 'supply' },
+            { keyword: 'toilet paper', location: 'Closet', category: 'supply' },
+            { keyword: 'cleaning supply', location: 'Closet', category: 'supply' },
+            { keyword: 'battery', location: 'Closet', category: 'supply' },
+            { keyword: 'snack', location: 'Pantry', category: 'ingredient' },
+            { keyword: 'detergent', location: 'Laundry Room', category: 'supply' },
+            { keyword: 'laundry', location: 'Laundry Room', category: 'supply' },
+            { keyword: 'bags', location: 'Pantry', category: 'supply' }
+          ];
+
+          let added = 0;
+          for (const rule of rulesToSeed) {
+            if (!existingKeywords.includes(rule.keyword)) {
+              const newRuleRef = doc(collection(db, 'inventoryAutoSortRules'));
+              batch.set(newRuleRef, {
+                ...rule,
+                userId: user.uid,
+                createdAt: Timestamp.now()
+              });
+              added++;
+            }
+          }
+
+          if (added > 0) {
+            await batch.commit();
+            console.log(`Migrated ${added} standard supply rules to custom collection.`);
+          }
+          localStorage.setItem(migrationKey, 'true');
+        } catch (error) {
+          console.error("Migration failed:", error);
+        }
+      };
+
+      migrateRules();
+    }
+  }, [user, isInitialLoad]);
 
   useEffect(() => {
     if (!user) return;
@@ -128,47 +252,6 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     };
   }, [user]);
 
-  const currentLocations = useMemo(() => {
-    const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
-    const fromDb = dbLocations
-      .filter(loc => loc.category === category)
-      .map(loc => loc.name);
-    
-    const defaults = activeTab === 'ingredients' 
-      ? ['Refrigerator', 'Freezer', 'Pantry'] 
-      : ['Closet', 'Washroom'];
-      
-    // Also include any locations that exist in items but not in DB/defaults
-    const fromItems = items
-      .filter(item => item.category === (activeTab === 'ingredients' ? 'ingredient' : 'supply'))
-      .map(item => item.location)
-      .filter((loc): loc is string => !!loc);
-
-    const allNames = Array.from(new Set([...defaults, ...fromDb, ...fromItems]));
-    
-    return allNames.sort((a, b) => {
-      const locA = dbLocations.find(l => l.name === a && l.category === category);
-      const locB = dbLocations.find(l => l.name === b && l.category === category);
-      
-      // Use DB order if available, otherwise use index in defaults, otherwise 999
-      const defaultOrderA = defaults.indexOf(a);
-      const defaultOrderB = defaults.indexOf(b);
-      
-      const orderA = locA?.order ?? (defaultOrderA !== -1 ? defaultOrderA : 999);
-      const orderB = locB?.order ?? (defaultOrderB !== -1 ? defaultOrderB : 999);
-      
-      if (orderA !== orderB) return orderA - orderB;
-      return a.localeCompare(b);
-    });
-  }, [dbLocations, activeTab, items]);
-
-  const filteredItems = useMemo(() => items.filter(item => {
-    const matchesTab = item.category === (activeTab === 'ingredients' ? 'ingredient' : 'supply');
-    const matchesSearch = searchQuery === '' || 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.location?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
-  }), [items, activeTab, searchQuery]);
 
   const toggleItemUsed = async (item: InventoryItem) => {
     try {
@@ -234,6 +317,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
 
     try {
       await batch.commit();
+      addToast(`Low stock items added to shopping list`, 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'inventory/addLowToShoppingList');
     }
@@ -249,6 +333,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
 
     try {
       await batch.commit();
+      addToast(`${usedItems.length} items cleared from ${location}`, 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'inventory/clearUsed');
     }
@@ -285,13 +370,62 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         });
       }
 
+      // Deselect the item after restocking
+      batch.update(doc(db, 'inventory', item.id), {
+        used: false,
+        updatedAt: Timestamp.now()
+      });
+    }
+
+    try {
+      await batch.commit();
+      addToast(`${usedItems.length} items added to shopping list`, 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'inventory/restockUsed');
+    }
+  };
+
+  const handleClearAndRestockUsed = async (location: string) => {
+    const usedItems = items.filter(item => item.location === location && item.used);
+    const batch = writeBatch(db);
+
+    for (const item of usedItems) {
+      // 1. Queue for Shopping List (Restock logic)
+      let targetStoreId = '';
+      const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
+      if (boughtFromMatch) {
+        const storeName = boughtFromMatch[1].trim();
+        const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
+        if (store) targetStoreId = store.id;
+      }
+
+      if (!targetStoreId && storeLists.length > 0) {
+        targetStoreId = storeLists[0].id;
+      }
+
+      if (targetStoreId) {
+        const shoppingItemRef = doc(collection(db, 'shoppingItems'));
+        batch.set(shoppingItemRef, {
+          name: item.name,
+          amount: item.quantity || '',
+          unit: item.unit || '',
+          storeListId: targetStoreId,
+          completed: false,
+          userId: user?.uid,
+          createdAt: Timestamp.now(),
+          order: 0
+        });
+      }
+
+      // 2. Queue for Deletion (Clear logic)
       batch.delete(doc(db, 'inventory', item.id));
     }
 
     try {
       await batch.commit();
+      addToast(`${usedItems.length} items restocked and cleared`, 'success');
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory/restockUsed');
+      handleFirestoreError(error, OperationType.WRITE, 'inventory/clearAndRestockUsed');
     }
   };
 
@@ -394,6 +528,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       }
       
       await batch.commit();
+      addToast(`Location "${location}" deleted`, 'success');
       
       if (expandedLocation === location) {
         setExpandedLocation(null);
@@ -431,6 +566,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       });
 
       await batch.commit();
+      addToast(`${itemsToMove.length} ${itemsToMove.length === 1 ? 'item' : 'items'} moved to ${targetLocation}`, 'move');
       setLocationToMove(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'inventory/moveLocation');
@@ -485,6 +621,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
 
   // Reset search when switching tabs
   const handleTabSwitch = (tab: 'ingredients' | 'supplies') => {
+    if (tab === activeTab) return;
     setActiveTab(tab);
     setSearchQuery('');
     setIsAddingLocation(false);
@@ -675,16 +812,6 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAddingLocation, isAddingItem, editingItem, locationToDelete, isEditingLocationName, isEditMode, expandedLocation, isSortingLocations]);
 
-  const displayLocations = useMemo(() => {
-    // If we're dragging, we want to keep the order stable to avoid fighting with Reorder.Group
-    // However, Reorder.Group already handles the local order.
-    // The main thing is to avoid re-sorting or re-filtering if it's not necessary.
-    return currentLocations.filter(location => {
-      const locationItems = filteredItems.filter(item => item.location === location);
-      const hasMatchingItems = searchQuery === '' || locationItems.length > 0;
-      return hasMatchingItems;
-    });
-  }, [currentLocations, filteredItems, searchQuery]);
 
   const handleReorderLocations = useCallback((newLocationsNames: string[]) => {
     const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
@@ -847,18 +974,28 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   }
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+    <LayoutGroup>
+      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Inventory" 
         onMenuClick={onMenuClick} 
         actions={
-          <button
-            onClick={() => setIsSortingLocations(true)}
-            className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
-            title="Sort Locations"
-          >
-            <ArrowUpDown size={20} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsAutoSortModalOpen(true)}
+              className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+              title="Auto-Sort Rules"
+            >
+              <Settings size={20} />
+            </button>
+            <button
+              onClick={() => setIsSortingLocations(true)}
+              className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+              title="Sort Locations"
+            >
+              <ArrowUpDown size={20} />
+            </button>
+          </div>
         }
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
@@ -877,7 +1014,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoCapitalize="words"
-                  className="w-full h-14 pl-11 pr-14 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base sm:text-lg font-medium placeholder:text-m3-on-surface-variant/60 transition-all shadow-sm hover:shadow-md focus:shadow-md"
+                  className="w-full h-14 pl-12 pr-14 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base font-bold placeholder:text-m3-on-surface-variant/40 transition-all shadow-sm hover:shadow-md focus:shadow-md"
                 />
                 {searchQuery && (
                   <button
@@ -943,18 +1080,18 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                         className="w-full px-4 py-3 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold text-sm transition-all"
                       />
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex items-center justify-end gap-2 pt-2">
                       <button 
                         type="button"
                         onClick={() => setIsAddingLocation(false)}
-                        className="flex-1 px-4 py-3 text-m3-on-surface-variant font-bold text-sm hover:bg-m3-surface-variant/10 rounded-xl transition-all"
+                        className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                       >
                         Cancel
                       </button>
                       <button 
                         type="submit"
                         disabled={!newLocationName.trim()}
-                        className="flex-1 px-4 py-3 bg-m3-primary text-m3-on-primary font-bold text-sm rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:shadow-none transition-all"
+                        className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
                       >
                         Create
                       </button>
@@ -973,63 +1110,89 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                 <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading inventory...</p>
               </div>
             </div>
-          ) : activeTab === 'ingredients' ? (
-            /* Location-based cards for ingredients */
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {displayLocations.map((location, index) => (
-                <LocationCard
-                  key={location}
-                  location={location}
-                  index={index}
-                  locationItems={filteredItems.filter(item => item.location === location)}
-                  toggleCardCollapsed={toggleCardCollapsed}
-                  expandedCards={expandedCards}
-                  handleExpand={handleExpand}
-                  toggleItemUsed={toggleItemUsed}
-                  startEdit={startEdit}
-                  handleDelete={handleDelete}
-                  checkboxStyle={checkboxStyle}
-                  handleClearUsed={handleClearUsed}
-                  handleRestockUsed={handleRestockUsed}
-                  startAddWithLocation={startAddWithLocation}
-                  isDraggingLocRef={isDraggingLocRef}
-                  onReorderItems={handleReorderItems}
-                  onReorderEnd={syncReorderedItems}
-                  onMoveItems={setLocationToMove}
-                  onListRef={(loc, el) => {
-                    locationListRefs.current[loc] = el;
-                  }}
-                />
-              ))}
-            </div>
           ) : (
-            /* Location-based cards for supplies */
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {displayLocations.map((location, index) => (
-                <LocationCard
-                  key={location}
-                  location={location}
-                  index={index}
-                  locationItems={filteredItems.filter(item => item.location === location)}
-                  toggleCardCollapsed={toggleCardCollapsed}
-                  expandedCards={expandedCards}
-                  handleExpand={handleExpand}
-                  toggleItemUsed={toggleItemUsed}
-                  startEdit={startEdit}
-                  handleDelete={handleDelete}
-                  checkboxStyle={checkboxStyle}
-                  handleClearUsed={handleClearUsed}
-                  handleRestockUsed={handleRestockUsed}
-                  startAddWithLocation={startAddWithLocation}
-                  isDraggingLocRef={isDraggingLocRef}
-                  onReorderItems={handleReorderItems}
-                  onReorderEnd={syncReorderedItems}
-                  onMoveItems={setLocationToMove}
-                  onListRef={(loc, el) => {
-                    locationListRefs.current[loc] = el;
-                  }}
-                />
-              ))}
+            <div className="relative">
+              {/* Ingredients Tab */}
+              <motion.div 
+                initial={false}
+                animate={{ 
+                  opacity: activeTab === 'ingredients' ? 1 : 0,
+                  x: activeTab === 'ingredients' ? 0 : -20,
+                  scale: activeTab === 'ingredients' ? 1 : 0.98,
+                  display: activeTab === 'ingredients' ? 'block' : 'none'
+                }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {displayIngredientLocations.map((location, index) => (
+                    <LocationCard
+                      key={`ingredient-${location}`}
+                      location={location}
+                      index={index}
+                      locationItems={ingredientItems.filter(item => item.location === location)}
+                      toggleCardCollapsed={toggleCardCollapsed}
+                      expandedCards={expandedCards}
+                      handleExpand={handleExpand}
+                      toggleItemUsed={toggleItemUsed}
+                      startEdit={startEdit}
+                      handleDelete={handleDelete}
+                      checkboxStyle={checkboxStyle}
+                      handleClearUsed={handleClearUsed}
+                      handleRestockUsed={handleRestockUsed}
+                      handleClearAndRestockUsed={handleClearAndRestockUsed}
+                      startAddWithLocation={startAddWithLocation}
+                      isDraggingLocRef={isDraggingLocRef}
+                      onReorderItems={handleReorderItems}
+                      onReorderEnd={syncReorderedItems}
+                      onMoveItems={setLocationToMove}
+                      onListRef={(loc, el) => {
+                        locationListRefs.current[loc] = el;
+                      }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Supplies Tab */}
+              <motion.div 
+                initial={false}
+                animate={{ 
+                  opacity: activeTab === 'supplies' ? 1 : 0,
+                  x: activeTab === 'supplies' ? 0 : 20,
+                  scale: activeTab === 'supplies' ? 1 : 0.98,
+                  display: activeTab === 'supplies' ? 'block' : 'none'
+                }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {displaySupplyLocations.map((location, index) => (
+                    <LocationCard
+                      key={`supply-${location}`}
+                      location={location}
+                      index={index}
+                      locationItems={supplyItems.filter(item => item.location === location)}
+                      toggleCardCollapsed={toggleCardCollapsed}
+                      expandedCards={expandedCards}
+                      handleExpand={handleExpand}
+                      toggleItemUsed={toggleItemUsed}
+                      startEdit={startEdit}
+                      handleDelete={handleDelete}
+                      checkboxStyle={checkboxStyle}
+                      handleClearUsed={handleClearUsed}
+                      handleRestockUsed={handleRestockUsed}
+                      handleClearAndRestockUsed={handleClearAndRestockUsed}
+                      startAddWithLocation={startAddWithLocation}
+                      isDraggingLocRef={isDraggingLocRef}
+                      onReorderItems={handleReorderItems}
+                      onReorderEnd={syncReorderedItems}
+                      onMoveItems={setLocationToMove}
+                      onListRef={(loc, el) => {
+                        locationListRefs.current[loc] = el;
+                      }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
             </div>
           )}
 
@@ -1075,12 +1238,13 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         handleStartEditLocationName={handleStartEditLocationName}
         setLocationToDelete={setLocationToDelete}
         setLocationToMove={setLocationToMove}
-        filteredItems={filteredItems}
+        filteredItems={currentFilteredItems}
         toggleItemUsed={toggleItemUsed}
         startEdit={startEdit}
         handleDelete={handleDelete}
         handleClearUsed={handleClearUsed}
         handleRestockUsed={handleRestockUsed}
+        handleClearAndRestockUsed={handleClearAndRestockUsed}
         handleReorderItems={handleReorderItems}
         syncReorderedItems={syncReorderedItems}
         startAddWithLocation={startAddWithLocation}
@@ -1139,5 +1303,11 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         )}
       </AnimatePresence>
     </div>
+      <AutoSortSettingsModal
+        isOpen={isAutoSortModalOpen}
+        onClose={() => setIsAutoSortModalOpen(false)}
+        user={user}
+      />
+    </LayoutGroup>
   );
 });

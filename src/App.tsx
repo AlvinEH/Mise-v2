@@ -45,16 +45,16 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
           Are you sure you want to delete <span className="font-bold text-m3-on-surface">"{recipe.title}"</span>? This action cannot be undone.
         </p>
       </div>
-      <div className="flex gap-4 pt-4">
+      <div className="flex items-center justify-end gap-2 pt-6">
         <button 
           onClick={onCancel}
-          className="flex-[0.4] py-2.5 px-6 border border-m3-outline text-m3-primary rounded-[20px] font-medium hover:bg-m3-primary/8 transition-all"
+          className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
         >
           Cancel
         </button>
         <button 
           onClick={() => onDelete(recipe.id)}
-          className="flex-[0.6] py-2.5 px-6 bg-m3-error text-m3-on-error rounded-[20px] font-medium hover:bg-m3-error/90 shadow-sm hover:shadow-md transition-all"
+          className="px-8 py-2.5 bg-m3-error text-m3-on-error rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95"
         >
           Delete
         </button>
@@ -66,7 +66,7 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
 // --- Main App Component ---
 function App() {
   const { user, isAuthReady } = useAuth();
-  const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle } = useTheme();
+  const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle, aiAutoSort, setAiAutoSort } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const hasResetRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -174,6 +174,8 @@ function App() {
           setMode={setMode}
           checkboxStyle={checkboxStyle}
           setCheckboxStyle={setCheckboxStyle}
+          aiAutoSort={aiAutoSort}
+          setAiAutoSort={setAiAutoSort}
           onLogout={logOut}
         />
       </div>

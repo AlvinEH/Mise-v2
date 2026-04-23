@@ -129,7 +129,7 @@ export const RecipesPage = React.memo(({
         <div className="max-w-7xl mx-auto px-4 sm:px-10">
           <div className="sticky top-0 z-20 bg-m3-surface pt-6 pb-4 sm:pt-10 sm:pb-6">
             <div className="relative group max-w-4xl mx-auto">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50 transition-colors group-focus-within:text-m3-primary">
                 <Search size={24} />
               </div>
               <input
@@ -137,7 +137,7 @@ export const RecipesPage = React.memo(({
                 placeholder="Search recipes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-14 pl-12 pr-12 sm:pl-14 sm:pr-14 bg-m3-surface-container-low text-m3-on-surface placeholder:text-m3-on-surface-variant/60 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-medium text-base sm:text-lg"
+                className="w-full h-14 pl-12 pr-14 bg-m3-surface-container-low text-m3-on-surface placeholder:text-m3-on-surface-variant/40 rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 transition-all font-bold text-base shadow-sm hover:shadow-md focus:shadow-md"
               />
               {searchQuery && (
                 <button

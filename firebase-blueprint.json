@@ -267,6 +267,41 @@
         }
       },
       "required": ["name", "category", "userId", "createdAt"]
+    },
+    "AutoSortRule": {
+      "title": "Auto-Sort Rule",
+      "description": "A custom rule that maps keywords to inventory locations and categories.",
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "The keyword to search for in shopping items."
+        },
+        "location": {
+          "type": "string",
+          "description": "The target inventory location."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["ingredient", "supply"],
+          "description": "The category for the item."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the rule."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the rule was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the rule was last updated."
+        }
+      },
+      "required": ["keyword", "location", "category", "userId", "createdAt"]
     }
   },
   "firestore": {
@@ -297,6 +332,10 @@
     "inventoryLocations": {
       "schema": "InventoryLocation",
       "description": "Collection of storage locations."
+    },
+    "inventoryAutoSortRules": {
+      "schema": "AutoSortRule",
+      "description": "Collection of custom auto-sort rules."
     }
   }
 }

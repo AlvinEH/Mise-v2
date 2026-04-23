@@ -553,21 +553,21 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
               />
             </div>
 
-            <div className="flex gap-4 pt-8 border-t border-m3-outline/10">
+            <div className="flex items-center justify-end gap-2 pt-8 border-t border-m3-outline/10">
               <button 
                 type="button"
                 onClick={() => navigate('/recipes')}
-                className="flex-[0.4] py-2.5 px-6 border border-m3-outline text-m3-primary rounded-[20px] font-medium hover:bg-m3-primary/8 transition-all"
+                className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                 disabled={isSaving}
               >
                 Cancel
               </button>
               <button 
                 type="submit"
-                className="flex-[0.6] py-2.5 px-6 bg-m3-primary text-m3-on-primary rounded-[20px] font-medium hover:bg-m3-primary/90 transition-all shadow-sm hover:shadow-md flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSaving}
               >
-                {isSaving ? (isEditing ? 'Saving Changes...' : 'Creating Recipe...') : (isEditing ? 'Save Changes' : 'Create Recipe')}
+                {isSaving ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Recipe')}
               </button>
             </div>
             </form>

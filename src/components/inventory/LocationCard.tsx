@@ -17,6 +17,7 @@ interface LocationCardProps {
   checkboxStyle: CheckboxStyle;
   handleClearUsed: (loc: string) => void;
   handleRestockUsed: (loc: string) => void;
+  handleClearAndRestockUsed: (loc: string) => void;
   startAddWithLocation: (loc: string) => void;
   isDraggingLocRef: React.MutableRefObject<boolean>;
   onReorderItems: (location: string, newItems: InventoryItem[]) => void;
@@ -38,6 +39,7 @@ export const LocationCard = memo(({
   checkboxStyle,
   handleClearUsed,
   handleRestockUsed,
+  handleClearAndRestockUsed,
   startAddWithLocation,
   isDraggingLocRef,
   onReorderItems,
@@ -51,7 +53,6 @@ export const LocationCard = memo(({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      layout="position"
       transition={{ 
         type: "spring",
         stiffness: 300,
@@ -107,29 +108,12 @@ export const LocationCard = memo(({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="flex flex-col"
+            className="flex flex-col max-h-[400px] lg:max-h-[600px]"
           >
             <div 
               ref={(el) => onListRef(location, el)}
-              className="space-y-0.5 px-4 pb-2"
+              className="flex-1 overflow-y-auto space-y-0.5 px-4 pb-2"
             >
-              <AnimatePresence>
-                {locationItems.some(i => i.used) && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex justify-between items-center px-2 overflow-hidden mb-1"
-                  >
-                    <button
-                      onClick={() => onMoveItems(location)}
-                      className="text-[10px] font-black text-m3-primary hover:underline transition-all uppercase tracking-wider py-1"
-                    >
-                      Move to Location
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
               {locationItems.length > 0 ? (
                 <Reorder.Group 
                   axis="y"
@@ -165,7 +149,7 @@ export const LocationCard = memo(({
             </div>
             
             {/* Footer Section - Part of collapsible content */}
-            <div className="bg-m3-surface-container-low px-4 py-4 border-t border-m3-outline/5 flex flex-col">
+            <div className="bg-m3-surface-container-low px-4 py-4 border-t border-m3-outline/5 flex flex-col shrink-0">
               <AnimatePresence>
                 {(() => {
                   const usedItems = locationItems.filter(i => i.used);
@@ -176,24 +160,24 @@ export const LocationCard = memo(({
                   return (
                     <motion.div
                       variants={{
-                        hidden: { opacity: 0, height: 0, marginTop: 0 },
+                        hidden: { opacity: 0, height: 0, marginBottom: 0 },
                         visible: { 
                           opacity: 1, 
                           height: 'auto', 
-                          marginTop: 12,
+                          marginBottom: 16,
                           transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
                         },
                         exit: { 
                           opacity: 0, 
                           height: 0, 
-                          marginTop: 0,
+                          marginBottom: 0,
                           transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
                         }
                       }}
                       initial="hidden"
                       animate="visible"
                       exit="exit"
-                      className="flex flex-col px-3.5 pb-3.5 pt-0 bg-m3-surface-variant/10 rounded-2xl border border-m3-outline/5 overflow-hidden"
+                      className="flex flex-col overflow-hidden"
                     >
                       <motion.div
                         variants={{
@@ -209,7 +193,7 @@ export const LocationCard = memo(({
                             transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
                           }
                         }}
-                        className="flex flex-col gap-3.5"
+                        className="flex flex-col gap-3 px-1"
                       >
                         <div className="flex items-center justify-between px-1">
                           <span className="text-[10px] font-bold text-m3-on-surface-variant/50 uppercase tracking-widest">
@@ -217,12 +201,19 @@ export const LocationCard = memo(({
                           </span>
                           <div className="flex gap-2">
                              <span className="text-[10px] font-bold text-m3-on-surface-variant/40">
-                               {usedItems.length} Used
+                               {usedItems.length} SELECTED
                              </span>
                           </div>
                         </div>
                         
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => onMoveItems(location)}
+                            className="flex-1 py-2 bg-m3-surface text-m3-tertiary rounded-xl hover:bg-m3-tertiary hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10"
+                            title="Move selected items to another location"
+                          >
+                            Move
+                          </button>
                           <button
                             onClick={() => handleClearUsed(location)}
                             className="flex-1 py-2 bg-m3-surface text-m3-on-surface-variant rounded-xl hover:bg-m3-error hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10"
@@ -232,12 +223,20 @@ export const LocationCard = memo(({
                           </button>
                           <button
                             onClick={() => handleRestockUsed(location)}
-                            className="flex-1 py-2 bg-m3-primary text-m3-on-primary rounded-xl hover:opacity-90 transition-all text-xs font-bold shadow-sm"
-                            title="Clear and add to shopping list"
+                            className="flex-1 py-2 bg-m3-surface text-m3-primary rounded-xl hover:bg-m3-primary hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10"
+                            title="Add to shopping list"
                           >
                             Restock
                           </button>
                         </div>
+
+                        <button
+                          onClick={() => handleClearAndRestockUsed(location)}
+                          className="w-full py-2.5 bg-m3-surface text-m3-secondary rounded-xl hover:bg-m3-secondary hover:text-white transition-all text-xs font-bold shadow-sm border border-m3-outline/10"
+                          title="Restock then clear selected items"
+                        >
+                          Clear and Restock
+                        </button>
                       </motion.div>
                     </motion.div>
                   );

@@ -1,96 +1,164 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-export interface Ingredient {
-  id: string;
+export type Ingredient = {
   name: string;
   amount: string;
   unit: string;
-}
+} | string;
 
 export interface ExtractedRecipe {
   title: string;
-  ingredients: (string | Ingredient)[];
+  ingredients: Ingredient[];
   instructions: string;
-  servings?: string;
+  servings: string;
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+export interface AISortedItem {
+  name: string;
+  location: string;
+  category: 'ingredient' | 'supply';
+}
 
-const recipeSchema = {
-  type: Type.OBJECT,
-  properties: {
-    title: { 
-      type: Type.STRING,
-      description: "The name of the recipe"
-    },
-    ingredients: { 
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "A list of ingredients with their quantities"
-    },
-    instructions: {
-      type: Type.STRING,
-      description: "A step-by-step list of instructions in markdown format. Use numbered lists (1., 2., etc.) for each step. Ensure each step is clearly separated by a double line break."
-    },
-    servings: {
-      type: Type.STRING,
-      description: "The number of servings or yield of the recipe (e.g., '4', 'Serves 6', '12 cookies'). If not found, return an empty string."
+export const getGeminiApiKey = () => localStorage.getItem('Mise-gemini-api-key') || '';
+
+export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) throw new Error('Gemini API key not configured');
+
+  const ai = new GoogleGenAI({ apiKey });
+  const model = ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Extract the recipe details from this URL: ${url}. Provide the title, ingredients (as objects with name, amount, and unit), instructions, and servings.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          ingredients: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                amount: { type: Type.STRING },
+                unit: { type: Type.STRING }
+              },
+              required: ['name']
+            }
+          },
+          instructions: { type: Type.STRING },
+          servings: { type: Type.STRING }
+        },
+        required: ['title', 'ingredients', 'instructions']
+      }
     }
-  },
-  required: ["title", "ingredients", "instructions"]
+  });
+
+  const response = await model;
+  return JSON.parse(response.text);
 };
 
-export async function extractRecipeFromUrl(url: string) {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Extract the recipe details (title, ingredients, and instructions) from this URL: ${url}. 
-      Format the instructions as a clear, numbered list in Markdown. Ensure there is a double line break between each step for readability.
-      If the URL is not a recipe, try to find the most relevant food-related information or return an error-like title.`,
-      config: {
-        tools: [{ urlContext: {} }],
-        responseMimeType: "application/json",
-        responseSchema: recipeSchema,
-      },
-    });
+export const extractRecipeFromImage = async (base64Data: string, mimeType: string): Promise<ExtractedRecipe> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) throw new Error('Gemini API key not configured');
 
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
-    
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("Error extracting recipe:", error);
-    throw error;
-  }
-}
-
-export async function extractRecipeFromImage(base64Data: string, mimeType: string) {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType,
+  const ai = new GoogleGenAI({ apiKey });
+  const model = ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [
+      { text: "Extract the recipe details from this image. Provide the title, ingredients (as objects with name, amount, and unit), instructions, and servings." },
+      { inlineData: { data: base64Data, mimeType } }
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          ingredients: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                amount: { type: Type.STRING },
+                unit: { type: Type.STRING }
+              },
+              required: ['name']
+            }
           },
+          instructions: { type: Type.STRING },
+          servings: { type: Type.STRING }
         },
-        {
-          text: "Extract the recipe details (title, ingredients, instructions, and servings) from this image. Format the instructions as a clear, numbered list in Markdown with double line breaks between steps. Return the result in JSON format.",
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: recipeSchema,
-      },
+        required: ['title', 'ingredients', 'instructions']
+      }
+    }
+  });
+
+  const response = await model;
+  return JSON.parse(response.text);
+};
+
+export const suggestLocationsBatched = async (
+  itemNames: string[], 
+  existingRules?: { keyword: string; location: string; category: string }[]
+): Promise<Map<string, { location: string; category: 'ingredient' | 'supply' }>> => {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) throw new Error('Gemini API key not configured');
+
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const rulesContext = existingRules && existingRules.length > 0 
+    ? `Follow the pattern of these existing user rules for similar items:
+${existingRules.map(r => `- ${r.keyword} -> ${r.location} (${r.category})`).join('\n')}`
+    : '';
+
+  const model = ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Categorize the following household/grocery items. For each item, decide if it belongs in one of these locations: 'Pantry', 'Freezer', 'Refrigerator', 'Washroom', 'Laundry Room', 'Under Sink', or 'Cat Supplies'. Also decide if it is an 'ingredient' or a 'supply'.
+    
+    ${rulesContext}
+    
+    Items: ${itemNames.join(', ')}`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            location: { 
+              type: Type.STRING, 
+              enum: ['Pantry', 'Freezer', 'Refrigerator', 'Washroom', 'Laundry Room', 'Under Sink', 'Cat Supplies'] 
+            },
+            category: { 
+              type: Type.STRING, 
+              enum: ['ingredient', 'supply'] 
+            }
+          },
+          required: ['name', 'location', 'category']
+        }
+      }
+    }
+  });
+
+  try {
+    const response = await model;
+    const results: AISortedItem[] = JSON.parse(response.text);
+    const resultMap = new Map<string, { location: string; category: 'ingredient' | 'supply' }>();
+    
+    results.forEach(res => {
+      resultMap.set(res.name.toLowerCase(), {
+        location: res.location,
+        category: res.category
+      });
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No response from AI");
-    
-    return JSON.parse(text);
+    return resultMap;
   } catch (error) {
-    console.error("Error extracting recipe from image:", error);
+    console.error('Gemini AI Sorting Error:', error);
     throw error;
   }
-}
+};

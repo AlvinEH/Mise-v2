@@ -6,6 +6,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, delet
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
+import { useToast } from '../contexts/ToastContext';
 import { MealEntry } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestore';
 
@@ -19,6 +20,7 @@ interface DayMeals {
 }
 
 export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
+  const { addToast } = useToast();
   const [user] = useAuthState(auth);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [editingDay, setEditingDay] = useState<{ date: string; lunch?: MealEntry; dinner?: MealEntry } | null>(null);
@@ -268,6 +270,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       }
       
       await Promise.all(promises);
+      addToast(`Meals updated`, 'success');
       setLunchMealName('');
       setDinnerMealName('');
       setEditingDay(null);
@@ -300,6 +303,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       }
       
       await Promise.all(promises);
+      addToast(`Day cleared`, 'success');
       cancelEdit();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'mealEntries/day-delete');
@@ -390,14 +394,14 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
           <div className="flex items-center justify-center gap-3">
             <button 
               onClick={handleDatePicker}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-medium text-sm hover:shadow-md transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-bold text-sm hover:shadow-md transition-all active:scale-95"
             >
               <CalendarIcon size={18} className="text-m3-primary" />
               Date
             </button>
             <button 
               onClick={goToToday}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-m3-primary text-m3-on-primary font-medium text-sm hover:shadow-md transition-all active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-m3-primary text-m3-on-primary font-bold text-sm hover:shadow-md transition-all active:scale-95"
             >
               <CalendarIcon size={18} className="text-m3-on-primary" />
               Today
@@ -536,21 +540,30 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
 
               <div className="p-6 overflow-y-auto">
                 <form onSubmit={handleSearch}>
-                  <div className="relative">
+                  <div className="relative group">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search for a meal"
                       autoCapitalize="words"
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-m3-surface-container-low border-none text-m3-on-surface placeholder-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary transition-all shadow-sm"
+                      className="w-full h-14 pl-12 pr-12 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base font-bold placeholder:text-m3-on-surface-variant/40 transition-all shadow-sm hover:shadow-md focus:shadow-md text-m3-on-surface"
                     />
-                    <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant" />
+                    <Search size={22} className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50 transition-colors group-focus-within:text-m3-primary" />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
                   </div>
                   <button
                     type="submit"
                     disabled={isSearching || !searchQuery.trim()}
-                    className="w-full mt-4 py-3 rounded-2xl bg-m3-primary text-m3-on-primary font-semibold hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
+                    className="w-full mt-6 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
                   >
                     {isSearching ? 'Searching...' : 'Search'}
                   </button>

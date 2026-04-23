@@ -229,6 +229,15 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidAutoSortRule(data) {
+      return data.keys().hasAll(['keyword', 'location', 'category', 'userId', 'createdAt']) &&
+             data.keyword is string && data.keyword.size() > 0 && data.keyword.size() < 100 &&
+             data.location is string && data.location.size() > 0 && data.location.size() < 100 &&
+             data.category in ['ingredient', 'supply'] &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -279,6 +288,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow create: if isAuthenticated() && isValidInventoryLocation(request.resource.data);
       allow update: if isAuthenticated() && isDocOwner() && isValidInventoryLocation(request.resource.data);
+      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+    }
+
+    match /inventoryAutoSortRules/{ruleId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidAutoSortRule(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidAutoSortRule(request.resource.data);
       allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
     }
   }
