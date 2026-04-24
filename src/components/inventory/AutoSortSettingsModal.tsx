@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, orderBy, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { User } from 'firebase/auth';
+import { SESSION_KEYS, getSessionData } from '../../utils/cache';
 
 interface AutoSortRule {
   id: string;
@@ -32,6 +33,11 @@ export const AutoSortSettingsModal: React.FC<AutoSortSettingsModalProps> = ({ is
   });
   const [dbLocations, setDbLocations] = useState<{name: string, category: string}[]>([]);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+
+  const sessionNewKeywords = React.useMemo(() => 
+    getSessionData<string[]>(SESSION_KEYS.NEW_AUTO_SORT_RULES) || [], 
+    [isOpen] // Refresh when modal opens
+  );
 
   useEffect(() => {
     if (!isOpen || !user) {
@@ -147,6 +153,13 @@ export const AutoSortSettingsModal: React.FC<AutoSortSettingsModalProps> = ({ is
   }, [newRule.category, categoryLocations]);
 
   const sortRules = (a: any, b: any) => {
+    const isANew = sessionNewKeywords.includes(a.keyword.toLowerCase());
+    const isBNew = sessionNewKeywords.includes(b.keyword.toLowerCase());
+
+    // 0. Prioritize Session New Rules
+    if (isANew && !isBNew) return -1;
+    if (!isANew && isBNew) return 1;
+
     // 1. Sort by Category
     if (a.category !== b.category) {
       return a.category.localeCompare(b.category);
@@ -256,7 +269,14 @@ export const AutoSortSettingsModal: React.FC<AutoSortSettingsModalProps> = ({ is
                         >
                           <div className="flex items-center gap-4 flex-1 min-w-0">
                             <div className="min-w-0 flex-1">
-                              <h4 className="font-black text-m3-on-surface truncate capitalize">{rule.keyword}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-black text-m3-on-surface truncate capitalize">{rule.keyword}</h4>
+                                {sessionNewKeywords.includes(rule.keyword.toLowerCase()) && (
+                                  <span className="px-1.5 py-0.5 bg-m3-primary/10 text-m3-primary text-[10px] font-black rounded-md leading-none">
+                                    NEW
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex items-center gap-3 mt-1">
                                 <div className="flex items-center gap-1 text-[10px] font-bold text-m3-on-surface-variant/60 capitalize">
                                   <MapPin size={10} />

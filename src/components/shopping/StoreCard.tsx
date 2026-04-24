@@ -95,7 +95,10 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ 
+              height: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+              opacity: { duration: 0.2 }
+            }}
             className="bg-transparent flex flex-col overflow-hidden max-h-[400px] lg:max-h-[600px]"
           >
             <ShoppingListContent 

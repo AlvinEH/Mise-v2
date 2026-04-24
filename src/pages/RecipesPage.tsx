@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Filter, Search, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Filter, Search, ArrowUpDown, ChevronDown, ChevronUp, X, SlidersHorizontal, Clock, History, ArrowDownAZ } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { RecipeCard } from '../components/recipe/RecipeCard';
 import { FABMenu } from '../components/ui/FABMenu';
@@ -34,11 +34,12 @@ export const RecipesPage = React.memo(({
 }: RecipesPageProps) => {
   const navigate = useNavigate();
   const [isInternalDropdownOpen, setIsInternalDropdownOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const sortOptions = [
-    { id: 'alpha', label: 'Alphabetical' },
-    { id: 'newest', label: 'Newest First' },
-    { id: 'oldest', label: 'Oldest First' }
+    { id: 'alpha', label: 'Alphabetical', icon: <ArrowDownAZ size={20} /> },
+    { id: 'newest', label: 'Newest First', icon: <Clock size={20} /> },
+    { id: 'oldest', label: 'Oldest First', icon: <History size={20} /> }
   ];
 
   const currentSort = sortOptions.find(o => o.id === sortBy);
@@ -111,17 +112,48 @@ export const RecipesPage = React.memo(({
         title="Recipe Library" 
         onMenuClick={onMenuClick} 
         actions={
-          <button
-            onClick={() => setIsSortModalOpen(true)}
-            className={`p-2 rounded-full transition-all ${
-              sortBy !== 'alpha' 
-                ? 'text-m3-primary bg-m3-primary/10' 
-                : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
-            }`}
-            title="Sort recipes"
-          >
-            <ArrowUpDown size={20} />
-          </button>
+          <div className="flex items-center gap-1 relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-full transition-all ${
+                isMenuOpen 
+                  ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+                  : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
+              }`}
+              title="Options"
+            >
+              <SlidersHorizontal size={20} />
+            </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {isMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[90]" 
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className="absolute right-0 top-12 z-[100] w-60 bg-m3-surface rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-2 px-2 flex flex-col gap-1"
+                  >
+                    <button
+                      onClick={() => {
+                        setIsSortModalOpen(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <ArrowUpDown size={18} className="text-m3-primary/60" />
+                      Sort Recipes
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         }
       />
       
@@ -196,79 +228,63 @@ export const RecipesPage = React.memo(({
       {/* Sort Modal */}
       <AnimatePresence>
         {isSortModalOpen && (
-            <div 
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-              onClick={() => {
-                setIsSortModalOpen(false);
-                setIsInternalDropdownOpen(false);
-              }}
-            >
+          <motion.div
+            key="sort-order-modal-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSortModalOpen(false)}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative z-10 w-full max-w-sm bg-m3-surface rounded-[32px] shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
-              className="sort-modal w-full max-w-sm bg-m3-surface rounded-[32px] shadow-2xl border border-m3-outline/10 p-6 overflow-visible"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-black text-m3-on-surface">Sort Recipes</h2>
+              {/* Header */}
+              <div className="px-6 py-5 flex items-center justify-between border-b border-m3-outline/5 bg-m3-surface-container-low">
+                <h2 className="text-xl font-black text-m3-on-surface">Sort Recipes By</h2>
                 <button 
-                  onClick={() => {
-                    setIsSortModalOpen(false);
-                    setIsInternalDropdownOpen(false);
-                  }}
-                  className="p-2 hover:bg-m3-surface-variant/20 rounded-full transition-colors"
+                  onClick={() => setIsSortModalOpen(false)}
+                  className="p-2 hover:bg-m3-surface-variant/20 rounded-full transition-colors text-m3-on-surface-variant"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant ml-1">Order By</label>
-                <div className="relative">
+              {/* Options */}
+              <div className="p-4 flex flex-col gap-1">
+                {sortOptions.map((option) => (
                   <button
-                    onClick={() => setIsInternalDropdownOpen(!isInternalDropdownOpen)}
-                    className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
+                    key={option.id}
+                    onClick={() => {
+                      setSortBy(option.id as any);
+                      setIsSortModalOpen(false);
+                    }}
+                    className={`flex items-center gap-4 w-full p-4 rounded-2xl transition-all text-left font-bold ${
+                      sortBy === option.id
+                        ? 'bg-m3-primary text-m3-on-primary shadow-md'
+                        : 'text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary'
+                    }`}
                   >
-                    <span className="font-black text-m3-on-surface">{currentSort?.label}</span>
-                    <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isInternalDropdownOpen ? 'rotate-180' : ''}`} />
+                    <div className={sortBy === option.id ? 'text-m3-on-primary' : 'text-m3-primary/60'}>
+                      {option.icon}
+                    </div>
+                    <span className="text-base">{option.label}</span>
                   </button>
-                  
-                  <AnimatePresence>
-                    {isInternalDropdownOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-20 overflow-hidden"
-                      >
-                        {sortOptions.map((option) => (
-                          <button
-                            key={option.id}
-                            onClick={() => {
-                              setSortBy(option.id as any);
-                              setIsInternalDropdownOpen(false);
-                              setIsSortModalOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-4 hover:bg-m3-surface-variant/20 transition-all ${
-                              sortBy === option.id ? 'bg-m3-primary/5' : ''
-                            }`}
-                          >
-                            <span className={`font-black ${sortBy === option.id ? 'text-m3-primary' : 'text-m3-on-surface'}`}>
-                              {option.label}
-                            </span>
-                            {sortBy === option.id && (
-                              <div className="w-1.5 h-1.5 bg-m3-primary rounded-full" />
-                            )}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-m3-surface-container-low/30 flex justify-center">
+                 <p className="text-[10px] font-bold text-m3-on-surface-variant/40 uppercase tracking-widest text-center">
+                   Changes apply to current view
+                 </p>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
-import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings, SlidersHorizontal, ListOrdered } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { auth, db } from '../firebase';
@@ -11,6 +11,7 @@ import { InventoryItem, CheckboxStyle } from '../types';
 import { InventoryListItem } from '../components/inventory/InventoryListItem';
 import { LocationCard } from '../components/inventory/LocationCard';
 import { SortLocationsModal } from '../components/inventory/SortLocationsModal';
+import { SortOrderModal, InventorySortOrder } from '../components/inventory/SortOrderModal';
 import { AddEditItemModal } from '../components/inventory/AddEditItemModal';
 import { DeleteLocationModal } from '../components/inventory/DeleteLocationModal';
 import { MoveItemsModal } from '../components/inventory/MoveItemsModal';
@@ -50,6 +51,9 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const [expandedLocation, setExpandedLocation] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSortingLocations, setIsSortingLocations] = useState(false);
+  const [isSortingItems, setIsSortingItems] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [itemSortOrder, setItemSortOrder] = useState<InventorySortOrder>('custom');
   const [isEditingLocationName, setIsEditingLocationName] = useState(false);
   const [isAutoSortModalOpen, setIsAutoSortModalOpen] = useState(false);
   const { addToast } = useToast();
@@ -130,8 +134,25 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const displaySupplyLocations = useMemo(() => getDisplayLocations(supplyLocations, supplyItems), [getDisplayLocations, supplyLocations, supplyItems]);
 
   const currentFilteredItems = useMemo(() => {
-    return activeTab === 'ingredients' ? ingredientItems : supplyItems;
-  }, [activeTab, ingredientItems, supplyItems]);
+    const list = activeTab === 'ingredients' ? ingredientItems : supplyItems;
+    
+    if (itemSortOrder === 'custom') return list;
+
+    return [...list].sort((a, b) => {
+      switch (itemSortOrder) {
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        case 'newest':
+          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+        case 'oldest':
+          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+        default:
+          return 0;
+      }
+    });
+  }, [activeTab, ingredientItems, supplyItems, itemSortOrder]);
 
   useEffect(() => {
     if (!user || isInitialLoad) return;
@@ -989,21 +1010,67 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         title="Inventory" 
         onMenuClick={onMenuClick} 
         actions={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 relative">
             <button
-              onClick={() => setIsAutoSortModalOpen(true)}
-              className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
-              title="Auto-Sort Rules"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-full transition-all ${
+                isMenuOpen 
+                  ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+                  : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
+              }`}
+              title="Options"
             >
-              <Settings size={20} />
+              <SlidersHorizontal size={20} />
             </button>
-            <button
-              onClick={() => setIsSortingLocations(true)}
-              className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
-              title="Sort Locations"
-            >
-              <ArrowUpDown size={20} />
-            </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {isMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[90]" 
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className="absolute right-0 top-12 z-[100] w-60 bg-m3-surface rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-2 px-2 flex flex-col gap-1"
+                  >
+                    <button
+                      onClick={() => {
+                        setIsSortingItems(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <ArrowUpDown size={18} className="rotate-90 text-m3-primary/60" />
+                      Sort Items
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSortingLocations(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <ListOrdered size={18} className="text-m3-primary/60" />
+                      Reorder Locations
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsAutoSortModalOpen(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <Settings size={18} className="text-m3-primary/60" />
+                      Auto-Sort Rules
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         }
       />
@@ -1174,6 +1241,14 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
             onClose={() => setIsSortingLocations(false)}
             currentLocations={currentLocations}
             handleMoveLocationOrder={handleMoveLocationOrder}
+          />
+
+          {/* Sort Order Modal */}
+          <SortOrderModal
+            isOpen={isSortingItems}
+            onClose={() => setIsSortingItems(false)}
+            currentSortOrder={itemSortOrder}
+            onSortOrderChange={setItemSortOrder}
           />
 
           {/* Add/Edit Modal */}

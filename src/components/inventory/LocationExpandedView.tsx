@@ -138,7 +138,7 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                   onReorder={(newItems) => handleReorderItems(location, newItems)}
                   className="flex flex-col gap-2 pb-2"
                 >
-                  <AnimatePresence>
+                  <AnimatePresence mode="popLayout">
                     {expandedItems.map((item) => (
                       <InventoryListItem
                         key={item.id}
@@ -176,7 +176,10 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                    transition={{ 
+                      height: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+                      opacity: { duration: 0.2 }
+                    }}
                     className="flex flex-col overflow-hidden"
                   >
                     <div className="px-6 pt-4 pb-2 flex flex-col gap-4">

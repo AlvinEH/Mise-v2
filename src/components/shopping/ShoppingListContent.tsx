@@ -125,10 +125,15 @@ const ShoppingListItem = memo(({
         }, 200);
         onReorderEnd();
       }}
-      initial={{ opacity: 0, x: -10, height: 'auto' }}
-      animate={{ opacity: 1, x: 0, height: 'auto' }}
-      exit={{ opacity: 0, scale: 0.95, x: 20, height: 0 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ 
+        layout: { duration: 0.2, ease: "linear" },
+        opacity: { duration: 0.2 },
+        height: { duration: 0.2, ease: "linear" }
+      }}
+      layout="position"
       className={`flex items-center justify-between py-1 hover:bg-m3-surface-variant/10 transition-colors group px-0 rounded-xl overflow-hidden select-none ${item.completed ? 'opacity-50' : ''}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
@@ -255,7 +260,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
             onReorder={onReorder} 
             className="flex flex-col gap-0 pb-2"
           >
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {items.map((item) => (
                 <ShoppingListItem 
                   key={item.id}
@@ -290,7 +295,10 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ 
+                height: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+                opacity: { duration: 0.2 }
+              }}
               className="flex flex-col overflow-hidden"
             >
               <div className="px-6 py-4 flex flex-col gap-3">

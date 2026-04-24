@@ -40,7 +40,7 @@ export const SortLocationsModal: React.FC<SortLocationsModalProps> = ({
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-black text-m3-on-surface">Sort Locations</h3>
+              <h3 className="text-2xl font-black text-m3-on-surface">Reorder Locations</h3>
               <button 
                 onClick={onClose}
                 className="p-2 hover:bg-m3-surface-variant/20 rounded-full transition-colors"

@@ -567,7 +567,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSaving}
               >
-                {isSaving ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Recipe')}
+                {isSaving ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create Recipe')}
               </button>
             </div>
             </form>

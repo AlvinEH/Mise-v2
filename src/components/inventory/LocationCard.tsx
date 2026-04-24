@@ -53,10 +53,11 @@ export const LocationCard = memo(({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      layout
       transition={{ 
-        type: "spring",
-        stiffness: 300,
-        damping: 30
+        layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+        y: { type: "spring", stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
       }}
       className="bg-m3-surface border border-m3-outline/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col h-fit relative group"
     >
@@ -103,25 +104,29 @@ export const LocationCard = memo(({
       {/* Expandable Content Section */}
       <AnimatePresence initial={false}>
         {expandedCards[location] && (
-          <motion.div
+            <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="flex flex-col max-h-[400px] lg:max-h-[600px]"
+            transition={{ 
+              height: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+              opacity: { duration: 0.2 }
+            }}
+            className="flex flex-col max-h-[400px] lg:max-h-[600px] overflow-hidden"
           >
             <div 
               ref={(el) => onListRef(location, el)}
-              className="flex-1 overflow-y-auto space-y-0.5 px-4 pb-2"
+              className="flex-1 overflow-y-auto px-4 pb-2"
+              style={{ overflowAnchor: 'none' }}
             >
               {locationItems.length > 0 ? (
                 <Reorder.Group 
                   axis="y"
                   values={locationItems}
                   onReorder={(newItems) => onReorderItems(location, newItems)}
-                  className="space-y-0.5"
+                  className="flex flex-col gap-0.5"
                 >
-                  <AnimatePresence>
+                  <AnimatePresence mode="popLayout">
                     {locationItems.map((item) => (
                       <InventoryListItem
                         key={item.id}
@@ -165,13 +170,13 @@ export const LocationCard = memo(({
                           opacity: 1, 
                           height: 'auto', 
                           marginBottom: 16,
-                          transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                          transition: { type: "spring", stiffness: 450, damping: 40, mass: 1 }
                         },
                         exit: { 
                           opacity: 0, 
                           height: 0, 
                           marginBottom: 0,
-                          transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                          transition: { duration: 0.2, ease: "linear", delay: 0.1 }
                         }
                       }}
                       initial="hidden"
@@ -185,7 +190,7 @@ export const LocationCard = memo(({
                           visible: { 
                             opacity: 1, 
                             y: 0,
-                            transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1], delay: 0.1 }
+                            transition: { type: "spring", stiffness: 450, damping: 40, mass: 1, delay: 0.1 }
                           },
                           exit: { 
                             opacity: 0, 

@@ -15,7 +15,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
-import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown, ShoppingCart, SlidersHorizontal, ListOrdered, Settings } from 'lucide-react';
 
 import { db } from '../firebase';
 import { StoreList, ShoppingItem, OperationType } from '../types';
@@ -27,11 +27,12 @@ import { useToast } from '../contexts/ToastContext';
 import { suggestLocationsBatched } from '../services/geminiService';
 import { StoreCardWrapper } from '../components/shopping/StoreCardWrapper';
 import { SortStoresModal } from '../components/shopping/SortStoresModal';
+import { SortOrderModal, InventorySortOrder } from '../components/inventory/SortOrderModal';
 import { EditItemModal } from '../components/shopping/EditItemModal';
 import { DeleteStoreModal } from '../components/shopping/DeleteStoreModal';
 import { MoveStoreItemsModal } from '../components/shopping/MoveStoreItemsModal';
 import { StoreExpandedView } from '../components/shopping/StoreExpandedView';
-import { STORAGE_KEYS, cacheData, getCachedData } from '../utils/cache';
+import { STORAGE_KEYS, cacheData, getCachedData, SESSION_KEYS, setSessionData, getSessionData } from '../utils/cache';
 import { CheckboxStyle } from '../types';
 
 interface ShoppingListPageProps {
@@ -50,6 +51,9 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSortingStores, setIsSortingStores] = useState(false);
+  const [isSortingItems, setIsSortingItems] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [itemSortOrder, setItemSortOrder] = useState<InventorySortOrder>('custom');
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [isDraggingList, setIsDraggingList] = useState(false);
@@ -84,6 +88,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         else if (isEditMode) setIsEditMode(false);
         else if (expandedListId) setExpandedListId(null);
         else if (isSortingStores) setIsSortingStores(false);
+        else if (isSortingItems) setIsSortingItems(false);
+        else if (isMenuOpen) setIsMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -122,20 +128,24 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       where('userId', '==', user.uid)
     );
     const unsubscribeLists = onSnapshot(qLists, (snapshot) => {
+      const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreList));
+      const sortedLists = lists.sort((a, b) => {
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+
       if (!isSyncingListsRef.current && !isDraggingListRef.current) {
-        const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreList));
-        // Sort in memory to handle documents without the 'order' field
-        const sortedLists = lists.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.name.localeCompare(b.name);
-        });
         setStoreLists(sortedLists);
         cacheData(STORAGE_KEYS.SHOPPING_LISTS, sortedLists);
-        setIsInitialLoad(false);
       }
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'storeLists'));
+      // Always resolve initial load once we have at least one snapshot from Firestore
+      setIsInitialLoad(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'storeLists');
+      setIsInitialLoad(false); // Resolve on error too so the UI doesn't hang
+    });
 
     const qItems = query(
       collection(db, 'shoppingItems'),
@@ -146,14 +156,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       // and not dragging a list (since list contents might shift)
       if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
-        const sortedItems = items.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.id.localeCompare(b.id);
-        });
-        setShoppingItems(sortedItems);
-        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
+        setShoppingItems(items);
+        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, items);
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 
@@ -180,6 +184,32 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       unsubscribeRules();
     };
   }, [user]);
+
+  const sortedShoppingItems = React.useMemo(() => {
+    if (itemSortOrder === 'custom') {
+      return [...shoppingItems].sort((a, b) => {
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.id.localeCompare(b.id);
+      });
+    }
+
+    return [...shoppingItems].sort((a, b) => {
+      switch (itemSortOrder) {
+        case 'a-z':
+          return a.name.localeCompare(b.name);
+        case 'z-a':
+          return b.name.localeCompare(a.name);
+        case 'newest':
+          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+        case 'oldest':
+          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+        default:
+          return 0;
+      }
+    });
+  }, [shoppingItems, itemSortOrder]);
 
   const handleMoveStoreOrder = async (index: number, direction: 'up' | 'down') => {
     const lists = [...storeLists].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -440,6 +470,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     }
     
     const addedRuleKeywords = new Set<string>();
+    const newRuleKeywordsForSession: string[] = getSessionData<string[]>(SESSION_KEYS.NEW_AUTO_SORT_RULES) || [];
 
     for (const item of completedItems) {
       let { location, category } = getInventoryLocationAndCategory(item.name, inventoryLocations);
@@ -470,6 +501,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
             createdAt: Timestamp.now()
           });
           addedRuleKeywords.add(itemNameLower);
+          newRuleKeywordsForSession.push(itemNameLower);
         }
       }
 
@@ -493,6 +525,12 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     
     try {
       await batch.commit();
+      
+      // Update session storage with new keywords
+      if (addedRuleKeywords.size > 0) {
+        setSessionData(SESSION_KEYS.NEW_AUTO_SORT_RULES, newRuleKeywordsForSession);
+      }
+
       const rulesMessage = addedRuleKeywords.size > 0 
         ? ` (AI learned ${addedRuleKeywords.size} new rules)` 
         : '';
@@ -575,124 +613,206 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     }
   }, []);
 
+  if (!user) {
+    return (
+      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+        <PageHeader title="Shopping List" onMenuClick={onMenuClick} />
+        <main className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center">
+            <ShoppingCart size={64} className="mx-auto mb-6 text-m3-on-surface-variant/30" />
+            <p className="text-xl font-bold text-m3-on-surface-variant">Please sign in to manage your shopping list</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+    <LayoutGroup>
+      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Shopping List" 
         onMenuClick={onMenuClick} 
         actions={
-          <button
-            onClick={() => setIsSortingStores(true)}
-            className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
-            title="Sort Stores"
-          >
-            <ArrowUpDown size={20} />
-          </button>
+          <div className="flex items-center gap-1 relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-full transition-all ${
+                isMenuOpen 
+                  ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+                  : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
+              }`}
+              title="Options"
+            >
+              <SlidersHorizontal size={20} />
+            </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {isMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[90]" 
+                    onClick={() => setIsMenuOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className="absolute right-0 top-12 z-[100] w-60 bg-m3-surface rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-2 px-2 flex flex-col gap-1"
+                  >
+                    <button
+                      onClick={() => {
+                        setIsSortingItems(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <ArrowUpDown size={18} className="rotate-90 text-m3-primary/60" />
+                      Sort Items
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSortingStores(true);
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3 py-3 text-sm font-bold text-m3-on-surface-variant hover:bg-m3-primary/10 hover:text-m3-primary rounded-xl transition-colors text-left"
+                    >
+                      <ListOrdered size={18} className="text-m3-primary/60" />
+                      Reorder Stores
+                    </button>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         }
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          {isInitialLoad ? (
-            <div className="flex-1 flex items-center justify-center py-32">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-m3-primary/20 border-t-m3-primary rounded-full animate-spin" />
-                <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading shopping list...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <AnimatePresence>
-                {isAddingStore && (
+          <AnimatePresence mode="wait">
+            {isInitialLoad ? (
               <motion.div 
-                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
-                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                transition={{
-                  duration: 0.4,
-                  ease: [0.4, 0.0, 0.2, 1]
-                }}
-                className="bg-m3-surface rounded-[24px] border border-m3-outline/10 shadow-sm overflow-hidden"
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex-1 flex items-center justify-center py-32"
               >
-                <div className="p-6">
-                <form onSubmit={handleAddStore} className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-m3-on-surface-variant/60 uppercase tracking-wider px-1">
-                      Store Name
-                    </label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Whole Foods, Trader Joe's"
-                      value={newStoreName}
-                      onChange={e => setNewStoreName(e.target.value)}
-                      autoCapitalize="sentences"
-                      className="w-full px-4 py-3 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold text-sm transition-all"
-                    />
-                  </div>
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button 
-                      type="button"
-                      onClick={() => setIsAddingStore(false)}
-                      className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      disabled={!newStoreName.trim()}
-                      className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
-                    >
-                      Create
-                    </button>
-                  </div>
-                </form>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-m3-primary/20 border-t-m3-primary rounded-full animate-spin" />
+                  <p className="text-m3-on-surface-variant/60 font-medium animate-pulse">Loading shopping list...</p>
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
-
-          <LayoutGroup id="shopping-lists">
-            {storeLists.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
-                {storeLists.map((list) => (
-                    <StoreCardWrapper
-                      key={list.id}
-                      list={list}
-                      shoppingItems={shoppingItems}
-                      handleAddItem={handleAddItem}
-                      handleToggleItem={handleToggleItem}
-                      handleDeleteItem={handleDeleteItem}
-                      handleEditItem={handleEditItem}
-                      handleDeleteStore={handleDeleteStore}
-                      handleClearCompleted={handleClearCompleted}
-                      handleReorder={handleReorder}
-                      syncReorderedItems={syncReorderedItems}
-                      handleExpand={handleExpand}
-                      expandedCardId={expandedCardId}
-                      setExpandedCardId={setExpandedCardId}
-                      checkboxStyle={checkboxStyle}
-                      isDraggingItemRef={isDraggingItemRef}
-                      onMoveItems={setStoreToMove}
-                    />
-                  ))}
-              </div>
             ) : (
-              <div className="text-center py-32 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm">
-                <h3 className="text-2xl font-black text-m3-on-surface mb-2">No shopping lists yet</h3>
-                <p className="text-m3-on-surface-variant/60 font-medium mb-8">Add a store to start organizing your groceries.</p>
-              </div>
-            )}
-          </LayoutGroup>
-          </>
-          )}
-        </div>
-      </main>
+              <motion.div 
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
+              >
+                <AnimatePresence>
+                  {isAddingStore && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    ease: [0.4, 0.0, 0.2, 1]
+                  }}
+                  className="bg-m3-surface rounded-[24px] border border-m3-outline/10 shadow-sm overflow-hidden"
+                >
+                  <div className="p-6">
+                  <form onSubmit={handleAddStore} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-m3-on-surface-variant/60 uppercase tracking-wider px-1">
+                        Store Name
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Whole Foods, Trader Joe's"
+                        value={newStoreName}
+                        onChange={e => setNewStoreName(e.target.value)}
+                        autoCapitalize="sentences"
+                        className="w-full px-4 py-3 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-xl outline-none focus:border-m3-primary/30 font-bold text-sm transition-all"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button 
+                        type="button"
+                        onClick={() => setIsAddingStore(false)}
+                        className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={!newStoreName.trim()}
+                        className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </form>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Sort Stores Modal */}
+            <AnimatePresence initial={false}>
+              {storeLists.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
+                  {storeLists.map((list) => (
+                      <StoreCardWrapper
+                        key={list.id}
+                        list={list}
+                        shoppingItems={sortedShoppingItems}
+                        handleAddItem={handleAddItem}
+                        handleToggleItem={handleToggleItem}
+                        handleDeleteItem={handleDeleteItem}
+                        handleEditItem={handleEditItem}
+                        handleDeleteStore={handleDeleteStore}
+                        handleClearCompleted={handleClearCompleted}
+                        handleReorder={handleReorder}
+                        syncReorderedItems={syncReorderedItems}
+                        handleExpand={handleExpand}
+                        expandedCardId={expandedCardId}
+                        setExpandedCardId={setExpandedCardId}
+                        checkboxStyle={checkboxStyle}
+                        isDraggingItemRef={isDraggingItemRef}
+                        onMoveItems={setStoreToMove}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-32 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-sm">
+                  <h3 className="text-2xl font-black text-m3-on-surface mb-2">No shopping lists yet</h3>
+                  <p className="text-m3-on-surface-variant/60 font-medium mb-8">Add a store to start organizing your groceries.</p>
+                </div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </main>
+
+          {/* Reorder Stores Modal */}
           <SortStoresModal
             isOpen={isSortingStores}
             onClose={() => setIsSortingStores(false)}
             storeLists={storeLists}
             handleMoveStoreOrder={handleMoveStoreOrder}
+          />
+
+          {/* Sort Items Modal */}
+          <SortOrderModal
+            isOpen={isSortingItems}
+            onClose={() => setIsSortingItems(false)}
+            currentSortOrder={itemSortOrder}
+            onSortOrderChange={setItemSortOrder}
           />
 
       {/* Floating Action Button */}
@@ -736,7 +856,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         expandedListId={expandedListId}
         onClose={handleCollapse}
         storeLists={storeLists}
-        shoppingItems={shoppingItems}
+        shoppingItems={sortedShoppingItems}
         isEditMode={isEditMode}
         setIsEditMode={setIsEditMode}
         isEditingStoreName={isEditingStoreName}
@@ -781,5 +901,6 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         onMove={handleMoveStoreItems}
       />
     </div>
+    </LayoutGroup>
   );
 };

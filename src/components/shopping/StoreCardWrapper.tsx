@@ -46,9 +46,9 @@ export const StoreCardWrapper = memo(({
       animate={{ opacity: 1, y: 0 }}
       layout
       transition={{ 
-        type: "spring",
-        stiffness: 300,
-        damping: 30
+        layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
+        y: { type: "spring", stiffness: 300, damping: 30 },
+        opacity: { duration: 0.2 }
       }}
       className="relative group"
     >

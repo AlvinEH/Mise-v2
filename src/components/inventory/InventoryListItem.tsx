@@ -91,7 +91,10 @@ export const InventoryListItem = memo(({
   }
   
   if (item.purchasedOn) {
-    metadata.push({ text: new Date(item.purchasedOn).toLocaleDateString(), type: 'other' });
+    // Parse YYYY-MM-DD manually to avoid timezone shifts
+    const [year, month, day] = item.purchasedOn.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    metadata.push({ text: date.toLocaleDateString(), type: 'other' });
   }
   
   if (isExpandedView && item.notes) {
@@ -121,11 +124,16 @@ export const InventoryListItem = memo(({
         }, 200);
         if (onReorderEnd) onReorderEnd();
       }}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, scale: 0.95, x: 20, height: 0 }}
-      transition={{ duration: 0.2 }}
-      className={`flex items-center gap-2 group select-none ${item.used ? 'opacity-50' : ''} ${className}`}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ 
+        layout: { duration: 0.2, ease: "linear" },
+        opacity: { duration: 0.2 },
+        height: { duration: 0.2, ease: "linear" }
+      }}
+      layout="position"
+      className={`flex items-center gap-2 group select-none overflow-hidden ${item.used ? 'opacity-50' : ''} ${className}`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}

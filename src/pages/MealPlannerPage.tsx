@@ -435,8 +435,6 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
                       opacity: { duration: 0.4, delay: index * 0.05 },
                       y: { duration: 0.4, delay: index * 0.05 }
                     }}
-                    whileHover={{ y: -4 }}
-                    whileTap={{ y: -2, scale: 0.98 }}
                     className="scroll-mt-6 md:scroll-mt-10"
                   >
                     <div 
