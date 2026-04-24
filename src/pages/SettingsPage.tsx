@@ -244,7 +244,7 @@ export const SettingsPage = ({
                         <span className="text-sm font-black text-m3-on-surface">AI Auto-Sort Items</span>
                       </div>
                       <p className="text-xs text-m3-on-surface-variant font-medium">
-                        Automatically sort purchased items to Pantry, Freezer, or Refrigerator using AI.
+                        Automatically sort purchased items using AI.
                       </p>
                     </div>
                     <button
