@@ -20,6 +20,7 @@ interface StoreCardWrapperProps {
   checkboxStyle: CheckboxStyle;
   isDraggingItemRef: React.MutableRefObject<boolean>;
   onMoveItems: (id: string) => void;
+  index: number;
 }
 
 export const StoreCardWrapper = memo(({ 
@@ -38,7 +39,8 @@ export const StoreCardWrapper = memo(({
   setExpandedCardId, 
   checkboxStyle,
   isDraggingItemRef,
-  onMoveItems
+  onMoveItems,
+  index
 }: StoreCardWrapperProps) => {
   return (
     <motion.div
@@ -48,7 +50,7 @@ export const StoreCardWrapper = memo(({
       transition={{ 
         layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
         y: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.2 }
+        opacity: { duration: 0.4, delay: index * 0.1 }
       }}
       className="relative group"
     >

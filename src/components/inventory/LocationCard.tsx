@@ -57,7 +57,7 @@ export const LocationCard = memo(({
       transition={{ 
         layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
         y: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.2 }
+        opacity: { duration: 0.4, delay: index * 0.1 }
       }}
       className="bg-m3-surface border border-m3-outline/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col h-fit relative group"
     >
