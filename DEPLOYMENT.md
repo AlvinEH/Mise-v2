@@ -6,14 +6,14 @@ The project has been configured for GitHub Pages deployment with the following c
 
 ### Files Modified/Created:
 
-1. **vite.config.ts** - Set `base: './'` for universal path compatibility.
+1. **vite.config.ts** - Set `base: '/'` for user/organization GitHub Pages compatibility.
 2. **src/main.tsx** - Switched to `HashRouter` to ensure routing works without server-side redirects (404s).
 3. **.github/workflows/deploy.yml** - Added GitHub Actions workflow for zero-config auto-deployment.
 4. **public/.nojekyll** - Prevents Jekyll from ignoring Vite-generated asset folders (like those starting with `_`).
 
 ### Configuration Details:
 
-- **Base Path**: `./` (Relative paths ensure the app works in any repo name or subdirectory)
+- **Base Path**: `/` (Absolute paths for user/organization GitHub Pages sites)
 - **Routing**: `HashRouter` (User URLs will look like `#/recipes` instead of `/recipes`)
 - **Deployment Method**: GitHub Actions + GitHub Pages (Source: "GitHub Actions")
 
