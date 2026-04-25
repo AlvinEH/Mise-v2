@@ -14,7 +14,14 @@
           "items": {
             "type": "string"
           },
-          "description": "List of ingredients."
+          "description": "List of ingredients (Legacy/Fallback)."
+        },
+        "ingredientSections": {
+          "type": "array",
+          "items": {
+            "$ref": "IngredientSection"
+          },
+          "description": "Ingredients organized into sections."
         },
         "instructions": {
           "type": "string",
@@ -51,7 +58,32 @@
           "description": "Optional tags for categorization."
         }
       },
-      "required": ["title", "ingredients", "instructions", "userId", "createdAt", "updatedAt"]
+      "required": ["title", "instructions", "userId", "createdAt", "updatedAt"]
+    },
+    "IngredientSection": {
+      "title": "Ingredient Section",
+      "description": "A section of ingredients.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "amount": { "type": "string" },
+              "unit": { "type": "string" },
+              "note": { "type": "string" },
+              "isOptional": { "type": "boolean" }
+            },
+            "required": ["name"]
+          }
+        }
+      },
+      "required": ["items"]
     },
     "User": {
       "title": "User",

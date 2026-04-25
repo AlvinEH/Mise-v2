@@ -78,23 +78,31 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     return !(cachedLists && cachedLists.length > 0);
   });
 
+  const statesRef = useRef({
+    isAddingStore,
+    editingItem,
+    storeToDelete,
+    isEditingStoreName,
+    isEditMode,
+    expandedListId,
+    isSortingStores,
+    isSortingItems,
+    isMenuOpen
+  });
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isAddingStore) setIsAddingStore(false);
-        else if (editingItem) setEditingItem(null);
-        else if (storeToDelete) setStoreToDelete(null);
-        else if (isEditingStoreName) setIsEditingStoreName(false);
-        else if (isEditMode) setIsEditMode(false);
-        else if (expandedListId) setExpandedListId(null);
-        else if (isSortingStores) setIsSortingStores(false);
-        else if (isSortingItems) setIsSortingItems(false);
-        else if (isMenuOpen) setIsMenuOpen(false);
-      }
+    statesRef.current = {
+      isAddingStore,
+      editingItem,
+      storeToDelete,
+      isEditingStoreName,
+      isEditMode,
+      expandedListId,
+      isSortingStores,
+      isSortingItems,
+      isMenuOpen
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAddingStore, editingItem, storeToDelete, isEditingStoreName, isEditMode, expandedListId, isSortingStores]);
+  }, [isAddingStore, editingItem, storeToDelete, isEditingStoreName, isEditMode, expandedListId, isSortingStores, isSortingItems, isMenuOpen]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -119,6 +127,36 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       window.history.back();
     }
   }, [expandedListId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        const {
+          isAddingStore,
+          editingItem,
+          storeToDelete,
+          isEditingStoreName,
+          isEditMode,
+          expandedListId,
+          isSortingStores,
+          isSortingItems,
+          isMenuOpen
+        } = statesRef.current;
+
+        if (isAddingStore) setIsAddingStore(false);
+        else if (editingItem) setEditingItem(null);
+        else if (storeToDelete) setStoreToDelete(null);
+        else if (isEditingStoreName) setIsEditingStoreName(false);
+        else if (isEditMode) setIsEditMode(false);
+        else if (expandedListId) handleCollapse();
+        else if (isSortingStores) setIsSortingStores(false);
+        else if (isSortingItems) setIsSortingItems(false);
+        else if (isMenuOpen) setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCollapse]);
 
   useEffect(() => {
     if (!user) return;
@@ -210,6 +248,16 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       }
     });
   }, [shoppingItems, itemSortOrder]);
+
+  const itemsByStoreList = React.useMemo(() => {
+    const groups: Record<string, ShoppingItem[]> = {};
+    sortedShoppingItems.forEach(item => {
+      const storeListId = item.storeListId;
+      if (!groups[storeListId]) groups[storeListId] = [];
+      groups[storeListId].push(item);
+    });
+    return groups;
+  }, [sortedShoppingItems]);
 
   const handleMoveStoreOrder = async (index: number, direction: 'up' | 'down') => {
     const lists = [...storeLists].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -544,7 +592,12 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     // 1. Update local state immediately for buttery smooth UI
     setShoppingItems(prevItems => {
       const otherItems = prevItems.filter(item => item.storeListId !== storeListId);
-      return [...otherItems, ...newItems];
+      // We must update the order property here so the sortedShoppingItems memo knows the new order
+      const updatedItems = newItems.map((item, index) => ({
+        ...item,
+        order: index
+      }));
+      return [...otherItems, ...updatedItems];
     });
     
     // Store the latest items in a ref to be used on drag end
@@ -628,7 +681,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
   }
 
   return (
-    <LayoutGroup>
+    <LayoutGroup id="shopping-list">
       <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Shopping List" 
@@ -707,10 +760,19 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
             ) : (
               <motion.div 
                 key="content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: { 
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1
+                    }
+                  },
+                  exit: { opacity: 0 }
+                }}
               >
                 <AnimatePresence>
                   {isAddingStore && (
@@ -768,7 +830,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
                       <StoreCardWrapper
                         key={list.id}
                         list={list}
-                        shoppingItems={sortedShoppingItems}
+                        shoppingItems={itemsByStoreList[list.id] || []}
                         handleAddItem={handleAddItem}
                         handleToggleItem={handleToggleItem}
                         handleDeleteItem={handleDeleteItem}

@@ -53,12 +53,7 @@ export const LocationCard = memo(({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      layout
-      transition={{ 
-        layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
-        y: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.4, delay: index * 0.1 }
-      }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
       className="bg-m3-surface border border-m3-outline/10 rounded-[24px] overflow-hidden shadow-sm flex flex-col h-fit relative group"
     >
       {/* Header Section */}
@@ -126,7 +121,7 @@ export const LocationCard = memo(({
                   onReorder={(newItems) => onReorderItems(location, newItems)}
                   className="flex flex-col gap-0.5"
                 >
-                  <AnimatePresence mode="popLayout">
+                  <AnimatePresence>
                     {locationItems.map((item) => (
                       <InventoryListItem
                         key={item.id}

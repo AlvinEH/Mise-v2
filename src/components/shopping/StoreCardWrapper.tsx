@@ -46,17 +46,12 @@ export const StoreCardWrapper = memo(({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      layout
-      transition={{ 
-        layout: { type: "spring", stiffness: 450, damping: 40, mass: 1 },
-        y: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.4, delay: index * 0.1 }
-      }}
+      transition={{ duration: 0.4, delay: index * 0.1 }}
       className="relative group"
     >
       <StoreCard 
         list={list} 
-        items={shoppingItems.filter(item => item.storeListId === list.id)}
+        items={shoppingItems}
         onAddItem={(name) => handleAddItem(list.id, name)}
         onToggleItem={handleToggleItem}
         onDeleteItem={handleDeleteItem}

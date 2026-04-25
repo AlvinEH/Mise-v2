@@ -17,12 +17,19 @@ service cloud.firestore {
     // Document ID: auto-generated
     // Fields:
     //   - title: string (required)
-    //   - ingredients: list (required)
     //   - instructions: string (required)
+    //   - ingredientSections: list (optional)
+    //     - title: string (optional)
+    //     - items: list (required)
+    //       - name: string (required)
+    //       - amount: string (optional)
+    //       - unit: string (optional)
+    //       - note: string (optional)
     //   - sourceUrl: string (optional)
     //   - userId: string (required)
     //   - createdAt: timestamp (required)
     //   - tags: list (optional)
+    //   - servings: string (optional)
     //
     // Collection: storeLists
     // Document ID: auto-generated
@@ -94,14 +101,15 @@ service cloud.firestore {
     }
 
     function isValidRecipe(data) {
-      let requiredFields = ['title', 'ingredients', 'instructions', 'userId', 'createdAt', 'updatedAt'];
-      let optionalFields = ['sourceUrl', 'tags', 'servings'];
+      let requiredFields = ['title', 'instructions', 'userId', 'createdAt', 'updatedAt'];
+      let optionalFields = ['sourceUrl', 'tags', 'servings', 'ingredients', 'ingredientSections'];
       let allFields = requiredFields.concat(optionalFields);
       
       return data.keys().hasAll(requiredFields) &&
              data.keys().hasOnly(allFields) &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
-             data.ingredients is list && data.ingredients.size() < 100 &&
+             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() < 100)) &&
+             (!('ingredientSections' in data) || (data.ingredientSections is list && data.ingredientSections.size() < 20)) &&
              data.instructions is string && data.instructions.size() < 10000 &&
              data.userId == request.auth.uid &&
              data.createdAt is timestamp &&
@@ -112,10 +120,11 @@ service cloud.firestore {
     }
 
     function isValidRecipeUpdate(data) {
-      let allPossibleFields = ['title', 'ingredients', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt', 'userId', 'createdAt'];
+      let allPossibleFields = ['title', 'ingredients', 'ingredientSections', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt', 'userId', 'createdAt'];
       return data.keys().hasOnly(allPossibleFields) &&
              (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
              (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() < 100)) &&
+             (!('ingredientSections' in data) || (data.ingredientSections is list && data.ingredientSections.size() < 20)) &&
              (!('instructions' in data) || (data.instructions is string && data.instructions.size() < 10000)) &&
              (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
              (!('tags' in data) || (data.tags is list)) &&

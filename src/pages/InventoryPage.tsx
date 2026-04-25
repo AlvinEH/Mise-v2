@@ -133,6 +133,17 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const displayIngredientLocations = useMemo(() => getDisplayLocations(ingredientLocations, ingredientItems), [getDisplayLocations, ingredientLocations, ingredientItems]);
   const displaySupplyLocations = useMemo(() => getDisplayLocations(supplyLocations, supplyItems), [getDisplayLocations, supplyLocations, supplyItems]);
 
+  const itemsByLocation = useMemo(() => {
+    const groups: Record<string, InventoryItem[]> = {};
+    const currentList = activeTab === 'ingredients' ? ingredientItems : supplyItems;
+    currentList.forEach(item => {
+      const loc = item.location || 'Uncategorized';
+      if (!groups[loc]) groups[loc] = [];
+      groups[loc].push(item);
+    });
+    return groups;
+  }, [activeTab, ingredientItems, supplyItems]);
+
   const currentFilteredItems = useMemo(() => {
     const list = activeTab === 'ingredients' ? ingredientItems : supplyItems;
     
@@ -826,21 +837,64 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     return () => window.removeEventListener('popstate', handlePopState);
   }, [expandedLocation]);
 
+  const statesRef = useRef({
+    isAddingLocation, 
+    isAddingItem, 
+    editingItem, 
+    locationToDelete, 
+    isEditingLocationName, 
+    isEditMode, 
+    expandedLocation, 
+    isSortingLocations,
+    isSortingItems,
+    isMenuOpen
+  });
+
+  useEffect(() => {
+    statesRef.current = {
+      isAddingLocation, 
+      isAddingItem, 
+      editingItem, 
+      locationToDelete, 
+      isEditingLocationName, 
+      isEditMode, 
+      expandedLocation, 
+      isSortingLocations,
+      isSortingItems,
+      isMenuOpen
+    };
+  }, [isAddingLocation, isAddingItem, editingItem, locationToDelete, isEditingLocationName, isEditMode, expandedLocation, isSortingLocations, isSortingItems, isMenuOpen]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        const { 
+          isAddingLocation, 
+          isAddingItem, 
+          editingItem, 
+          locationToDelete, 
+          isEditingLocationName, 
+          isEditMode, 
+          expandedLocation, 
+          isSortingLocations,
+          isSortingItems,
+          isMenuOpen
+        } = statesRef.current;
+
         if (isAddingLocation) setIsAddingLocation(false);
-        else if (isAddingItem) setIsAddingItem(false);
-        else if (editingItem) setEditingItem(null);
+        else if (isAddingItem || editingItem) resetForm();
         else if (locationToDelete) setLocationToDelete(null);
         else if (isEditingLocationName) setIsEditingLocationName(false);
         else if (isEditMode) setIsEditMode(false);
-        else if (expandedLocation) setExpandedLocation(null);
+        else if (expandedLocation) handleCollapse();
+        else if (isSortingLocations) setIsSortingLocations(false);
+        else if (isSortingItems) setIsSortingItems(false);
+        else if (isMenuOpen) setIsMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAddingLocation, isAddingItem, editingItem, locationToDelete, isEditingLocationName, isEditMode, expandedLocation, isSortingLocations]);
+  }, [handleCollapse]); // handleCollapse is a stable useCallback
 
 
   const handleReorderLocations = useCallback((newLocationsNames: string[]) => {
@@ -1004,7 +1058,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   }
 
   return (
-    <LayoutGroup>
+    <LayoutGroup id="inventory">
       <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
       <PageHeader 
         title="Inventory" 
@@ -1196,10 +1250,19 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
             ) : (
               <motion.div 
                 key="content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: { 
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1
+                    }
+                  },
+                  exit: { opacity: 0 }
+                }}
                 className="relative"
               >
                 {/* Locations Grid */}
@@ -1209,7 +1272,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                       key={`${activeTab}-${location}`}
                       location={location}
                       index={index}
-                      locationItems={(activeTab === 'ingredients' ? ingredientItems : supplyItems).filter(item => item.location === location)}
+                      locationItems={itemsByLocation[location] || []}
                       toggleCardCollapsed={toggleCardCollapsed}
                       expandedCards={expandedCards}
                       handleExpand={handleExpand}

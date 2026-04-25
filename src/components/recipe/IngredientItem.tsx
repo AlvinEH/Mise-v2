@@ -1,27 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Reorder, useDragControls } from 'motion/react';
-import { Trash2, RefreshCw } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Trash2, RefreshCw, ChevronUp, ChevronDown, StickyNote, CheckSquare } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { IngredientItemProps } from '../../types';
 import { COMMON_UNITS, UNIT_CONVERSIONS } from '../../constants';
-import { parseShoppingItem } from '../../utils/shoppingItems';
+import { parseShoppingItem, formatAmount } from '../../utils/shoppingItems';
 
-export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: IngredientItemProps) => {
-  const dragControls = useDragControls();
+export const IngredientItem = ({ 
+  ing, 
+  index, 
+  onUpdate, 
+  onRemove, 
+  onConvert,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast 
+}: IngredientItemProps) => {
   // Initialize smart input with existing ingredient data on first render
   const [smartInput, setSmartInput] = useState(() => {
     return [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
   });
   const [useSmartInput, setUseSmartInput] = useState(true);
+  const [showNote, setShowNote] = useState(!!ing.note);
+  
+  const [isFocused, setIsFocused] = useState(false);
   
   // Keep smart input in sync with external updates (like AI extraction)
   useEffect(() => {
-    const fullText = [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
+    // If the user is actively typing, don't override their input to prevent cursor jumps
+    if (isFocused) return;
+
+    const displayAmt = formatAmount(ing.amount);
+    const fullText = [displayAmt, ing.unit, ing.name].filter(Boolean).join(' ');
     // Only update if the text is different to avoid cursor jumping
     if (fullText !== smartInput) {
       setSmartInput(fullText);
     }
-  }, [ing.amount, ing.unit, ing.name]);
+  }, [ing.amount, ing.unit, ing.name, isFocused]);
 
   // Handle smart input change (update parent state on every change)
   const handleSmartInputChange = (value: string) => {
@@ -56,32 +72,31 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
   };
 
   return (
-    <Reorder.Item 
-      value={ing}
-      dragListener={false}
-      dragControls={dragControls}
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 50,
+        mass: 1
+      }}
       className="relative flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl group"
     >
-      <div 
-        className="flex-1 flex flex-col gap-3 cursor-grab active:cursor-grabbing"
-        onPointerDown={(e) => {
-          // Only start drag if not typing in an input/textarea
-          if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
-            return;
-          }
-          e.preventDefault();
-          e.stopPropagation();
-          dragControls.start(e);
-        }}
-        style={{ touchAction: 'none' }}
-      >
+      <div className="flex-1 flex flex-col gap-3">
         {useSmartInput ? (
           <div className="space-y-3">
             <div className="relative">
               <TextareaAutosize 
                 value={smartInput}
                 onChange={e => handleSmartInputChange(e.target.value)}
-                onBlur={handleSmartInputParse}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => {
+                  setIsFocused(false);
+                  handleSmartInputParse();
+                }}
                 onKeyDown={handleKeyDown}
                 className="w-full px-4 py-3 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all resize-none text-sm font-medium"
                 placeholder="2 cups all-purpose flour"
@@ -96,14 +111,19 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-1 text-[10px] text-m3-on-surface-variant">
                   <span className="bg-m3-primary-container/30 px-2 py-1 rounded-full">
-                    Amt: {ing.amount || 'empty'}
+                    Amt: {formatAmount(ing.amount) || 'empty'}
                   </span>
                   <span className="bg-m3-secondary-container/30 px-2 py-1 rounded-full">
                     Unit: {ing.unit || 'empty'}
                   </span>
-                  <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full max-w-[120px] truncate">
+                  <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full break-words">
                     Name: {ing.name || 'empty'}
                   </span>
+                  {ing.isOptional && (
+                    <span className="bg-m3-outline-variant/30 px-2 py-1 rounded-full font-bold uppercase tracking-tighter">
+                      Optional
+                    </span>
+                  )}
                 </div>
 
                 {ing.unit && ing.amount && (() => {
@@ -174,39 +194,91 @@ export const IngredientItem = ({ ing, index, onUpdate, onRemove, onConvert }: In
             </div>
           </div>
         )}
+
+        {showNote && (
+          <div className="relative mt-1">
+            <TextareaAutosize 
+              value={ing.note || ''}
+              onChange={e => onUpdate(index, 'note', e.target.value)}
+              className="w-full px-4 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all resize-none text-[12px] font-medium italic text-m3-on-surface-variant"
+              placeholder="Add a note (e.g. sifted, melted)..."
+              minRows={1}
+            />
+            <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
+              Note
+            </span>
+          </div>
+        )}
       </div>
 
-      <div 
-        onPointerDownCapture={(e) => e.stopPropagation()}
-        onTouchStartCapture={(e) => e.stopPropagation()}
-        onMouseDownCapture={(e) => e.stopPropagation()}
-        className="flex flex-col gap-2 relative z-20"
-      >
-        <button 
-          type="button"
-          onClick={() => {
-            const newMode = !useSmartInput;
-            if (newMode) {
-              // Switching to smart mode - reconstruct input from fields
-              const fullText = [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
-              setSmartInput(fullText);
-            }
-            setUseSmartInput(newMode);
-          }}
-          className="p-2 text-m3-primary/60 hover:text-m3-primary hover:bg-m3-primary/10 transition-colors rounded-lg"
-          title={useSmartInput ? "Switch to separate fields" : "Switch to smart input"}
-        >
-          <RefreshCw size={16} />
-        </button>
-        
-        <button 
-          type="button"
-          onClick={() => onRemove(ing.id)}
-          className="p-2 text-m3-on-surface-variant/40 hover:text-red-600 transition-colors"
-        >
-          <Trash2 size={18} />
-        </button>
+      <div className="flex flex-col gap-1 items-center">
+        {onMoveUp && (
+          <button 
+            type="button"
+            onClick={() => onMoveUp(index)}
+            disabled={isFirst}
+            className={`p-1.5 rounded-lg transition-all ${isFirst ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+          >
+            <ChevronUp size={18} />
+          </button>
+        )}
+
+        <div className="flex flex-col gap-1.5">
+          <button 
+            type="button"
+            onClick={() => {
+              const newMode = !useSmartInput;
+              if (newMode) {
+                // Switching to smart mode - reconstruct input from fields
+                const fullText = [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
+                setSmartInput(fullText);
+              }
+              setUseSmartInput(newMode);
+            }}
+            className="p-1.5 text-m3-primary/60 hover:text-m3-primary hover:bg-m3-primary/10 transition-colors rounded-lg"
+            title={useSmartInput ? "Switch to separate fields" : "Switch to smart input"}
+          >
+            <RefreshCw size={14} />
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => setShowNote(!showNote)}
+            className={`p-1.5 transition-colors rounded-lg ${showNote ? 'text-m3-primary bg-m3-primary/10' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+            title="Toggle note"
+          >
+            <StickyNote size={14} />
+          </button>
+          
+          <button 
+            type="button"
+            onClick={() => onUpdate(index, 'isOptional', !ing.isOptional)}
+            className={`p-1.5 transition-colors rounded-lg ${ing.isOptional ? 'text-m3-primary bg-m3-primary/10' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+            title="Mark as optional"
+          >
+            <CheckSquare size={14} />
+          </button>
+          
+          <button 
+            type="button"
+            onClick={() => onRemove(ing.id)}
+            className="p-1.5 text-m3-on-surface-variant/40 hover:text-red-600 transition-colors rounded-lg"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+
+        {onMoveDown && (
+          <button 
+            type="button"
+            onClick={() => onMoveDown(index)}
+            disabled={isLast}
+            className={`p-1.5 rounded-lg transition-all ${isLast ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+          >
+            <ChevronDown size={18} />
+          </button>
+        )}
       </div>
-    </Reorder.Item>
+    </motion.div>
   );
 };

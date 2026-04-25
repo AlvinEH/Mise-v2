@@ -70,13 +70,25 @@ export const RecipesPage = React.memo(({
     // Filter with search query
     const lowerQuery = searchQuery.toLowerCase();
     let filtered = recipes.filter(recipe => {
-      return recipe.title.toLowerCase().includes(lowerQuery) ||
-        recipe.instructions?.toLowerCase().includes(lowerQuery) ||
-        (recipe.ingredients && recipe.ingredients.some(ing => 
-          typeof ing === 'string' 
-            ? ing.toLowerCase().includes(lowerQuery)
+      const searchInIngredients = (recipe.ingredients || []).some(ing => 
+        typeof ing === 'string' 
+          ? ing.toLowerCase().includes(lowerQuery)
+          : ing.name.toLowerCase().includes(lowerQuery)
+      );
+
+      const searchInSections = (recipe.ingredientSections || []).some(section => 
+        (section.title || '').toLowerCase().includes(lowerQuery) ||
+        section.items.some(ing => 
+          typeof ing === 'string'
+            ? (ing as string).toLowerCase().includes(lowerQuery)
             : ing.name.toLowerCase().includes(lowerQuery)
-        ));
+        )
+      );
+
+      return recipe.title.toLowerCase().includes(lowerQuery) ||
+        (recipe.instructions && recipe.instructions.toLowerCase().includes(lowerQuery)) ||
+        searchInIngredients ||
+        searchInSections;
     });
 
     switch (sortBy) {

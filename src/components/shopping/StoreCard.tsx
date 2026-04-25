@@ -41,7 +41,6 @@ export const StoreCard: React.FC<StoreCardProps> = memo(({
   isDraggingItemRef,
   onMoveItems
 }) => {
-  const completedCount = items.filter(i => i.completed).length;
   const totalCount = items.length;
   const [isEditMode, setIsEditMode] = useState(false);
 

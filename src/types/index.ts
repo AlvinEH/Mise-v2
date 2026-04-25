@@ -2,13 +2,14 @@ import { Timestamp } from 'firebase/firestore';
 import { ExtractedRecipe, Ingredient } from '../services/geminiService';
 
 // Core Recipe Types
-export interface Recipe extends ExtractedRecipe {
+export interface Recipe extends Omit<ExtractedRecipe, 'ingredients'> {
   id: string;
   userId: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   sourceUrl?: string;
   tags?: string[];
+  ingredients?: Ingredient[]; // Keep for backward compatibility
 }
 
 // Shopping List Types
@@ -89,11 +90,15 @@ export interface FirestoreErrorInfo {
 
 // Component Props Types
 export interface IngredientItemProps {
-  ing: { id: string; amount: string; unit: string; name: string };
+  ing: { id: string; amount: string; unit: string; name: string; note?: string; isOptional?: boolean };
   index: number;
-  onUpdate: (index: number, fieldOrObject: keyof Ingredient | Partial<Ingredient>, value?: string) => void;
+  onUpdate: (index: number, fieldOrObject: keyof Ingredient | Partial<Ingredient>, value?: any) => void;
   onRemove: (id: string) => void;
   onConvert: (index: number, targetUnit: string) => void;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 // Meal Planning Types

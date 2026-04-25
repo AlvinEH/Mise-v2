@@ -4,11 +4,18 @@ export type Ingredient = {
   name: string;
   amount: string;
   unit: string;
+  note?: string;
+  isOptional?: boolean;
 } | string;
+
+export type IngredientSection = {
+  title?: string;
+  items: Ingredient[];
+};
 
 export interface ExtractedRecipe {
   title: string;
-  ingredients: Ingredient[];
+  ingredientSections: IngredientSection[];
   instructions: string;
   servings: string;
 }
@@ -28,29 +35,41 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
   const ai = new GoogleGenAI({ apiKey });
   const model = ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Extract the recipe details from this URL: ${url}. Provide the title, ingredients (as objects with name, amount, and unit), instructions, and servings.`,
+    contents: `Extract the recipe details from this URL: ${url}. Provide the title, ingredients organized into sections (e.g., "For the dough", "For the filling"), instructions, and servings. Normalize the amount to a decimal number string whenever possible (e.g., "1.5" instead of "1 1/2"). 
+
+For instructions, some websites use images or icons for step numbers that aren't easily extracted as text. In such cases, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING },
-          ingredients: {
+          ingredientSections: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                name: { type: Type.STRING },
-                amount: { type: Type.STRING },
-                unit: { type: Type.STRING }
+                title: { type: Type.STRING, description: "Title of the section, e.g., 'For the cake' or leave empty if there's only one main list" },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      amount: { type: Type.STRING },
+                      unit: { type: Type.STRING }
+                    },
+                    required: ['name']
+                  }
+                }
               },
-              required: ['name']
+              required: ['items']
             }
           },
           instructions: { type: Type.STRING },
           servings: { type: Type.STRING }
         },
-        required: ['title', 'ingredients', 'instructions']
+        required: ['title', 'ingredientSections', 'instructions']
       }
     }
   });
@@ -67,7 +86,7 @@ export const extractRecipeFromImage = async (base64Data: string, mimeType: strin
   const model = ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [
-      { text: "Extract the recipe details from this image. Provide the title, ingredients (as objects with name, amount, and unit), instructions, and servings." },
+      { text: "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, and servings. Normalize the amount to a decimal number string whenever possible (e.g., '1.5' instead of '1 1/2'). For instructions, if the recipe uses visual icons for step numbers, ensure each paragraph of instruction is treated as a separate step separated by newlines." },
       { inlineData: { data: base64Data, mimeType } }
     ],
     config: {
@@ -76,22 +95,32 @@ export const extractRecipeFromImage = async (base64Data: string, mimeType: strin
         type: Type.OBJECT,
         properties: {
           title: { type: Type.STRING },
-          ingredients: {
+          ingredientSections: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                name: { type: Type.STRING },
-                amount: { type: Type.STRING },
-                unit: { type: Type.STRING }
+                title: { type: Type.STRING },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      name: { type: Type.STRING },
+                      amount: { type: Type.STRING },
+                      unit: { type: Type.STRING }
+                    },
+                    required: ['name']
+                  }
+                }
               },
-              required: ['name']
+              required: ['items']
             }
           },
           instructions: { type: Type.STRING },
           servings: { type: Type.STRING }
         },
-        required: ['title', 'ingredients', 'instructions']
+        required: ['title', 'ingredientSections', 'instructions']
       }
     }
   });

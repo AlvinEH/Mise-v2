@@ -96,3 +96,5 @@ export const useTheme = () => {
 
 // Re-export useRecipes for convenience
 export { useRecipes } from './useRecipes';
+export { useInventory } from './useInventory';
+export { useShopping } from './useShopping';

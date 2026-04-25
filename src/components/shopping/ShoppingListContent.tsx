@@ -2,7 +2,8 @@ import React, { memo, useState, useMemo, useRef, useEffect, useLayoutEffect } fr
 import { ShoppingCart, Plus, CheckCircle2, Circle, Trash2, Check, Edit2, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { ShoppingItem, CheckboxStyle } from '../../types';
 import { isItemSessionMoved } from '../../utils/session';
-import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
+import { ReorderableItem } from '../ui/ReorderableItem';
 
 interface ShoppingListContentProps {
   items: ShoppingItem[];
@@ -44,17 +45,11 @@ const ShoppingListItem = memo(({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPress = useRef(false);
 
-  const isDraggingItem = useRef(false);
-  const dragControls = useDragControls();
-
   const handlePointerDown = (e: React.PointerEvent) => {
-    isDraggingItem.current = false;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
-      if (!isDraggingItem.current) {
-        isLongPress.current = true;
-        onEditItem(item);
-      }
+      isLongPress.current = true;
+      onEditItem(item);
     }, 500);
   };
 
@@ -73,7 +68,7 @@ const ShoppingListItem = memo(({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (isDraggingItemRef?.current || isDraggingItem.current || isLongPress.current) {
+    if (isDraggingItemRef?.current || isLongPress.current) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -87,132 +82,114 @@ const ShoppingListItem = memo(({
 
   const isRecentlyMoved = isItemSessionMoved(item.id);
 
-  const hasDigit = (str: string) => /\d/.test(str);
-  const useDotBetweenAmountAndUnit = !!(item.amount && item.unit && hasDigit(item.amount) && hasDigit(item.unit));
+  const metadata = useMemo(() => {
+    const parts: { text: string; type: 'amount_unit' | 'category' }[] = [];
+    const hasDigit = (str: string) => /\d/.test(str);
+    const useDot = !!(item.amount && item.unit && hasDigit(item.amount) && hasDigit(item.unit));
 
-  const metadata: { text: string; type: 'amount_unit' | 'category' }[] = [];
-  if (useDotBetweenAmountAndUnit) {
-    if (item.amount) metadata.push({ text: item.amount, type: 'amount_unit' });
-    if (item.unit) metadata.push({ text: item.unit, type: 'amount_unit' });
-  } else if (item.amount || item.unit) {
-    metadata.push({ 
-      text: `${item.amount || ''}${item.amount && item.unit ? ' ' : ''}${item.unit || ''}`.trim(),
-      type: 'amount_unit'
-    });
-  }
-  if (item.category) metadata.push({ text: item.category, type: 'category' });
+    if (useDot) {
+      if (item.amount) parts.push({ text: item.amount, type: 'amount_unit' });
+      if (item.unit) parts.push({ text: item.unit, type: 'amount_unit' });
+    } else if (item.amount || item.unit) {
+      parts.push({ 
+        text: `${item.amount || ''}${item.amount && item.unit ? ' ' : ''}${item.unit || ''}`.trim(),
+        type: 'amount_unit'
+      });
+    }
+    if (item.category) parts.push({ text: item.category, type: 'category' });
+    return parts;
+  }, [item.amount, item.unit, item.category]);
 
   return (
-    <Reorder.Item 
-      value={item}
+    <ReorderableItem
+      item={item}
       id={item.id}
-      dragListener={false}
-      dragControls={dragControls}
-      dragMomentum={false}
-      dragElastic={0.05}
-      onDragStart={() => {
-        isDraggingItem.current = true;
-        if (isDraggingItemRef) isDraggingItemRef.current = true;
-      }}
-      onDragEnd={() => {
-        if (isDraggingItemRef) {
-          setTimeout(() => {
-            isDraggingItemRef.current = false;
-          }, 200);
-        }
-        setTimeout(() => {
-          isDraggingItem.current = false;
-        }, 200);
-        onReorderEnd();
-      }}
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ 
-        layout: { duration: 0.2, ease: "linear" },
-        opacity: { duration: 0.2 },
-        height: { duration: 0.2, ease: "linear" }
-      }}
-      layout="position"
+      isEditMode={!!isEditMode}
+      onReorderEnd={onReorderEnd}
+      isDraggingRef={isDraggingItemRef}
       className={`flex items-center justify-between py-1 hover:bg-m3-surface-variant/10 transition-colors group px-0 rounded-xl overflow-hidden select-none ${item.completed ? 'opacity-50' : ''}`}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerMove={handlePointerMove}
     >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        {!isEditMode && (
-          <button 
-            onClick={handleClick}
+      {(dragControls) => (
+        <>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {!isEditMode && (
+              <button 
+                onClick={handleClick}
+                onPointerDownCapture={(e) => e.stopPropagation()}
+                onTouchStartCapture={(e) => e.stopPropagation()}
+                onMouseDownCapture={(e) => e.stopPropagation()}
+                className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
+                  checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
+                } ${
+                  item.completed 
+                    ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
+                    : 'border-m3-outline hover:border-m3-primary'
+                }`}
+              >
+                {item.completed && <Check size={14} strokeWidth={3} />}
+              </button>
+            )}
+            <div 
+              className="flex-1 min-w-0 cursor-pointer"
+              onClick={handleClick}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              onPointerMove={handlePointerMove}
+            >
+              <div 
+                className={`w-fit max-w-full ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                onPointerDown={(e) => {
+                  if (isEditMode) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dragControls.start(e);
+                  }
+                }}
+                style={{ touchAction: isEditMode ? 'none' : 'auto' }}
+              >
+                <div className="flex items-center gap-2">
+                  <h4 className={`font-bold text-base text-m3-on-surface leading-tight text-wrap ${item.completed ? 'line-through' : ''}`}>
+                    {item.name}
+                  </h4>
+                  {isRecentlyMoved && (
+                    <span title="Recently moved">
+                      <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center text-xs font-medium overflow-hidden">
+                {metadata.map((part, idx) => (
+                  <React.Fragment key={idx}>
+                    <span className={`shrink-0 ${part.type === 'amount_unit' ? 'text-m3-primary' : 'text-m3-on-surface-variant/60'}`}>
+                      {part.text}
+                    </span>
+                    {idx < metadata.length - 1 && (
+                      <span className="mx-1 shrink-0 text-[10px] text-m3-on-surface-variant/40">•</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div 
             onPointerDownCapture={(e) => e.stopPropagation()}
             onTouchStartCapture={(e) => e.stopPropagation()}
             onMouseDownCapture={(e) => e.stopPropagation()}
-            className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
-              checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
-            } ${
-              item.completed 
-                ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 
-                : 'border-m3-outline hover:border-m3-primary'
-            }`}
+            className={`flex items-center gap-1 transition-opacity ${isExpanded ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
           >
-            {item.completed && <Check size={14} strokeWidth={3} />}
-          </button>
-        )}
-        <div 
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={handleClick}
-        >
-          <div 
-            className={`w-fit max-w-full ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
-            onPointerDown={(e) => {
-              if (isEditMode) {
-                e.preventDefault();
-                e.stopPropagation();
-                dragControls.start(e);
-              }
-            }}
-            style={{ touchAction: isEditMode ? 'none' : 'auto' }}
-          >
-            <div className="flex items-center gap-2">
-              <h4 className={`font-bold text-base text-m3-on-surface leading-tight ${item.completed ? 'line-through' : ''}`}>
-                {item.name}
-              </h4>
-              {isRecentlyMoved && (
-                <span title="Recently moved">
-                  <ArrowRightLeft size={12} className="text-m3-primary shrink-0" />
-                </span>
-              )}
-            </div>
+            <button
+              onClick={() => onDeleteItem(item.id)}
+              className="p-2 text-m3-on-surface-variant/40 hover:text-m3-error hover:bg-m3-error/10 rounded-md transition-colors"
+              title="Delete item"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
-          <div className="flex items-center text-xs font-medium overflow-hidden">
-            {metadata.map((part, idx) => (
-              <React.Fragment key={idx}>
-                <span className={`shrink-0 ${part.type === 'amount_unit' ? 'text-m3-primary' : 'text-m3-on-surface-variant/60'}`}>
-                  {part.text}
-                </span>
-                {idx < metadata.length - 1 && (
-                  <span className="mx-1 shrink-0 text-[10px] text-m3-on-surface-variant/40">•</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div 
-        onPointerDownCapture={(e) => e.stopPropagation()}
-        onTouchStartCapture={(e) => e.stopPropagation()}
-        onMouseDownCapture={(e) => e.stopPropagation()}
-        className={`flex items-center gap-1 transition-opacity ${isExpanded ? (isEditMode ? 'opacity-100' : 'opacity-0 pointer-events-none') : 'opacity-60 group-hover:opacity-100'}`}
-      >
-        <button
-          onClick={() => onDeleteItem(item.id)}
-          className="p-2 text-m3-on-surface-variant/40 hover:text-m3-error hover:bg-m3-error/10 rounded-md transition-colors"
-          title="Delete item"
-        >
-          <Trash2 size={16} />
-        </button>
-      </div>
-    </Reorder.Item>
+        </>
+      )}
+    </ReorderableItem>
   );
 });
 
@@ -242,7 +219,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
     }
   };
 
-  const completedCount = items.filter(i => i.completed).length;
+  const completedCount = useMemo(() => items.filter(i => i.completed).length, [items]);
 
   return (
     <div 
@@ -260,7 +237,7 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
             onReorder={onReorder} 
             className="flex flex-col gap-0 pb-2"
           >
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               {items.map((item) => (
                 <ShoppingListItem 
                   key={item.id}

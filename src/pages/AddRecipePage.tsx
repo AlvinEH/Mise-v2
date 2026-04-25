@@ -19,7 +19,7 @@ import {
   Upload,
   X
 } from 'lucide-react';
-import { motion, Reorder } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import TextareaAutosize from 'react-textarea-autosize';
 
 // Import components
@@ -29,7 +29,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 // Import types and utils
 import { UNIT_CONVERSIONS } from '../constants/units';
 import { handleFirestoreError as baseHandleFirestoreError } from '../utils/firestore';
-import { parseShoppingItem } from '../utils/shoppingItems';
+import { parseShoppingItem, evaluateFraction } from '../utils/shoppingItems';
 import { OperationType, Recipe } from '../types';
 
 interface AddRecipePageProps {
@@ -60,8 +60,12 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     servings: ''
   });
   
-  const [ingredients, setIngredients] = useState<{ id: string; amount: string; unit: string; name: string }[]>([
-    { id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' }
+  const [ingredientSections, setIngredientSections] = useState<{ 
+    id: string; 
+    title: string; 
+    items: { id: string; amount: string; unit: string; name: string }[] 
+  }[]>([
+    { id: Math.random().toString(36).substr(2, 9), title: '', items: [{ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' }] }
   ]);
   
   const [isSaving, setIsSaving] = useState(false);
@@ -87,24 +91,51 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
               servings: data.servings || ''
             });
             
-            if (data.ingredients && data.ingredients.length > 0) {
-              setIngredients(data.ingredients.map(ing => {
-                if (typeof ing === 'string') {
-                  const parsed = parseShoppingItem(ing);
+            if (data.ingredientSections && data.ingredientSections.length > 0) {
+              setIngredientSections(data.ingredientSections.map(section => ({
+                id: Math.random().toString(36).substr(2, 9),
+                title: section.title || '',
+                items: section.items.map(ing => {
+                  if (typeof ing === 'string') {
+                    const parsed = parseShoppingItem(ing);
+                    return {
+                      id: Math.random().toString(36).substr(2, 9),
+                      amount: parsed.amount,
+                      unit: parsed.unit,
+                      name: parsed.name
+                    };
+                  }
                   return {
                     id: Math.random().toString(36).substr(2, 9),
-                    amount: parsed.amount,
-                    unit: parsed.unit,
-                    name: parsed.name
+                    amount: ing.amount || '',
+                    unit: ing.unit || '',
+                    name: ing.name
                   };
-                }
-                return {
-                  id: Math.random().toString(36).substr(2, 9),
-                  amount: ing.amount || '',
-                  unit: ing.unit || '',
-                  name: ing.name
-                };
-              }));
+                })
+              })));
+            } else if (data.ingredients && data.ingredients.length > 0) {
+              // Backward compatibility
+              setIngredientSections([{
+                id: Math.random().toString(36).substr(2, 9),
+                title: '',
+                items: data.ingredients.map(ing => {
+                  if (typeof ing === 'string') {
+                    const parsed = parseShoppingItem(ing);
+                    return {
+                      id: Math.random().toString(36).substr(2, 9),
+                      amount: parsed.amount,
+                      unit: parsed.unit,
+                      name: parsed.name
+                    };
+                  }
+                  return {
+                    id: Math.random().toString(36).substr(2, 9),
+                    amount: ing.amount || '',
+                    unit: ing.unit || '',
+                    name: ing.name
+                  };
+                })
+              }]);
             }
           } else {
             navigate('/recipes');
@@ -219,16 +250,38 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       servings: extracted.servings || ''
     });
     
-    setIngredients(extracted.ingredients.map((ing: any) => {
-      const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
-      const parsed = parseShoppingItem(ingredientString);
-      return { 
-        id: Math.random().toString(36).substr(2, 9), 
-        amount: parsed.amount, 
-        unit: parsed.unit, 
-        name: parsed.name 
-      };
-    }));
+    if (extracted.ingredientSections && extracted.ingredientSections.length > 0) {
+      setIngredientSections(extracted.ingredientSections.map((section: any) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        title: section.title || '',
+        items: section.items.map((ing: any) => {
+          const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+          const parsed = parseShoppingItem(ingredientString);
+          return { 
+            id: Math.random().toString(36).substr(2, 9), 
+            amount: parsed.amount, 
+            unit: parsed.unit, 
+            name: parsed.name 
+          };
+        })
+      })));
+    } else if (extracted.ingredients) {
+      // Handle potential fallback from old extraction logic if any
+      setIngredientSections([{
+        id: Math.random().toString(36).substr(2, 9),
+        title: '',
+        items: extracted.ingredients.map((ing: any) => {
+          const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+          const parsed = parseShoppingItem(ingredientString);
+          return { 
+            id: Math.random().toString(36).substr(2, 9), 
+            amount: parsed.amount, 
+            unit: parsed.unit, 
+            name: parsed.name 
+          };
+        })
+      }]);
+    }
   };
 
   const handleExtractionError = (error: any) => {
@@ -244,15 +297,20 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     e.preventDefault();
     if (!user || !form.title) return;
 
-    const finalIngredients = ingredients
-      .filter(ing => ing.name.trim() !== '')
-      .map(({ id, ...rest }) => rest);
+    const finalIngredientSections = ingredientSections
+      .map(section => ({
+        title: section.title,
+        items: section.items
+          .filter(ing => ing.name.trim() !== '')
+          .map(({ id, ...rest }) => rest)
+      }))
+      .filter(section => section.items.length > 0);
 
     setIsSaving(true);
     try {
       const recipeData: any = {
         title: form.title,
-        ingredients: finalIngredients,
+        ingredientSections: finalIngredientSections,
         instructions: form.instructions || '',
         servings: form.servings || '',
         userId: user.uid,
@@ -283,55 +341,64 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     }
   };
 
-  const handleConvert = (index: number, targetUnit: string) => {
-    const ing = ingredients[index];
-    if (!ing.unit || !targetUnit) return;
+  const handleConvert = (sectionIndex: number, itemIndex: number, targetUnit: string) => {
+    const section = ingredientSections[sectionIndex];
+    if (!section) return;
+    const ing = section.items[itemIndex];
+    if (!ing || !ing.unit || !targetUnit) return;
 
     // Strip "can" or "bottle" for conversion lookup
     const baseSourceUnit = ing.unit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
     const baseTargetUnit = targetUnit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
 
     if (!UNIT_CONVERSIONS[baseSourceUnit]?.[baseTargetUnit]) return;
-
-    // Handle fractions, decimals, and mixed numbers
-    let numericAmount = 0;
-    const amountStr = ing.amount.trim();
     
-    if (amountStr.includes(' ')) {
-      // Mixed number like "1 1/2"
-      const parts = amountStr.split(/\s+/);
-      let total = 0;
-      for (const part of parts) {
-        if (part.includes('/')) {
-          const [num, den] = part.split('/').map(Number);
-          if (!isNaN(num) && !isNaN(den) && den !== 0) {
-            total += num / den;
-          }
-        } else {
-          const val = parseFloat(part);
-          if (!isNaN(val)) total += val;
-        }
-      }
-      numericAmount = total;
-    } else if (amountStr.includes('/')) {
-      // Simple fraction like "1/2"
-      const [num, den] = amountStr.split('/').map(Number);
-      if (!isNaN(num) && !isNaN(den) && den !== 0) {
-        numericAmount = num / den;
-      }
-    } else {
-      // Decimal or whole number
-      numericAmount = parseFloat(amountStr);
+    const numericAmount = evaluateFraction(ing.amount);
+
+    if (Array.isArray(numericAmount)) {
+      const conv = UNIT_CONVERSIONS[baseSourceUnit][baseTargetUnit];
+      const convertedStart = numericAmount[0] * conv;
+      const convertedEnd = numericAmount[1] * conv;
+      const formatted = `${Math.round(convertedStart * 100) / 100}-${Math.round(convertedEnd * 100) / 100}`;
+      
+      const newSections = [...ingredientSections];
+      newSections[sectionIndex].items[itemIndex] = { ...ing, amount: formatted, unit: targetUnit };
+      setIngredientSections(newSections);
+      return;
     }
 
-    if (isNaN(numericAmount) || numericAmount === 0) return;
+    if (isNaN(numericAmount) || (typeof numericAmount === 'number' && numericAmount === 0)) return;
 
-    const convertedAmount = numericAmount * UNIT_CONVERSIONS[baseSourceUnit][baseTargetUnit];
+    const convertedAmount = (numericAmount as number) * UNIT_CONVERSIONS[baseSourceUnit][baseTargetUnit];
     const roundedAmount = Math.round(convertedAmount * 100) / 100;
 
-    const newIngs = [...ingredients];
-    newIngs[index] = { ...ing, amount: roundedAmount.toString(), unit: targetUnit };
-    setIngredients(newIngs);
+    const newSections = [...ingredientSections];
+    newSections[sectionIndex].items[itemIndex] = { ...ing, amount: roundedAmount.toString(), unit: targetUnit };
+    setIngredientSections(newSections);
+  };
+
+  const handleMoveIngredientUp = (sectionIndex: number, itemIndex: number) => {
+    if (itemIndex === 0) return;
+    const newSections = [...ingredientSections];
+    const section = { ...newSections[sectionIndex] };
+    const items = [...section.items];
+    const [movedItem] = items.splice(itemIndex, 1);
+    items.splice(itemIndex - 1, 0, movedItem);
+    section.items = items;
+    newSections[sectionIndex] = section;
+    setIngredientSections(newSections);
+  };
+
+  const handleMoveIngredientDown = (sectionIndex: number, itemIndex: number) => {
+    const newSections = [...ingredientSections];
+    const section = { ...newSections[sectionIndex] };
+    if (itemIndex === section.items.length - 1) return;
+    const items = [...section.items];
+    const [movedItem] = items.splice(itemIndex, 1);
+    items.splice(itemIndex + 1, 0, movedItem);
+    section.items = items;
+    newSections[sectionIndex] = section;
+    setIngredientSections(newSections);
   };
 
   return (
@@ -343,7 +410,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       <PageHeader 
         title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : mode === 'image' ? 'Add from Image' : 'Add New Recipe'} 
         showBack 
-        onBack={() => navigate('/recipes')}
+        onBack={() => isEditing ? navigate(`/recipe/${id}`) : navigate('/recipes')}
       />
 
       {/* Main Content */}
@@ -474,51 +541,89 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-10">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Ingredients</label>
                 <button 
                   type="button"
-                  onClick={() => setIngredients([...ingredients, { id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' }])}
+                  onClick={() => setIngredientSections([...ingredientSections, { id: Math.random().toString(36).substr(2, 9), title: '', items: [{ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' }] }])}
                   className="text-sm text-m3-primary font-black hover:bg-m3-primary/10 px-4 py-2 rounded-full flex items-center gap-2 transition-all"
                 >
-                  <Plus size={18} /> Add Item
+                  <Plus size={18} /> Add Section
                 </button>
               </div>
               
-              <Reorder.Group 
-                axis="y" 
-                values={ingredients} 
-                onReorder={setIngredients}
-                className="space-y-3"
-              >
-                {ingredients.map((ing, i) => (
-                  <IngredientItem 
-                    key={ing.id}
-                    ing={ing}
-                    index={i}
-                    onUpdate={(idx, fieldOrObject, value?) => {
-                      console.log('onUpdate called with:', idx, fieldOrObject, value);
-                      const newIngs = [...ingredients];
-                      if (typeof fieldOrObject === 'object') {
-                        // Batch update with multiple fields
-                        newIngs[idx] = { ...newIngs[idx], ...fieldOrObject };
-                        console.log('Batch updating ingredient at index', idx, 'with:', fieldOrObject);
-                      } else {
-                        // Single field update
-                        newIngs[idx] = { ...newIngs[idx], [fieldOrObject]: value };
-                        console.log('Single field update at index', idx, 'field:', fieldOrObject, 'value:', value);
-                      }
-                      setIngredients(newIngs);
-                      console.log('New ingredients state:', newIngs[idx]);
-                    }}
-                    onRemove={(id) => {
-                      setIngredients(ingredients.filter(item => item.id !== id));
-                    }}
-                    onConvert={handleConvert}
-                  />
+              <div className="space-y-16">
+                {ingredientSections.map((section, sIdx) => (
+                  <div key={section.id} className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <input 
+                        type="text"
+                        value={section.title}
+                        onChange={e => {
+                          const newSections = [...ingredientSections];
+                          newSections[sIdx].title = e.target.value;
+                          setIngredientSections(newSections);
+                        }}
+                        className="flex-1 min-w-0 bg-transparent border-b border-m3-outline/20 py-2 text-lg font-black text-m3-on-surface focus:border-m3-primary outline-none transition-all"
+                        placeholder="Section Title"
+                      />
+                      {ingredientSections.length > 1 && (
+                        <button 
+                          type="button"
+                          onClick={() => setIngredientSections(ingredientSections.filter(s => s.id !== section.id))}
+                          className="p-2 text-m3-on-surface-variant/40 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {section.items.map((ing, iIdx) => (
+                          <IngredientItem 
+                            key={ing.id}
+                            ing={ing}
+                            index={iIdx}
+                            onUpdate={(idx, fieldOrObject, value?) => {
+                              const newSections = [...ingredientSections];
+                              if (typeof fieldOrObject === 'object') {
+                                newSections[sIdx].items[idx] = { ...newSections[sIdx].items[idx], ...fieldOrObject };
+                              } else {
+                                newSections[sIdx].items[idx] = { ...newSections[sIdx].items[idx], [fieldOrObject]: value };
+                              }
+                              setIngredientSections(newSections);
+                            }}
+                            onRemove={(id) => {
+                              const newSections = [...ingredientSections];
+                              newSections[sIdx].items = newSections[sIdx].items.filter(item => item.id !== id);
+                              setIngredientSections(newSections);
+                            }}
+                            onConvert={(idx, targetUnit) => handleConvert(sIdx, idx, targetUnit)}
+                            onMoveUp={() => handleMoveIngredientUp(sIdx, iIdx)}
+                            onMoveDown={() => handleMoveIngredientDown(sIdx, iIdx)}
+                            isFirst={iIdx === 0}
+                            isLast={iIdx === section.items.length - 1}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </div>
+
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newSections = [...ingredientSections];
+                        newSections[sIdx].items.push({ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' });
+                        setIngredientSections(newSections);
+                      }}
+                      className="w-full py-3 border-2 border-dashed border-m3-outline/10 rounded-2xl text-m3-on-surface-variant/60 hover:text-m3-primary hover:border-m3-primary/30 hover:bg-m3-primary/5 transition-all text-sm font-bold flex items-center justify-center gap-2"
+                    >
+                      <Plus size={16} /> Add Ingredient to {section.title || 'Section'}
+                    </button>
+                  </div>
                 ))}
-              </Reorder.Group>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -556,7 +661,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
             <div className="flex items-center justify-end gap-2 pt-8 border-t border-m3-outline/10">
               <button 
                 type="button"
-                onClick={() => navigate('/recipes')}
+                onClick={() => isEditing ? navigate(`/recipe/${id}`) : navigate('/recipes')}
                 className="px-6 py-2.5 rounded-full font-semibold text-sm text-m3-primary hover:bg-m3-primary/8 transition-all active:scale-95"
                 disabled={isSaving}
               >
@@ -567,7 +672,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 className="px-8 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSaving}
               >
-                {isSaving ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update' : 'Create Recipe')}
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
             </form>
