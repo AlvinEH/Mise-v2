@@ -198,7 +198,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
         }
       />
       <main className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-6 py-8 max-w-4xl mx-auto">
+        <div className="px-4 py-8 max-w-4xl mx-auto">
           <h1 className="text-4xl lg:text-6xl font-black tracking-tighter text-m3-on-surface mb-4 leading-[0.9]">
             {recipe.title}
           </h1>
@@ -250,9 +250,9 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                         <button 
                           key={iIdx} 
                           onClick={() => setCheckedIngredients(prev => ({ ...prev, [globalIdx]: !prev[globalIdx as any] }))}
-                          className="w-full flex items-center gap-3 py-2 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
+                          className="w-full flex items-center gap-4 py-2 pl-0 pr-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
                         >
-                          <div className={`w-5 h-5 border-2 rounded-md flex-shrink-0 flex items-center justify-center transition-all ${
+                          <div className={`w-5 h-5 border-2 ${checkboxBorderRadius} flex-shrink-0 flex items-center justify-center transition-all ${
                             isChecked 
                               ? 'bg-m3-primary border-m3-primary' 
                               : 'border-m3-outline/30 group-hover:border-m3-primary/50'
@@ -294,7 +294,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                       <button 
                         key={index} 
                         onClick={() => toggleIngredient(index)}
-                        className="w-full flex items-center gap-3 py-2 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
+                        className="w-full flex items-center gap-4 py-2 pl-0 pr-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
                       >
                         <div className={`w-5 h-5 border-2 ${checkboxBorderRadius} flex-shrink-0 flex items-center justify-center transition-all ${
                           isChecked 

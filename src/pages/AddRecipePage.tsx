@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from '../firebase';
-import { extractRecipeFromUrl, extractRecipeFromImage, Ingredient } from '../services/geminiService';
+import { extractRecipeFromUrl, extractRecipeFromImage, extractRecipeFromText, Ingredient } from '../services/geminiService';
 import { 
   Plus, 
   Check,
@@ -43,9 +43,10 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
   const { id } = useParams();
   const isEditing = !!id;
   const [searchParams] = useSearchParams();
-  const initialMode = (searchParams.get('mode') as 'manual' | 'url' | 'image') || 'manual';
-  const [mode, setMode] = useState<'manual' | 'url' | 'image'>(initialMode);
+  const initialMode = (searchParams.get('mode') as 'manual' | 'url' | 'image' | 'smart') || 'manual';
+  const [mode, setMode] = useState<'manual' | 'url' | 'image' | 'smart'>(initialMode);
   const [urlInput, setUrlInput] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [selectedImage, setSelectedImage] = useState<{ file: File; preview: string } | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditing);
@@ -180,6 +181,23 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     }
   };
 
+  const handleExtractFromText = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!textInput || !user) return;
+
+    setIsExtracting(true);
+    try {
+      const extracted = await extractRecipeFromText(textInput);
+      populateForm(extracted);
+      setMode('manual');
+      setTextInput('');
+    } catch (error) {
+      handleExtractionError(error);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -264,15 +282,48 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
         id: Math.random().toString(36).substr(2, 9),
         title: section.title || '',
         items: section.items.map((ing: any) => {
-          const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+          // If ing is a string, parse it
+          if (typeof ing === 'string') {
+            const parsed = parseShoppingItem(ing);
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              amount: parsed.amount,
+              unit: parsed.unit,
+              name: parsed.name,
+              note: '',
+              isOptional: false
+            };
+          }
+          
+          // If ing is an object from AI, use its fields directly if they exist
+          // but still fallback to parsing the combined string if fields are missing
+          const name = ing.name || '';
+          const amount = ing.amount || '';
+          const unit = ing.unit || '';
+          const note = ing.note || '';
+          const isOptional = !!ing.isOptional;
+          
+          if (name) {
+             return {
+              id: Math.random().toString(36).substr(2, 9),
+              amount: amount,
+              unit: unit,
+              name: name,
+              note: note,
+              isOptional: isOptional
+            };
+          }
+
+          // Ultimate fallback (shouldn't happen with new schema)
+          const ingredientString = `${amount} ${unit} ${name}`.trim();
           const parsed = parseShoppingItem(ingredientString);
           return { 
             id: Math.random().toString(36).substr(2, 9), 
             amount: parsed.amount, 
             unit: parsed.unit, 
             name: parsed.name,
-            note: ing.note || '',
-            isOptional: !!ing.isOptional
+            note: note,
+            isOptional: isOptional
           };
         })
       })));
@@ -282,15 +333,44 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
         id: Math.random().toString(36).substr(2, 9),
         title: '',
         items: extracted.ingredients.map((ing: any) => {
-          const ingredientString = typeof ing === 'string' ? ing : `${ing.amount || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+          if (typeof ing === 'string') {
+            const parsed = parseShoppingItem(ing);
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              amount: parsed.amount,
+              unit: parsed.unit,
+              name: parsed.name,
+              note: '',
+              isOptional: false
+            };
+          }
+          
+          const name = ing.name || '';
+          const amount = ing.amount || '';
+          const unit = ing.unit || '';
+          const note = ing.note || '';
+          const isOptional = !!ing.isOptional;
+
+          if (name) {
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              amount: amount,
+              unit: unit,
+              name: name,
+              note: note,
+              isOptional: isOptional
+            };
+          }
+
+          const ingredientString = `${amount} ${unit} ${name}`.trim();
           const parsed = parseShoppingItem(ingredientString);
           return { 
             id: Math.random().toString(36).substr(2, 9), 
             amount: parsed.amount, 
             unit: parsed.unit, 
             name: parsed.name,
-            note: ing.note || '',
-            isOptional: !!ing.isOptional
+            note: note,
+            isOptional: isOptional
           };
         })
       }]);
@@ -421,7 +501,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface"
     >
       <PageHeader 
-        title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : mode === 'image' ? 'Add from Image' : 'Add New Recipe'} 
+        title={isEditing ? 'Edit Recipe' : mode === 'url' ? 'Add from URL' : mode === 'image' ? 'Add from Image' : mode === 'smart' ? 'Smart Paste' : 'Add New Recipe'} 
         showBack 
         onBack={() => isEditing ? navigate(`/recipe/${id}`) : navigate('/recipes')}
       />
@@ -525,6 +605,37 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                 </p>
                 <p className="text-xs text-m3-on-surface-variant/50">
                   Requires a free Gemini API key. Add yours in Settings → API Configuration.
+                </p>
+              </div>
+            </div>
+          ) : mode === 'smart' ? (
+            /* Smart Paste Mode */
+            <div className="space-y-8">
+              <form onSubmit={handleExtractFromText} className="space-y-6 max-w-2xl mx-auto">
+                <div className="space-y-4">
+                  <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Paste Recipe Text</label>
+                  <TextareaAutosize 
+                    required
+                    minRows={10}
+                    placeholder="Paste ingredients and instructions here..."
+                    value={textInput}
+                    onChange={e => setTextInput(e.target.value)}
+                    className="w-full px-6 py-5 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[24px] text-m3-on-surface placeholder:text-m3-on-surface-variant/50 focus:ring-2 focus:ring-m3-primary/30 outline-none transition-all font-medium leading-relaxed shadow-inner"
+                  />
+                </div>
+                <button 
+                  type="submit"
+                  disabled={isExtracting || !textInput.trim()}
+                  className="w-full py-5 bg-m3-primary text-m3-on-primary rounded-[24px] font-black hover:bg-m3-primary/90 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3 text-xl"
+                >
+                  {isExtracting && <Loader2 className="animate-spin" size={24} />}
+                  {isExtracting ? 'Parsing Text...' : 'Parse Text'}
+                </button>
+              </form>
+              
+              <div className="space-y-3 text-center max-w-2xl mx-auto">
+                <p className="text-sm text-m3-on-surface-variant/60">
+                  Paste the text directly from any website, email, or digital note.
                 </p>
               </div>
             </div>

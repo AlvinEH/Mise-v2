@@ -119,7 +119,7 @@ const ShoppingListItem = memo(({
                 onTouchStartCapture={(e) => e.stopPropagation()}
                 onMouseDownCapture={(e) => e.stopPropagation()}
                 className={`shrink-0 w-5 h-5 border-2 flex items-center justify-center transition-all ${
-                  checkboxStyle === 'circle' ? 'rounded-full' : 'rounded'
+                  checkboxStyle === 'circle' ? 'rounded-full' : 'rounded-md'
                 } ${
                   item.completed 
                     ? 'bg-m3-primary border-m3-primary text-m3-on-primary' 

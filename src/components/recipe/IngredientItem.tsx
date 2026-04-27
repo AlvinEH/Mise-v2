@@ -28,6 +28,13 @@ export const IngredientItem = ({
   const [isFocused, setIsFocused] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Sync showNote with ing.note whenever it's updated (e.g. by AI)
+  useEffect(() => {
+    if (ing.note && !showNote) {
+      setShowNote(true);
+    }
+  }, [ing.note, showNote]);
+
   // Reset details when card is collapsed
   useEffect(() => {
     if (!isActive) {
@@ -109,9 +116,9 @@ export const IngredientItem = ({
         opacity: { duration: 0.2 },
         y: { type: "spring", stiffness: 200, damping: 25, mass: 1 }
       }}
-      className={`relative flex flex-col p-4 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
+      className={`relative flex flex-col px-4 pb-4 pt-2.5 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
     >
-      <div className="flex flex-col overflow-hidden">
+      <div className="flex flex-col">
         <AnimatePresence initial={false}>
           {ing.isOptional && (
             <motion.div
@@ -120,7 +127,7 @@ export const IngredientItem = ({
                 height: 'auto', 
                 opacity: 1, 
                 scale: 1,
-                marginBottom: 6 
+                marginBottom: 4 
               }}
               exit={{ height: 0, opacity: 0, scale: 0.8, marginBottom: 0 }}
               transition={{ duration: 0.25, ease: "easeInOut" }}
@@ -163,7 +170,7 @@ export const IngredientItem = ({
                     placeholder="2 cups all-purpose flour"
                     minRows={1}
                   />
-                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-2">
                     Smart Input
                   </span>
                 </div>
@@ -210,7 +217,7 @@ export const IngredientItem = ({
                     }}
                     exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.25, ease: "easeInOut" }}
-                    className="relative overflow-hidden"
+                    className="relative"
                   >
                     <div className="relative pt-2 pr-[42px]">
                       <TextareaAutosize 
@@ -225,7 +232,7 @@ export const IngredientItem = ({
                         placeholder="Add a note (e.g. sifted, melted)..."
                         minRows={1}
                       />
-                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">
+                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
                         Note
                       </span>
                     </div>
@@ -354,7 +361,7 @@ export const IngredientItem = ({
                     className="w-full px-3 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors text-center text-sm"
                     placeholder="Qty"
                   />
-                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Amt</span>
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">Amt</span>
                 </div>
                 
                 <div className="relative">
@@ -375,7 +382,7 @@ export const IngredientItem = ({
                       <option key={u} value={u}>{u || 'Unit'}</option>
                     ))}
                   </select>
-                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Unit</span>
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">Unit</span>
                 </div>
               </div>
 
@@ -390,7 +397,7 @@ export const IngredientItem = ({
                     }}
                     exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.25, ease: "easeInOut" }}
-                    className="relative overflow-hidden"
+                    className="relative"
                   >
                     <div className="relative pt-2 pr-[42px]">
                       <TextareaAutosize 
@@ -405,7 +412,7 @@ export const IngredientItem = ({
                         placeholder="Add a note (e.g. sifted, melted)..."
                         minRows={1}
                       />
-                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">
+                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-20">
                         Note
                       </span>
                     </div>
