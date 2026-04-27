@@ -97,7 +97,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       
       <Route path="/recipe/:id" element={
         <motion.div key="recipe-detail" {...pageTransition}>
-          <RecipePage recipes={recipes} onEdit={onEdit} onDelete={onDelete} />
+          <RecipePage recipes={recipes} onEdit={onEdit} onDelete={onDelete} checkboxStyle={checkboxStyle} />
         </motion.div>
       } />
       

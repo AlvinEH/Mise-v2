@@ -5,16 +5,17 @@ import { Trash2, ExternalLink, Pencil, Check, Users, Plus, Minus } from 'lucide-
 import Markdown from 'react-markdown';
 import { Zzz } from '../components/ui/icons';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Recipe } from '../types';
+import { Recipe, CheckboxStyle } from '../types';
 import { evaluateFraction, formatAmount } from '../utils/shoppingItems';
 
 interface RecipePageProps {
   recipes: Recipe[];
   onEdit: (recipe: Recipe) => void;
   onDelete: (recipe: Recipe) => void;
+  checkboxStyle: CheckboxStyle;
 }
 
-export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelete }) => {
+export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelete, checkboxStyle }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const recipe = recipes.find(r => r.id === id);
@@ -37,6 +38,8 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
   }, [id, recipe?.servings]);
 
   const multiplier = currentServings / originalServings;
+
+  const checkboxBorderRadius = checkboxStyle === 'circle' ? 'rounded-full' : 'rounded-md';
 
   const getScaledMeasurement = (amount: number, unit: string): string => {
     const normalizedUnit = unit.toLowerCase().trim();
@@ -249,7 +252,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                           onClick={() => setCheckedIngredients(prev => ({ ...prev, [globalIdx]: !prev[globalIdx as any] }))}
                           className="w-full flex items-center gap-3 py-2 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
                         >
-                          <div className={`w-5 h-5 border-2 rounded-md flex-shrink-0 flex items-center justify-center transition-all ${
+                          <div className={`w-5 h-5 border-2 ${checkboxBorderRadius} flex-shrink-0 flex items-center justify-center transition-all ${
                             isChecked 
                               ? 'bg-m3-primary border-m3-primary' 
                               : 'border-m3-outline/30 group-hover:border-m3-primary/50'
@@ -293,7 +296,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                         onClick={() => toggleIngredient(index)}
                         className="w-full flex items-center gap-3 py-2 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
                       >
-                        <div className={`w-5 h-5 border-2 rounded-md flex-shrink-0 flex items-center justify-center transition-all ${
+                        <div className={`w-5 h-5 border-2 ${checkboxBorderRadius} flex-shrink-0 flex items-center justify-center transition-all ${
                           isChecked 
                             ? 'bg-m3-primary border-m3-primary' 
                             : 'border-m3-outline/30 group-hover:border-m3-primary/50'
