@@ -12,7 +12,8 @@ import {
   Timestamp, 
   orderBy,
   writeBatch,
-  getDocs
+  getDocs,
+  serverTimestamp
 } from 'firebase/firestore';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
 import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown, ShoppingCart, SlidersHorizontal, ListOrdered, Settings } from 'lucide-react';
@@ -124,6 +125,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     if (expandedListId) {
       setExpandedListId(null);
       setIsEditMode(false);
+      setExpandedCardId(null); // Collapse grid card too
       window.history.back();
     }
   }, [expandedListId]);
@@ -303,7 +305,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         name: newStoreName.trim(),
         userId: user.uid,
         order: maxOrder + 1,
-        createdAt: Timestamp.now()
+        createdAt: serverTimestamp()
       });
       setNewStoreName('');
       setIsAddingStore(false);
@@ -355,8 +357,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
           storeListId: targetStoreId,
           order: maxOrder,
           completed: false,
-          movedAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
+          movedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
       });
 
@@ -385,7 +387,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         completed: false,
         order: maxOrder + 1,
         userId: user.uid,
-        createdAt: Timestamp.now()
+        createdAt: serverTimestamp()
       };
 
       if (parsed.amount) itemData.amount = parsed.amount;
@@ -441,7 +443,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     try {
       await updateDoc(doc(db, 'storeLists', expandedListId), {
         name: editStoreNameValue.trim(),
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'storeLists/' + expandedListId);
@@ -457,7 +459,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     try {
       const updateData: any = {
         name: parsed.name,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       };
       
       // Explicitly set or remove amount/unit based on parsing
@@ -546,7 +548,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
             location,
             category,
             userId: user.uid,
-            createdAt: Timestamp.now()
+            createdAt: serverTimestamp()
           });
           addedRuleKeywords.add(itemNameLower);
           newRuleKeywordsForSession.push(itemNameLower);
@@ -564,8 +566,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         purchasedOn: new Date().toISOString().split('T')[0],
         notes: storeName ? `Bought from ${storeName}` : '',
         userId: user.uid,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
       
       batch.delete(doc(db, 'shoppingItems', item.id));

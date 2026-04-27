@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
 import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings, SlidersHorizontal, ListOrdered } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -202,7 +202,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
               batch.set(newRuleRef, {
                 ...rule,
                 userId: user.uid,
-                createdAt: Timestamp.now()
+                createdAt: serverTimestamp()
               });
               added++;
             }
@@ -298,7 +298,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     try {
       await updateDoc(doc(db, 'inventory', item.id), {
         used: !item.used,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'inventory/' + item.id);
@@ -309,7 +309,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     try {
       await updateDoc(doc(db, 'inventory', item.id), {
         isLow: !item.isLow,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, 'inventory/' + item.id);
@@ -344,14 +344,14 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           storeListId: targetStoreId,
           completed: false,
           userId: user?.uid,
-          createdAt: Timestamp.now(),
+          createdAt: serverTimestamp(),
           order: 0
         });
 
         // Toggle low state off since it's now on the shopping list
         batch.update(doc(db, 'inventory', item.id), {
           isLow: false,
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       }
     }
@@ -406,7 +406,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           storeListId: targetStoreId,
           completed: false,
           userId: user?.uid,
-          createdAt: Timestamp.now(),
+          createdAt: serverTimestamp(),
           order: 0
         });
       }
@@ -414,7 +414,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       // Deselect the item after restocking
       batch.update(doc(db, 'inventory', item.id), {
         used: false,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       });
     }
 
@@ -453,7 +453,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           storeListId: targetStoreId,
           completed: false,
           userId: user?.uid,
-          createdAt: Timestamp.now(),
+          createdAt: serverTimestamp(),
           order: 0
         });
       }
@@ -492,8 +492,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       const itemData: any = {
         name: finalName,
         category: activeTab === 'ingredients' ? 'ingredient' : 'supply',
-        userId: user.uid,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       };
 
       if (editingItem) {
@@ -507,6 +506,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
       } else {
         // When creating, we only add if they have values
+        itemData.userId = user.uid;
         if (finalQuantity) itemData.quantity = finalQuantity;
         if (finalUnit) itemData.unit = finalUnit;
         if (formData.location.trim()) itemData.location = formData.location.trim();
@@ -522,7 +522,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         const newDoc = await addDoc(collection(db, 'inventory'), {
           ...itemData,
           order: maxOrder + 1,
-          createdAt: Timestamp.now()
+          createdAt: serverTimestamp()
         });
 
         // Scroll to bottom of the card list
@@ -601,8 +601,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           location: targetLocation,
           order: maxOrder,
           used: false,
-          movedAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
+          movedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
         });
       });
 
@@ -685,7 +685,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         category,
         userId: user.uid,
         order: maxOrder + 1,
-        createdAt: Timestamp.now()
+        createdAt: serverTimestamp()
       });
       setNewLocationName('');
       setIsAddingLocation(false);
@@ -722,7 +722,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       itemsToUpdate.forEach(item => {
         batch.update(doc(db, 'inventory', item.id), {
           location: newLocation,
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       });
 
@@ -731,7 +731,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       if (dbLoc) {
         batch.update(doc(db, 'inventoryLocations', dbLoc.id), {
           name: newLocation,
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       }
 
@@ -758,6 +758,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
     if (expandedLocation) {
       setExpandedLocation(null);
       setIsEditMode(false);
+      setExpandedCards({}); // Collapse grid cards too
       window.history.back();
     }
   };
@@ -785,7 +786,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
           if (existing.order !== i) {
             batch.update(doc(db, 'inventoryLocations', existing.id), {
               order: i,
-              updatedAt: Timestamp.now()
+              updatedAt: serverTimestamp()
             });
           }
         } else {
@@ -796,8 +797,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
             category,
             order: i,
             userId: user?.uid,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now()
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
           });
         }
       }
@@ -806,6 +807,10 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       console.error('Failed to update location order:', error);
     }
   };
+
+  useEffect(() => {
+    setExpandedCards({});
+  }, [activeTab]);
 
   const toggleCardCollapsed = (location: string) => {
     if (isDraggingLocRef.current) return;

@@ -7,6 +7,7 @@ import {
   getDoc,
   updateDoc,
   Timestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from '../firebase';
@@ -63,9 +64,9 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
   const [ingredientSections, setIngredientSections] = useState<{ 
     id: string; 
     title: string; 
-    items: { id: string; amount: string; unit: string; name: string }[] 
+    items: { id: string; amount: string; unit: string; name: string; note?: string; isOptional?: boolean }[] 
   }[]>([
-    { id: Math.random().toString(36).substr(2, 9), title: '', items: [{ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' }] }
+    { id: Math.random().toString(36).substr(2, 9), title: '', items: [{ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '', note: '', isOptional: false }] }
   ]);
   
   const [isSaving, setIsSaving] = useState(false);
@@ -102,14 +103,18 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                       id: Math.random().toString(36).substr(2, 9),
                       amount: parsed.amount,
                       unit: parsed.unit,
-                      name: parsed.name
+                      name: parsed.name,
+                      note: '',
+                      isOptional: false
                     };
                   }
                   return {
                     id: Math.random().toString(36).substr(2, 9),
                     amount: ing.amount || '',
                     unit: ing.unit || '',
-                    name: ing.name
+                    name: ing.name,
+                    note: ing.note || '',
+                    isOptional: !!ing.isOptional
                   };
                 })
               })));
@@ -125,14 +130,18 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                       id: Math.random().toString(36).substr(2, 9),
                       amount: parsed.amount,
                       unit: parsed.unit,
-                      name: parsed.name
+                      name: parsed.name,
+                      note: '',
+                      isOptional: false
                     };
                   }
                   return {
                     id: Math.random().toString(36).substr(2, 9),
                     amount: ing.amount || '',
                     unit: ing.unit || '',
-                    name: ing.name
+                    name: ing.name,
+                    note: ing.note || '',
+                    isOptional: !!ing.isOptional
                   };
                 })
               }]);
@@ -261,7 +270,9 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
             id: Math.random().toString(36).substr(2, 9), 
             amount: parsed.amount, 
             unit: parsed.unit, 
-            name: parsed.name 
+            name: parsed.name,
+            note: ing.note || '',
+            isOptional: !!ing.isOptional
           };
         })
       })));
@@ -277,7 +288,9 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
             id: Math.random().toString(36).substr(2, 9), 
             amount: parsed.amount, 
             unit: parsed.unit, 
-            name: parsed.name 
+            name: parsed.name,
+            note: ing.note || '',
+            isOptional: !!ing.isOptional
           };
         })
       }]);
@@ -313,12 +326,12 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
         ingredientSections: finalIngredientSections,
         instructions: form.instructions || '',
         servings: form.servings || '',
-        userId: user.uid,
-        updatedAt: Timestamp.now()
+        updatedAt: serverTimestamp()
       };
 
       if (!isEditing) {
-        recipeData.createdAt = Timestamp.now();
+        recipeData.userId = user.uid;
+        recipeData.createdAt = serverTimestamp();
       }
 
       // Only add optional fields if they have values
@@ -328,11 +341,11 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
 
       if (isEditing) {
         await updateDoc(doc(db, 'recipes', id), recipeData);
+        navigate(`/recipe/${id}`);
       } else {
         await addDoc(collection(db, 'recipes'), recipeData);
+        navigate('/recipes');
       }
-      
-      navigate('/recipes');
     } catch (error) {
       console.error('Error saving recipe:', error);
       baseHandleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'recipes');
@@ -579,7 +592,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                       )}
                     </div>
 
-                    <div className="space-y-3">
+                    <motion.div layout className="flex flex-col gap-3">
                       <AnimatePresence initial={false} mode="popLayout">
                         {section.items.map((ing, iIdx) => (
                           <IngredientItem 
@@ -608,13 +621,13 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                           />
                         ))}
                       </AnimatePresence>
-                    </div>
+                    </motion.div>
 
                     <button 
                       type="button"
                       onClick={() => {
                         const newSections = [...ingredientSections];
-                        newSections[sIdx].items.push({ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '' });
+                        newSections[sIdx].items.push({ id: Math.random().toString(36).substr(2, 9), amount: '', unit: '', name: '', note: '', isOptional: false });
                         setIngredientSections(newSections);
                       }}
                       className="w-full py-3 border-2 border-dashed border-m3-outline/10 rounded-2xl text-m3-on-surface-variant/60 hover:text-m3-primary hover:border-m3-primary/30 hover:bg-m3-primary/5 transition-all text-sm font-bold flex items-center justify-center gap-2"

@@ -120,17 +120,32 @@ export const formatAmount = (num: number | string | [number, number]): string =>
 const finalizeResult = (name: string, amount: string, unit: string) => {
   const numericAmount = evaluateFraction(amount);
   let finalAmount = amount;
+  let finalUnit = unit.trim();
   
+  const isGreaterThanOne = (val: number | [number, number]): boolean => {
+    if (Array.isArray(val)) return val[1] > 1;
+    return val > 1;
+  };
+
   if (Array.isArray(numericAmount)) {
     finalAmount = `${Math.round(numericAmount[0] * 100) / 100}-${Math.round(numericAmount[1] * 100) / 100}`;
   } else if (numericAmount > 0) {
     finalAmount = (Math.round(numericAmount * 100) / 100).toString();
   }
 
+  // Handle cup/cups pluralization
+  if (finalUnit.toLowerCase() === 'cup' || finalUnit.toLowerCase() === 'cups') {
+    if (isGreaterThanOne(numericAmount)) {
+      finalUnit = 'cups';
+    } else if (numericAmount === 1) {
+      finalUnit = 'cup';
+    }
+  }
+
   return {
     name: capitalizeWords(name.trim()),
     amount: finalAmount,
-    unit: unit.trim()
+    unit: finalUnit
   };
 };
 
@@ -138,7 +153,7 @@ const finalizeResult = (name: string, amount: string, unit: string) => {
 const UNIT_PATTERNS = [
   // Recipe ingredient patterns (amount unit name) - check these first
   { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|lbs?|pounds?|oz|ounces?|g|grams?|kg|kilograms?|ml|milliliters?|l|liters?|litres?|fl\s*oz|fluid\s+ounces?)\s+(cans?|bottles?|bags?|boxes?|packs?|jars?|cartons?|pouches?|tubes?|tubs?|sachets?)\s+(.+)$/i, format: (amount: string, unit: string, container: string, name: string) => finalizeResult(name, amount, `${unit.toLowerCase()} ${container.toLowerCase()}`) },
-  { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(cups?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => finalizeResult(name, amount, 'cup') },
+  { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(cups?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => finalizeResult(name, amount, unit) },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(tbsp|tablespoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => finalizeResult(name, amount, 'tbsp') },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(tsp|teaspoons?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => finalizeResult(name, amount, 'tsp') },
   { regex: /^(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(lbs?|pounds?)\s+(.+)$/i, format: (amount: string, unit: string, name: string) => finalizeResult(name, amount, 'lb') },
@@ -173,7 +188,7 @@ const UNIT_PATTERNS = [
   { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:kg|kilograms?)\s*$/i, format: (name: string, amount: string) => finalizeResult(name, amount, 'kg') },
   
   // Volume units (name amount unit)
-  { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:cups?)\s*$/i, format: (name: string, amount: string) => finalizeResult(name, amount, 'cup') },
+  { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:cups?)\s*$/i, format: (name: string, amount: string, unit: string) => finalizeResult(name, amount, unit) },
   { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:tbsp|tablespoons?)\s*$/i, format: (name: string, amount: string) => finalizeResult(name, amount, 'tbsp') },
   { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:tsp|teaspoons?)\s*$/i, format: (name: string, amount: string) => finalizeResult(name, amount, 'tsp') },
   { regex: /(.+?)\s*(\d+(?:[\/\.\s]*\d+)?(?:\s*(?:to|-|—)\s*\d+(?:[\/\.\s]*\d+)?)?)\s*(?:ml|milliliters?)\s*$/i, format: (name: string, amount: string) => finalizeResult(name, amount, 'ml') },

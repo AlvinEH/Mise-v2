@@ -1,88 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId}
-    // Fields:
-    //   - displayName: string (optional)
-    //   - email: string (required)
-    //   - photoURL: string (optional)
-    //   - role: string (required, 'user' or 'admin')
-    //
-    // Collection: recipes
-    // Document ID: auto-generated
-    // Fields:
-    //   - title: string (required)
-    //   - instructions: string (required)
-    //   - ingredientSections: list (optional)
-    //     - title: string (optional)
-    //     - items: list (required)
-    //       - name: string (required)
-    //       - amount: string (optional)
-    //       - unit: string (optional)
-    //       - note: string (optional)
-    //   - sourceUrl: string (optional)
-    //   - userId: string (required)
-    //   - createdAt: timestamp (required)
-    //   - tags: list (optional)
-    //   - servings: string (optional)
-    //
-    // Collection: storeLists
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required)
-    //   - userId: string (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: shoppingItems
-    // Document ID: auto-generated
-    // Fields:
-    //   - storeListId: string (required)
-    //   - name: string (required)
-    //   - amount: string (optional)
-    //   - unit: string (optional)
-    //   - completed: bool (required)
-    //   - order: int (required)
-    //   - userId: string (required)
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: inventory
-    // Document ID: auto-generated
-    // Fields:
-    //   - name: string (required)
-    //   - category: string (required, 'ingredient' or 'supply')
-    //   - quantity: string (optional)
-    //   - unit: string (optional)
-    //   - location: string (optional)
-    //   - purchasedOn: string (optional)
-    //   - notes: string (optional)
-    //   - userId: string (required)
-    //   - createdAt: timestamp (required)
-    //   - updatedAt: timestamp (required)
-    //
-    // Collection: mealEntries
-    // Document ID: auto-generated
-    // Fields:
-    //   - userId: string (required)
-    //   - date: string (required, YYYY-MM-DD format)
-    //   - type: string (required, 'lunch' or 'dinner')
-    //   - recipeId: string (optional)
-    //   - recipeName: string (optional)
-    //   - notes: string (optional)
-    //   - createdAt: timestamp (required)
-    //   - updatedAt: timestamp (required)
-    //
-    // ===============================================================
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
     function isAuthenticated() {
       return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
     function isOwner(userId) {
@@ -94,157 +26,88 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (
-          (request.auth.token.email == "alvin.e.huang@gmail.com" && request.auth.token.email_verified == true)
-        );
+      return isAuthenticated() && (
+        request.auth.token.email == "alvin.e.huang@gmail.com" && 
+        request.auth.token.email_verified == true
+      );
     }
 
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // ===============================================================
+    // Validation Blueprints
+    // ===============================================================
+
     function isValidRecipe(data) {
-      let requiredFields = ['title', 'instructions', 'userId', 'createdAt', 'updatedAt'];
-      let optionalFields = ['sourceUrl', 'tags', 'servings', 'ingredients', 'ingredientSections'];
-      let allFields = requiredFields.concat(optionalFields);
-      
-      return data.keys().hasAll(requiredFields) &&
-             data.keys().hasOnly(allFields) &&
+      let required = ['title', 'instructions', 'userId', 'createdAt', 'updatedAt'];
+      let optional = ['sourceUrl', 'tags', 'servings', 'ingredients', 'ingredientSections'];
+      return data.keys().hasAll(required) &&
+             data.keys().size() <= 10 &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() < 100)) &&
              (!('ingredientSections' in data) || (data.ingredientSections is list && data.ingredientSections.size() < 20)) &&
              data.instructions is string && data.instructions.size() < 10000 &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time &&
              (!('servings' in data) || (data.servings is string && data.servings.size() < 100)) &&
              (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
              (!('tags' in data) || (data.tags is list));
     }
 
-    function isValidRecipeUpdate(data) {
-      let allPossibleFields = ['title', 'ingredients', 'ingredientSections', 'instructions', 'sourceUrl', 'tags', 'servings', 'updatedAt', 'userId', 'createdAt'];
-      return data.keys().hasOnly(allPossibleFields) &&
-             (!('title' in data) || (data.title is string && data.title.size() > 0 && data.title.size() < 200)) &&
-             (!('ingredients' in data) || (data.ingredients is list && data.ingredients.size() < 100)) &&
-             (!('ingredientSections' in data) || (data.ingredientSections is list && data.ingredientSections.size() < 20)) &&
-             (!('instructions' in data) || (data.instructions is string && data.instructions.size() < 10000)) &&
-             (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 500)) &&
-             (!('tags' in data) || (data.tags is list)) &&
-             (!('servings' in data) || (data.servings is string && data.servings.size() < 100)) &&
-             (!('updatedAt' in data) || (data.updatedAt is timestamp)) &&
-             (!('userId' in resource.data) || data.userId == resource.data.userId) &&
-             (!('createdAt' in resource.data) || data.createdAt == resource.data.createdAt);
-    }
-
     function isValidUser(data) {
       return data.keys().hasAll(['email', 'role']) &&
+             data.keys().size() <= 5 &&
              data.email is string &&
              data.role in ['user', 'admin'];
     }
 
     function isValidStoreList(data) {
       return data.keys().hasAll(['name', 'userId', 'createdAt']) &&
+             data.keys().size() <= 4 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time;
     }
 
     function isValidShoppingItem(data) {
-      let requiredFields = ['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt'];
-      let optionalFields = ['amount', 'unit', 'updatedAt'];
-      let allFields = requiredFields.concat(optionalFields);
-
-      return data.keys().hasAll(requiredFields) &&
-             data.keys().hasOnly(allFields) &&
+      let required = ['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt'];
+      return data.keys().hasAll(required) &&
+             data.keys().size() <= 9 &&
              data.storeListId is string &&
              data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.completed is bool &&
              data.order is int &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp &&
-             (!('amount' in data) || data.amount == null || (data.amount is string && data.amount.size() < 50)) &&
-             (!('unit' in data) || data.unit == null || (data.unit is string && data.unit.size() < 50)) &&
-             (!('updatedAt' in data) || data.updatedAt is timestamp);
-    }
-
-    function isValidShoppingItemUpdate(data) {
-      let allPossibleFields = ['storeListId', 'name', 'completed', 'order', 'userId', 'createdAt', 'amount', 'unit', 'updatedAt'];
-      return data.keys().hasOnly(allPossibleFields) &&
-             (!('completed' in data) || (data.completed is bool)) &&
-             (!('order' in data) || (data.order is int)) &&
-             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
-             (!('amount' in data) || data.amount == null || (data.amount is string && data.amount.size() < 50)) &&
-             (!('unit' in data) || data.unit == null || (data.unit is string && data.unit.size() < 50)) &&
-             (!('updatedAt' in data) || (data.updatedAt is timestamp)) &&
-             data.userId == resource.data.userId &&
-             data.createdAt == resource.data.createdAt &&
-             data.storeListId == resource.data.storeListId;
+             data.createdAt == request.time;
     }
 
     function isValidMealEntry(data) {
       return data.keys().hasAll(['userId', 'date', 'type', 'recipeName', 'createdAt', 'updatedAt']) &&
+             data.keys().size() <= 9 &&
              data.userId == request.auth.uid &&
-             data.date is string && data.date.size() == 10 && // YYYY-MM-DD format
+             data.date is string && data.date.size() == 10 &&
              data.type in ['lunch', 'dinner'] &&
              data.recipeName is string && data.recipeName.size() > 0 && data.recipeName.size() < 200 &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time &&
              (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
-    }
-
-    function isValidMealEntryUpdate(data) {
-      return data.keys().hasAll(['updatedAt']) &&
-             data.updatedAt is timestamp &&
-             (!('recipeName' in data) || (data.recipeName is string && data.recipeName.size() > 0 && data.recipeName.size() < 200)) &&
-             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() < 1000)) &&
-             data.userId == resource.data.userId &&
-             data.createdAt == resource.data.createdAt &&
-             data.date == resource.data.date &&
-             data.type == resource.data.type;
     }
 
     function isValidInventoryItem(data) {
       return data.keys().hasAll(['name', 'category', 'userId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() <= 12 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.category in ['ingredient', 'supply'] &&
              data.userId == request.auth.uid &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp &&
-             (!('quantity' in data) || (data.quantity is string && data.quantity.size() < 100)) &&
-             (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
-             (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
-             (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
-             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000)) &&
-             (!('used' in data) || data.used is bool);
-    }
-
-    function isValidInventoryItemUpdate(data) {
-      return data.keys().hasAll(['updatedAt']) &&
-             data.updatedAt is timestamp &&
-             data.userId == resource.data.userId &&
-             data.createdAt == resource.data.createdAt &&
-             (!('name' in data) || (data.name is string && data.name.size() > 0 && data.name.size() < 200)) &&
-             (!('quantity' in data) || (data.quantity is string && data.quantity.size() < 100)) &&
-             (!('unit' in data) || (data.unit is string && data.unit.size() < 50)) &&
-             (!('location' in data) || (data.location is string && data.location.size() < 100)) &&
-             (!('purchasedOn' in data) || (data.purchasedOn is string && data.purchasedOn.size() < 50)) &&
-             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000)) &&
-             (!('used' in data) || data.used is bool);
-    }
-
-    function isValidInventoryLocation(data) {
-      return data.keys().hasAll(['name', 'category', 'userId', 'createdAt']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.category in ['ingredient', 'supply'] &&
-             data.userId == request.auth.uid &&
-             data.createdAt is timestamp;
-    }
-
-    function isValidAutoSortRule(data) {
-      return data.keys().hasAll(['keyword', 'location', 'category', 'userId', 'createdAt']) &&
-             data.keyword is string && data.keyword.size() > 0 && data.keyword.size() < 100 &&
-             data.location is string && data.location.size() > 0 && data.location.size() < 100 &&
-             data.category in ['ingredient', 'supply'] &&
-             data.userId == request.auth.uid &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time &&
+             data.updatedAt == request.time;
     }
 
     // ===============================================================
@@ -253,58 +116,78 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isAdmin() || isOwner(userId);
-      allow list: if isAdmin();
-      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
-      allow update: if (isAdmin() || isOwner(userId)) && isValidUser(request.resource.data) && (isAdmin() || request.resource.data.role == resource.data.role);
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(incoming()) && incoming().role == 'user';
+      allow update: if (isAdmin() || (isOwner(userId) && incoming().role == existing().role)) && isValidUser(incoming());
     }
 
     match /recipes/{recipeId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidRecipe(request.resource.data);
-      allow update: if isAuthenticated() && (isAdmin() || isDocOwner()) && isValidRecipeUpdate(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(recipeId) && isValidRecipe(incoming());
+      allow update: if isAuthenticated() && isValidId(recipeId) && 
+                    (isAdmin() || (isDocOwner() && incoming().userId == existing().userId && incoming().createdAt == existing().createdAt)) &&
+                    incoming().updatedAt == request.time &&
+                    (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'instructions', 'ingredientSections', 'servings', 'sourceUrl', 'tags', 'updatedAt']));
+      allow delete: if isAuthenticated() && isValidId(recipeId) && (isAdmin() || isDocOwner());
     }
 
     match /storeLists/{listId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidStoreList(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidStoreList(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(listId) && isValidStoreList(incoming());
+      allow update: if isAuthenticated() && isValidId(listId) && isDocOwner() && 
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+      allow delete: if isAuthenticated() && isValidId(listId) && (isAdmin() || isDocOwner());
     }
 
     match /shoppingItems/{itemId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidShoppingItem(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidShoppingItemUpdate(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(itemId) && isValidShoppingItem(incoming());
+      allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'completed', 'order', 'amount', 'unit', 'updatedAt', 'storeListId']);
+      allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 
     match /mealEntries/{entryId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && (isAdmin() || request.resource.data.userId == request.auth.uid) && isValidMealEntry(request.resource.data);
-      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid) && isValidMealEntryUpdate(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(entryId) && isValidMealEntry(incoming());
+      allow update: if isAuthenticated() && isValidId(entryId) && (isAdmin() || isDocOwner()) &&
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    incoming().updatedAt == request.time &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['recipeName', 'notes', 'updatedAt', 'recipeId', 'date', 'type']);
+      allow delete: if isAuthenticated() && isValidId(entryId) && (isAdmin() || isDocOwner());
     }
 
     match /inventory/{itemId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidInventoryItem(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidInventoryItemUpdate(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(itemId) && isValidInventoryItem(incoming());
+      allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    incoming().updatedAt == request.time &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order']));
+      allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 
     match /inventoryLocations/{locationId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidInventoryLocation(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidInventoryLocation(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(locationId) && 
+                    incoming().keys().hasAll(['name', 'category', 'userId', 'createdAt']) &&
+                    incoming().userId == request.auth.uid && incoming().createdAt == request.time;
+      allow update: if isAuthenticated() && isValidId(locationId) && isDocOwner() && 
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'order']);
+      allow delete: if isAuthenticated() && isValidId(locationId) && (isAdmin() || isDocOwner());
     }
 
     match /inventoryAutoSortRules/{ruleId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidAutoSortRule(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidAutoSortRule(request.resource.data);
-      allow delete: if isAuthenticated() && (isAdmin() || isDocOwner());
+      allow read: if isAuthenticated() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidId(ruleId) && 
+                    incoming().keys().hasAll(['keyword', 'location', 'category', 'userId', 'createdAt']) &&
+                    incoming().userId == request.auth.uid && incoming().createdAt == request.time;
+      allow update: if isAuthenticated() && isValidId(ruleId) && isDocOwner() && 
+                    incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['keyword', 'location', 'category', 'updatedAt']);
+      allow delete: if isAuthenticated() && isValidId(ruleId) && (isAdmin() || isDocOwner());
     }
   }
 }

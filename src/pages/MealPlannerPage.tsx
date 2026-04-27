@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, UtensilsCrossed, Calendar as CalendarIcon, Trash2, X, Search, Filter } from 'lucide-react';
 import { format, addDays, subDays, isSameDay, startOfDay, isBefore, getDay, parseISO } from 'date-fns';
-import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs, limit, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -226,11 +226,10 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       // Handle lunch
       if (lunchMealName.trim()) {
         const lunchData: any = {
-          userId: user.uid,
           date: editingDay.date,
           type: 'lunch',
           recipeName: lunchMealName.trim(),
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         };
         
         if (editingDay.lunch) {
@@ -238,7 +237,8 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
           promises.push(updateDoc(doc(db, 'mealEntries', editingDay.lunch.id), lunchData));
         } else {
           // Create new lunch
-          lunchData.createdAt = Timestamp.now();
+          lunchData.userId = user.uid;
+          lunchData.createdAt = serverTimestamp();
           promises.push(addDoc(collection(db, 'mealEntries'), lunchData));
         }
       } else if (editingDay.lunch) {
@@ -249,11 +249,10 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       // Handle dinner
       if (dinnerMealName.trim()) {
         const dinnerData: any = {
-          userId: user.uid,
           date: editingDay.date,
           type: 'dinner',
           recipeName: dinnerMealName.trim(),
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         };
         
         if (editingDay.dinner) {
@@ -261,7 +260,8 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
           promises.push(updateDoc(doc(db, 'mealEntries', editingDay.dinner.id), dinnerData));
         } else {
           // Create new dinner
-          dinnerData.createdAt = Timestamp.now();
+          dinnerData.userId = user.uid;
+          dinnerData.createdAt = serverTimestamp();
           promises.push(addDoc(collection(db, 'mealEntries'), dinnerData));
         }
       } else if (editingDay.dinner) {

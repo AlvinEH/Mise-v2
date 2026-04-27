@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Trash2, RefreshCw, ChevronUp, ChevronDown, StickyNote, CheckSquare } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Trash2, RefreshCw, ChevronUp, ChevronDown, StickyNote, CheckSquare, Info } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { IngredientItemProps } from '../../types';
 import { COMMON_UNITS, UNIT_CONVERSIONS } from '../../constants';
@@ -23,8 +23,28 @@ export const IngredientItem = ({
   });
   const [useSmartInput, setUseSmartInput] = useState(true);
   const [showNote, setShowNote] = useState(!!ing.note);
-  
+  const [showDetails, setShowDetails] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Reset details when card is collapsed
+  useEffect(() => {
+    if (!isActive) {
+      setShowDetails(false);
+    }
+  }, [isActive]);
+
+  // Handle clicking outside to deactivate
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(event.target as Node)) {
+        setIsActive(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Keep smart input in sync with external updates (like AI extraction)
   useEffect(() => {
@@ -74,211 +94,405 @@ export const IngredientItem = ({
   return (
     <motion.div 
       layout
+      ref={cardRef}
+      onClick={() => setIsActive(!isActive)}
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0
+      }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
       transition={{ 
+        layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
         type: "spring", 
-        stiffness: 500, 
-        damping: 50,
+        stiffness: 300, 
+        damping: 30,
         mass: 1
       }}
-      className="relative flex gap-2 items-center bg-m3-surface-variant/30 p-3 rounded-2xl group"
+      className={`relative flex flex-col p-4 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
     >
-      <div className="flex-1 flex flex-col gap-3">
-        {useSmartInput ? (
-          <div className="space-y-3">
-            <div className="relative">
-              <TextareaAutosize 
-                value={smartInput}
-                onChange={e => handleSmartInputChange(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => {
-                  setIsFocused(false);
-                  handleSmartInputParse();
-                }}
-                onKeyDown={handleKeyDown}
-                className="w-full px-4 py-3 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all resize-none text-sm font-medium"
-                placeholder="2 cups all-purpose flour"
-                minRows={1}
-              />
-              <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
-                Smart Input
+      <div className="flex flex-col gap-1.5">
+        <AnimatePresence initial={false}>
+          {ing.isOptional && (
+            <motion.div
+              layout
+              initial={{ height: 0, opacity: 0, scale: 0.8 }}
+              animate={{ height: 'auto', opacity: 1, scale: 1 }}
+              exit={{ height: 0, opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="flex overflow-hidden"
+            >
+              <span className="bg-m3-outline-variant/30 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter text-m3-on-surface-variant">
+                Optional
               </span>
-            </div>
-            
-            {(ing.amount || ing.unit || ing.name) && (
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-wrap gap-1 text-[10px] text-m3-on-surface-variant">
-                  <span className="bg-m3-primary-container/30 px-2 py-1 rounded-full">
-                    Amt: {formatAmount(ing.amount) || 'empty'}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence mode="wait" initial={false}>
+          {useSmartInput ? (
+            <motion.div 
+              key="smart"
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-1.5"
+            >
+              <div className="flex gap-3 items-center">
+                <div className="flex-1 relative">
+                  <TextareaAutosize 
+                    value={smartInput}
+                    onChange={e => handleSmartInputChange(e.target.value)}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      setIsFocused(true);
+                      setIsActive(true);
+                    }}
+                    onBlur={() => {
+                      setIsFocused(false);
+                      handleSmartInputParse();
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={handleKeyDown}
+                    className="w-full px-4 py-3 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors resize-none text-sm font-medium"
+                    placeholder="2 cups all-purpose flour"
+                    minRows={1}
+                  />
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
+                    Smart Input
                   </span>
-                  <span className="bg-m3-secondary-container/30 px-2 py-1 rounded-full">
-                    Unit: {ing.unit || 'empty'}
-                  </span>
-                  <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full break-words">
-                    Name: {ing.name || 'empty'}
-                  </span>
-                  {ing.isOptional && (
-                    <span className="bg-m3-outline-variant/30 px-2 py-1 rounded-full font-bold uppercase tracking-tighter">
-                      Optional
-                    </span>
+                </div>
+                
+                <div className="flex flex-col gap-1 items-center shrink-0">
+                  {onMoveUp && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveUp(index);
+                      }}
+                      disabled={isFirst}
+                      className={`p-1.5 rounded-lg transition-colors ${isFirst ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                    >
+                      <ChevronUp size={18} />
+                    </button>
+                  )}
+
+                  {onMoveDown && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveDown(index);
+                      }}
+                      disabled={isLast}
+                      className={`p-1.5 rounded-lg transition-colors ${isLast ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                    >
+                      <ChevronDown size={18} />
+                    </button>
                   )}
                 </div>
-
-                {ing.unit && ing.amount && (() => {
-                  const baseUnit = ing.unit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
-                  const conversions = UNIT_CONVERSIONS[baseUnit];
-                  if (!conversions) return null;
-
-                  return (
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-m3-on-surface-variant/40">Convert:</span>
-                      {Object.keys(conversions).map(targetUnit => (
-                        <button
-                          key={targetUnit}
-                          type="button"
-                          onClick={() => onConvert(index, targetUnit)}
-                          className="text-[10px] bg-m3-primary/10 text-m3-primary px-2 py-0.5 rounded-full hover:bg-m3-primary/20 transition-all active:scale-95 font-medium"
-                        >
-                          to {targetUnit}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <TextareaAutosize 
-              value={ing.name}
-              onChange={e => onUpdate(index, 'name', e.target.value)}
-              className="w-full px-4 py-2.5 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all resize-none text-sm font-medium"
-              placeholder="Ingredient name (e.g. All-purpose flour)"
-              minRows={1}
-            />
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value={ing.amount}
-                  onChange={e => onUpdate(index, 'amount', e.target.value)}
-                  className="w-full px-3 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all text-center text-sm"
-                  placeholder="Qty"
+
+              <AnimatePresence initial={false}>
+                {showNote && (
+                  <motion.div 
+                    layout
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    className="relative overflow-hidden"
+                  >
+                    <div className="relative pt-2 pr-[42px]">
+                      <TextareaAutosize 
+                        value={ing.note || ''}
+                        onChange={e => onUpdate(index, 'note', e.target.value)}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                          setIsActive(true);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-4 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors resize-none text-[12px] font-medium italic text-m3-on-surface-variant"
+                        placeholder="Add a note (e.g. sifted, melted)..."
+                        minRows={1}
+                      />
+                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">
+                        Note
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <AnimatePresence initial={false}>
+                {showDetails && (ing.amount || ing.unit || ing.name) && (
+                  <motion.div 
+                    layout
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    className="flex flex-col gap-2 overflow-hidden pr-[42px]"
+                  >
+                    <div className="flex flex-wrap gap-1 text-[10px] text-m3-on-surface-variant">
+                      <span className="bg-m3-primary-container/30 px-2 py-1 rounded-full">
+                        Amt: {formatAmount(ing.amount) || 'empty'}
+                      </span>
+                      <span className="bg-m3-secondary-container/30 px-2 py-1 rounded-full">
+                        Unit: {ing.unit || 'empty'}
+                      </span>
+                      <span className="bg-m3-tertiary-container/30 px-2 py-1 rounded-full break-words">
+                        Name: {ing.name || 'empty'}
+                      </span>
+                    </div>
+
+                    {ing.unit && ing.amount && (() => {
+                      const baseUnit = ing.unit.replace(/\s+(can|bottle)s?$/i, '').toLowerCase();
+                      const conversions = UNIT_CONVERSIONS[baseUnit];
+                      if (!conversions) return null;
+
+                      return (
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-m3-on-surface-variant/40">Convert:</span>
+                          {Object.keys(conversions).map(targetUnit => (
+                            <button
+                              key={targetUnit}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onConvert(index, targetUnit);
+                              }}
+                              className="text-[10px] bg-m3-primary/10 text-m3-primary px-2 py-0.5 rounded-full hover:bg-m3-primary/20 transition-colors active:scale-95 font-medium"
+                            >
+                              to {targetUnit}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="manual"
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-1.5"
+            >
+              <div className="flex gap-3 items-center">
+                <TextareaAutosize 
+                  value={ing.name}
+                  onChange={e => onUpdate(index, 'name', e.target.value)}
+                  onFocus={(e) => {
+                    e.stopPropagation();
+                    setIsActive(true);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-1 px-4 py-2.5 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors resize-none text-sm font-medium"
+                  placeholder="Ingredient name (e.g. All-purpose flour)"
+                  minRows={1}
                 />
-                <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Amt</span>
+                
+                <div className="flex flex-col gap-1 items-center shrink-0">
+                  {onMoveUp && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveUp(index);
+                      }}
+                      disabled={isFirst}
+                      className={`p-1.5 rounded-lg transition-colors ${isFirst ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                    >
+                      <ChevronUp size={18} />
+                    </button>
+                  )}
+
+                  {onMoveDown && (
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveDown(index);
+                      }}
+                      disabled={isLast}
+                      className={`p-1.5 rounded-lg transition-colors ${isLast ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                    >
+                      <ChevronDown size={18} />
+                    </button>
+                  )}
+                </div>
               </div>
               
-              <div className="relative">
-                <select 
-                  value={ing.unit}
-                  onChange={e => {
-                    const newUnit = e.target.value;
-                    if (ing.unit && newUnit && UNIT_CONVERSIONS[ing.unit]?.[newUnit]) {
-                      onConvert(index, newUnit);
-                    } else {
-                      onUpdate(index, 'unit', newUnit);
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all appearance-none cursor-pointer text-sm"
-                >
-                  {COMMON_UNITS.map(u => (
-                    <option key={u} value={u}>{u || 'Unit'}</option>
-                  ))}
-                </select>
-                <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Unit</span>
+              <div className="grid grid-cols-2 gap-2 pr-[42px]">
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={ing.amount}
+                    onChange={e => onUpdate(index, 'amount', e.target.value)}
+                    onFocus={(e) => {
+                      e.stopPropagation();
+                      setIsActive(true);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full px-3 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors text-center text-sm"
+                    placeholder="Qty"
+                  />
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Amt</span>
+                </div>
+                
+                <div className="relative">
+                  <select 
+                    value={ing.unit}
+                    onChange={e => {
+                      const newUnit = e.target.value;
+                      if (ing.unit && newUnit && UNIT_CONVERSIONS[ing.unit]?.[newUnit]) {
+                        onConvert(index, newUnit);
+                      } else {
+                        onUpdate(index, 'unit', newUnit);
+                      }
+                    }}
+                    onFocus={() => setIsActive(true)}
+                    className="w-full px-3 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors appearance-none cursor-pointer text-sm"
+                  >
+                    {COMMON_UNITS.map(u => (
+                      <option key={u} value={u}>{u || 'Unit'}</option>
+                    ))}
+                  </select>
+                  <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[10px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">Unit</span>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {showNote && (
-          <div className="relative mt-1">
-            <TextareaAutosize 
-              value={ing.note || ''}
-              onChange={e => onUpdate(index, 'note', e.target.value)}
-              className="w-full px-4 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-all resize-none text-[12px] font-medium italic text-m3-on-surface-variant"
-              placeholder="Add a note (e.g. sifted, melted)..."
-              minRows={1}
-            />
-            <span className="absolute -top-2 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider">
-              Note
-            </span>
-          </div>
-        )}
+              <AnimatePresence initial={false}>
+                {showNote && (
+                  <motion.div 
+                    layout
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    className="relative overflow-hidden"
+                  >
+                    <div className="relative pt-2 pr-[42px]">
+                      <TextareaAutosize 
+                        value={ing.note || ''}
+                        onChange={e => onUpdate(index, 'note', e.target.value)}
+                        onFocus={(e) => {
+                          e.stopPropagation();
+                          setIsActive(true);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full px-4 py-2 bg-m3-surface border border-m3-outline/20 rounded-xl outline-none focus:border-m3-primary transition-colors resize-none text-[12px] font-medium italic text-m3-on-surface-variant"
+                        placeholder="Add a note (e.g. sifted, melted)..."
+                        minRows={1}
+                      />
+                      <span className="absolute top-0 left-3 px-1 bg-m3-surface text-[9px] text-m3-on-surface-variant/60 font-bold uppercase tracking-wider z-10">
+                        Note
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="flex flex-col gap-1 items-center">
-        {onMoveUp && (
-          <button 
-            type="button"
-            onClick={() => onMoveUp(index)}
-            disabled={isFirst}
-            className={`p-1.5 rounded-lg transition-all ${isFirst ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
-          >
-            <ChevronUp size={18} />
-          </button>
-        )}
-
-        <div className="flex flex-col gap-1.5">
-          <button 
-            type="button"
-            onClick={() => {
-              const newMode = !useSmartInput;
-              if (newMode) {
-                // Switching to smart mode - reconstruct input from fields
-                const fullText = [ing.amount, ing.unit, ing.name].filter(Boolean).join(' ');
-                setSmartInput(fullText);
-              }
-              setUseSmartInput(newMode);
+      <AnimatePresence initial={false}>
+        {isActive && (
+          <motion.div 
+            layout
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ 
+              height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+              opacity: { duration: 0.2, ease: "easeInOut" }
             }}
-            className="p-1.5 text-m3-primary/60 hover:text-m3-primary hover:bg-m3-primary/10 transition-colors rounded-lg"
-            title={useSmartInput ? "Switch to separate fields" : "Switch to smart input"}
+            className="overflow-hidden"
           >
-            <RefreshCw size={14} />
-          </button>
+            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-m3-outline/10">
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newMode = !useSmartInput;
+                  if (newMode) {
+                    const displayAmt = formatAmount(ing.amount);
+                    const fullText = [displayAmt, ing.unit, ing.name].filter(Boolean).join(' ');
+                    setSmartInput(fullText);
+                  }
+                  setUseSmartInput(newMode);
+                }}
+                className={`p-2 transition-colors rounded-xl ${!useSmartInput ? 'text-m3-primary bg-m3-primary/10 ring-1 ring-m3-primary/20' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                title={useSmartInput ? "Switch to manual fields" : "Switch to smart input"}
+              >
+                <RefreshCw size={16} />
+              </button>
 
-          <button 
-            type="button"
-            onClick={() => setShowNote(!showNote)}
-            className={`p-1.5 transition-colors rounded-lg ${showNote ? 'text-m3-primary bg-m3-primary/10' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
-            title="Toggle note"
-          >
-            <StickyNote size={14} />
-          </button>
-          
-          <button 
-            type="button"
-            onClick={() => onUpdate(index, 'isOptional', !ing.isOptional)}
-            className={`p-1.5 transition-colors rounded-lg ${ing.isOptional ? 'text-m3-primary bg-m3-primary/10' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
-            title="Mark as optional"
-          >
-            <CheckSquare size={14} />
-          </button>
-          
-          <button 
-            type="button"
-            onClick={() => onRemove(ing.id)}
-            className="p-1.5 text-m3-on-surface-variant/40 hover:text-red-600 transition-colors rounded-lg"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
+              {useSmartInput && (
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDetails(!showDetails);
+                  }}
+                  className={`p-2 transition-colors rounded-xl ${showDetails ? 'text-m3-primary bg-m3-primary/10 ring-1 ring-m3-primary/20' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                  title="Toggle details"
+                >
+                  <Info size={16} />
+                </button>
+              )}
 
-        {onMoveDown && (
-          <button 
-            type="button"
-            onClick={() => onMoveDown(index)}
-            disabled={isLast}
-            className={`p-1.5 rounded-lg transition-all ${isLast ? 'text-m3-on-surface-variant/10 cursor-not-allowed' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
-          >
-            <ChevronDown size={18} />
-          </button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNote(!showNote);
+                }}
+                className={`p-2 transition-colors rounded-xl ${showNote ? 'text-m3-primary bg-m3-primary/10 ring-1 ring-m3-primary/20' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                title="Toggle note"
+              >
+                <StickyNote size={16} />
+              </button>
+              
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate(index, 'isOptional', !ing.isOptional);
+                }}
+                className={`p-2 transition-colors rounded-xl ${ing.isOptional ? 'text-m3-primary bg-m3-primary/10 ring-1 ring-m3-primary/20' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+                title="Toggle optional status"
+              >
+                <CheckSquare size={16} />
+              </button>
+              
+              <div className="flex-1" />
+
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(ing.id);
+                }}
+                className="p-2 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors rounded-xl"
+                title="Remove ingredient"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 };

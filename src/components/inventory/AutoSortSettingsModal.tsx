@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Plus, Trash2, MapPin, Package, Edit2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, Timestamp, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { User } from 'firebase/auth';
 import { SESSION_KEYS, getSessionData } from '../../utils/cache';
@@ -91,14 +91,14 @@ export const AutoSortSettingsModal: React.FC<AutoSortSettingsModalProps> = ({ is
         await updateDoc(doc(db, 'inventoryAutoSortRules', editingRuleId), {
           ...newRule,
           keyword: newRule.keyword.trim().toLowerCase(),
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       } else {
         await addDoc(collection(db, 'inventoryAutoSortRules'), {
           ...newRule,
           keyword: newRule.keyword.trim().toLowerCase(),
           userId: user.uid,
-          createdAt: Timestamp.now()
+          createdAt: serverTimestamp()
         });
       }
       setNewRule({ keyword: '', location: '', category: 'ingredient' });
