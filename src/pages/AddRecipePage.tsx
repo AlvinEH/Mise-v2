@@ -592,8 +592,8 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
                       )}
                     </div>
 
-                    <motion.div layout className="flex flex-col gap-3">
-                      <AnimatePresence initial={false} mode="popLayout">
+                    <motion.div className="flex flex-col gap-3">
+                      <AnimatePresence initial={false}>
                         {section.items.map((ing, iIdx) => (
                           <IngredientItem 
                             key={ing.id}

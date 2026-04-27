@@ -93,7 +93,6 @@ export const IngredientItem = ({
 
   return (
     <motion.div 
-      layout
       ref={cardRef}
       onClick={() => setIsActive(!isActive)}
       initial={{ opacity: 0, y: 20 }}
@@ -103,10 +102,9 @@ export const IngredientItem = ({
       }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
       transition={{ 
-        layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
         type: "spring", 
-        stiffness: 300, 
-        damping: 30,
+        stiffness: 200, 
+        damping: 25,
         mass: 1
       }}
       className={`relative flex flex-col p-4 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
@@ -115,7 +113,6 @@ export const IngredientItem = ({
         <AnimatePresence initial={false}>
           {ing.isOptional && (
             <motion.div
-              layout
               initial={{ height: 0, opacity: 0, scale: 0.8 }}
               animate={{ height: 'auto', opacity: 1, scale: 1 }}
               exit={{ height: 0, opacity: 0, scale: 0.8 }}
@@ -133,7 +130,6 @@ export const IngredientItem = ({
           {useSmartInput ? (
             <motion.div 
               key="smart"
-              layout
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -199,7 +195,6 @@ export const IngredientItem = ({
               <AnimatePresence initial={false}>
                 {showNote && (
                   <motion.div 
-                    layout
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -230,7 +225,6 @@ export const IngredientItem = ({
               <AnimatePresence initial={false}>
                 {showDetails && (ing.amount || ing.unit || ing.name) && (
                   <motion.div 
-                    layout
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -280,7 +274,6 @@ export const IngredientItem = ({
           ) : (
             <motion.div 
               key="manual"
-              layout
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -374,7 +367,6 @@ export const IngredientItem = ({
               <AnimatePresence initial={false}>
                 {showNote && (
                   <motion.div 
-                    layout
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -409,12 +401,11 @@ export const IngredientItem = ({
       <AnimatePresence initial={false}>
         {isActive && (
           <motion.div 
-            layout
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ 
-              height: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+              height: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
               opacity: { duration: 0.2, ease: "easeInOut" }
             }}
             className="overflow-hidden"
