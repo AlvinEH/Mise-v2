@@ -91,9 +91,12 @@ export const IngredientItem = ({
     }
   };
 
+  const hasExtraContent = showNote || !useSmartInput || (useSmartInput && showDetails);
+
   return (
     <motion.div 
       ref={cardRef}
+      layout
       onClick={() => setIsActive(!isActive)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ 
@@ -102,20 +105,24 @@ export const IngredientItem = ({
       }}
       exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
       transition={{ 
-        type: "spring", 
-        stiffness: 200, 
-        damping: 25,
-        mass: 1
+        layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
+        opacity: { duration: 0.2 },
+        y: { type: "spring", stiffness: 200, damping: 25, mass: 1 }
       }}
       className={`relative flex flex-col p-4 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
     >
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col overflow-hidden">
         <AnimatePresence initial={false}>
           {ing.isOptional && (
             <motion.div
-              initial={{ height: 0, opacity: 0, scale: 0.8 }}
-              animate={{ height: 'auto', opacity: 1, scale: 1 }}
-              exit={{ height: 0, opacity: 0, scale: 0.8 }}
+              initial={{ height: 0, opacity: 0, scale: 0.8, marginBottom: 0 }}
+              animate={{ 
+                height: 'auto', 
+                opacity: 1, 
+                scale: 1,
+                marginBottom: 6 
+              }}
+              exit={{ height: 0, opacity: 0, scale: 0.8, marginBottom: 0 }}
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="flex overflow-hidden"
             >
@@ -126,15 +133,15 @@ export const IngredientItem = ({
           )}
         </AnimatePresence>
 
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false} custom={useSmartInput}>
           {useSmartInput ? (
             <motion.div 
               key="smart"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-1.5"
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col"
             >
               <div className="flex gap-3 items-center">
                 <div className="flex-1 relative">
@@ -195,9 +202,13 @@ export const IngredientItem = ({
               <AnimatePresence initial={false}>
                 {showNote && (
                   <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ 
+                      height: 'auto', 
+                      opacity: 1,
+                      marginTop: 6
+                    }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.25, ease: "easeInOut" }}
                     className="relative overflow-hidden"
                   >
@@ -223,11 +234,15 @@ export const IngredientItem = ({
               </AnimatePresence>
               
               <AnimatePresence initial={false}>
-                {showDetails && (ing.amount || ing.unit || ing.name) && (
+                {(showDetails && (ing.amount || ing.unit || ing.name)) && (
                   <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ 
+                      height: 'auto', 
+                      opacity: 1,
+                      marginTop: 6
+                    }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.25, ease: "easeInOut" }}
                     className="flex flex-col gap-2 overflow-hidden pr-[42px]"
                   >
@@ -274,11 +289,11 @@ export const IngredientItem = ({
           ) : (
             <motion.div 
               key="manual"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-1.5"
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="flex flex-col"
             >
               <div className="flex gap-3 items-center">
                 <TextareaAutosize 
@@ -325,7 +340,7 @@ export const IngredientItem = ({
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-2 pr-[42px]">
+              <div className="grid grid-cols-2 gap-2 pr-[42px] mt-[6px]">
                 <div className="relative">
                   <input 
                     type="text" 
@@ -367,9 +382,13 @@ export const IngredientItem = ({
               <AnimatePresence initial={false}>
                 {showNote && (
                   <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{ 
+                      height: 'auto', 
+                      opacity: 1,
+                      marginTop: 6
+                    }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
                     transition={{ duration: 0.25, ease: "easeInOut" }}
                     className="relative overflow-hidden"
                   >
@@ -401,16 +420,21 @@ export const IngredientItem = ({
       <AnimatePresence initial={false}>
         {isActive && (
           <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+            animate={{ 
+              height: 'auto', 
+              opacity: 1,
+              marginTop: hasExtraContent ? 16 : 4
+            }}
+            exit={{ height: 0, opacity: 0, marginTop: 0 }}
             transition={{ 
               height: { duration: 0.4, ease: [0.4, 0, 0.2, 1] },
-              opacity: { duration: 0.2, ease: "easeInOut" }
+              opacity: { duration: 0.2, ease: "easeInOut" },
+              marginTop: { duration: 0.3 }
             }}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-m3-outline/10">
+            <div className="flex items-center gap-2 pt-3 border-t border-m3-outline/10">
               <button 
                 type="button"
                 onClick={(e) => {

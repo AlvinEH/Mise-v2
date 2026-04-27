@@ -252,7 +252,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                           onClick={() => setCheckedIngredients(prev => ({ ...prev, [globalIdx]: !prev[globalIdx as any] }))}
                           className="w-full flex items-center gap-3 py-2 px-3 hover:bg-m3-surface-variant/10 transition-colors rounded-xl group text-left"
                         >
-                          <div className={`w-5 h-5 border-2 ${checkboxBorderRadius} flex-shrink-0 flex items-center justify-center transition-all ${
+                          <div className={`w-5 h-5 border-2 rounded-md flex-shrink-0 flex items-center justify-center transition-all ${
                             isChecked 
                               ? 'bg-m3-primary border-m3-primary' 
                               : 'border-m3-outline/30 group-hover:border-m3-primary/50'
