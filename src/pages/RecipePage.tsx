@@ -200,7 +200,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
             {recipe.title}
           </h1>
           {recipe.servings && (
-            <div className="flex items-center gap-6 mb-12">
+            <div className="flex items-center gap-6 mb-6">
               <div className="flex items-center gap-2 text-m3-on-surface-variant font-bold">
                 <Users size={20} />
                 <span>
@@ -230,7 +230,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
               </div>
             </div>
           )}
-          <div className="space-y-12">
+          <div className="space-y-8">
             {recipe.ingredientSections && recipe.ingredientSections.length > 0 ? (
               recipe.ingredientSections.map((section, sIdx) => (
                 <div key={sIdx} className="space-y-4">
