@@ -27,7 +27,7 @@ export const useTheme = (user?: User | null) => {
     (localStorage.getItem('Mise-theme') as Theme) || 'm3'
   );
   const [mode, setMode] = useState<Mode>(() => 
-    (localStorage.getItem('Mise-mode') as Mode) || 'light'
+    (localStorage.getItem('Mise-mode') as Mode) || 'auto'
   );
   const [checkboxStyle, setCheckboxStyle] = useState<CheckboxStyle>(() => 
     (localStorage.getItem('Mise-checkbox-style') as CheckboxStyle) || 'square'
@@ -35,9 +35,29 @@ export const useTheme = (user?: User | null) => {
   const [aiAutoSort, setAiAutoSort] = useState<boolean>(() => 
     localStorage.getItem('Mise-ai-auto-sort') === 'true'
   );
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   const isInitialLoad = useRef(true);
   const lastSyncedData = useRef<any>(null);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemPrefersDark(e.matches);
+    };
+
+    // Add listener for preference changes
+    darkModeQuery.addEventListener('change', handleChange);
+    
+    return () => {
+      darkModeQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   // Sync from Firestore on mount/login
   useEffect(() => {
@@ -77,8 +97,11 @@ export const useTheme = (user?: User | null) => {
       checkboxStyle !== lastSyncedData.current.checkboxStyle ||
       aiAutoSort !== lastSyncedData.current.aiAutoSort;
 
+    // Calculate effective mode (considering auto mode)
+    const effectiveMode = mode === 'auto' ? (systemPrefersDark ? 'dark' : 'light') : mode;
+
     // Update local effects regardless of sync state
-    const themeValue = theme === 'm3' ? (mode === 'light' ? '' : 'm3-dark') : `${theme}-${mode}`;
+    const themeValue = theme === 'm3' ? (effectiveMode === 'light' ? '' : 'm3-dark') : `${theme}-${effectiveMode}`;
     const currentTheme = document.documentElement.getAttribute('data-theme');
     
     if (currentTheme !== themeValue) {
@@ -151,7 +174,7 @@ export const useTheme = (user?: User | null) => {
         console.error("Error saving preferences to Firestore:", err);
       });
     }
-  }, [theme, mode, checkboxStyle, aiAutoSort, user]);
+  }, [theme, mode, checkboxStyle, aiAutoSort, user, systemPrefersDark]);
 
   return useMemo(() => ({ 
     theme, setTheme, 
