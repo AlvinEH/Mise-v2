@@ -67,9 +67,6 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
 function App() {
   const { user, isAuthReady } = useAuth();
   const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle, aiAutoSort, setAiAutoSort } = useTheme(user);
-  const hasResetRef = useRef(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -77,8 +74,6 @@ function App() {
     recipes,
     recipeToDelete,
     setRecipeToDelete,
-    sortBy,
-    setSortBy,
     handleDelete: baseHandleDelete
   } = useRecipes(user);
 
@@ -87,20 +82,7 @@ function App() {
     navigate('/recipes');
   }, [baseHandleDelete, navigate]);
 
-  // Close dropdowns and modals when clicking outside
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (isSortModalOpen && !(event.target as Element).closest('.sort-dropdown') && !(event.target as Element).closest('.sort-modal')) {
-      setIsSortModalOpen(false);
-    }
-  }, [isSortModalOpen]);
-
-  useEffect(() => {
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside]);
-
   // Determine if we should hide the nav based on current route
-  // Typically we might want it always, or hide it deep in details.
   const isRecipeDetailPage = useMemo(() => 
     location.pathname.startsWith('/recipe/') || 
     location.pathname === '/add-recipe' || 
@@ -151,12 +133,6 @@ function App() {
               recipes={recipes}
               onEdit={handleEdit}
               onDelete={setRecipeToDelete}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              isSortModalOpen={isSortModalOpen}
-              setIsSortModalOpen={setIsSortModalOpen}
               theme={theme}
               setTheme={setTheme}
               mode={mode}

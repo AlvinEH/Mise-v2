@@ -7,33 +7,25 @@ import { HeaderSearchBar } from '../components/ui/HeaderSearchBar';
 import { RecipeCard } from '../components/recipe/RecipeCard';
 import { FABMenu } from '../components/ui/FABMenu';
 import { Recipe } from '../types';
-
-interface RecipesPageProps {
-  recipes: Recipe[];
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  sortBy: 'newest' | 'oldest' | 'alpha';
-  setSortBy: (sort: 'newest' | 'oldest' | 'alpha') => void;
-  isSortModalOpen: boolean;
-  setIsSortModalOpen: (open: boolean) => void;
-  onEdit: (recipe: Recipe) => void;
-  onDelete: (recipe: Recipe) => void;
-}
+import { useDebounce } from '../hooks';
 
 export const RecipesPage = React.memo(({
   recipes,
-  searchQuery,
-  setSearchQuery,
-  sortBy,
-  setSortBy,
-  isSortModalOpen,
-  setIsSortModalOpen,
   onEdit,
   onDelete
-}: RecipesPageProps) => {
+}: { 
+  recipes: Recipe[], 
+  onEdit: (r: Recipe) => void, 
+  onDelete: (r: Recipe) => void 
+}) => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alpha'>('alpha');
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const sortOptions = [
     { id: 'alpha', label: 'Alphabetical', icon: <ArrowDownAZ size={20} /> },
@@ -44,7 +36,7 @@ export const RecipesPage = React.memo(({
   const currentSort = sortOptions.find(o => o.id === sortBy);
 
   const sortedAndFilteredRecipes = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       // No filtering needed, just sort
       const recipesToSort = [...recipes];
       switch (sortBy) {
@@ -67,7 +59,7 @@ export const RecipesPage = React.memo(({
     }
 
     // Filter with search query
-    const lowerQuery = searchQuery.toLowerCase();
+    const lowerQuery = debouncedSearchQuery.toLowerCase();
     let filtered = recipes.filter(recipe => {
       const searchInIngredients = (recipe.ingredients || []).some(ing => 
         typeof ing === 'string' 
@@ -107,7 +99,7 @@ export const RecipesPage = React.memo(({
       default:
         return filtered.sort((a, b) => a.title.localeCompare(b.title));
     }
-  }, [recipes, searchQuery, sortBy]);
+  }, [recipes, debouncedSearchQuery, sortBy]);
 
   const getSortLabel = (sort: string) => {
     switch (sort) {

@@ -161,7 +161,7 @@ export const useTheme = (user?: User | null) => {
   }), [theme, mode, checkboxStyle, aiAutoSort]);
 };
 
-// Re-export useRecipes for convenience
 export { useRecipes } from './useRecipes';
 export { useInventory } from './useInventory';
 export { useShopping } from './useShopping';
+export { useDebounce } from './useDebounce';

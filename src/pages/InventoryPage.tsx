@@ -11,6 +11,7 @@ import { parseShoppingItem } from '../utils/shoppingItems';
 import { InventoryItem, CheckboxStyle } from '../types';
 import { InventoryListItem } from '../components/inventory/InventoryListItem';
 import { LocationCard } from '../components/inventory/LocationCard';
+import { useInventory } from '../hooks';
 import { SortLocationsModal } from '../components/inventory/SortLocationsModal';
 import { SortOrderModal, InventorySortOrder } from '../components/inventory/SortOrderModal';
 import { AddEditItemModal } from '../components/inventory/AddEditItemModal';
@@ -30,12 +31,38 @@ interface InventoryPageProps {
 
 export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) => {
   const [activeTab, setActiveTab] = useState<'ingredients' | 'supplies'>('ingredients');
-  const [items, setItems] = useState<InventoryItem[]>(() => getCachedData<InventoryItem[]>(STORAGE_KEYS.INVENTORY_ITEMS) || []);
+  const {
+    items,
+    setItems,
+    dbLocations,
+    setDbLocations,
+    storeLists,
+    isInitialLoad,
+    toggleItemUsed,
+    toggleItemLow,
+    handleDeleteItem,
+    handleDeleteLocation: baseHandleDeleteLocation,
+    handleMoveLocationItems: baseHandleMoveLocationItems,
+    handleAddLocation: baseHandleAddLocation,
+    handleUpdateLocationName: baseHandleUpdateLocationName,
+    handleClearUsed,
+    handleRestockUsed,
+    handleClearAndRestockUsed,
+    handleAddLowToShoppingList: baseHandleAddLowToShoppingList,
+    handleSubmit: baseHandleSubmit,
+    syncReorderedItems,
+    syncReorderedLocations,
+    isDraggingLocRef,
+    isSyncingItemsRef,
+    isSyncingLocsRef,
+    pendingLocsRef,
+    pendingItemsRef
+  } = useInventory(user);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingLocation, setIsAddingLocation] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
-  const [dbLocations, setDbLocations] = useState<any[]>(() => getCachedData<any[]>(STORAGE_KEYS.INVENTORY_LOCATIONS) || []);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -61,18 +88,7 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
   const [editLocationNameValue, setEditLocationNameValue] = useState('');
   const [locationToDelete, setLocationToDelete] = useState<string | null>(null);
   const [locationToMove, setLocationToMove] = useState<string | null>(null);
-  const [storeLists, setStoreLists] = useState<any[]>([]);
-  const isSyncingLocsRef = useRef(false);
-  const pendingLocsRef = useRef<any[] | null>(null);
-  const isSyncingItemsRef = useRef(false);
-  const pendingItemsRef = useRef<InventoryItem[] | null>(null);
-  const isDraggingLocRef = useRef(false);
   const [isDraggingLoc, setIsDraggingLoc] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(() => {
-    const cachedItems = getCachedData<InventoryItem[]>(STORAGE_KEYS.INVENTORY_ITEMS);
-    const cachedLocs = getCachedData<any[]>(STORAGE_KEYS.INVENTORY_LOCATIONS);
-    return !(cachedItems && cachedItems.length > 0) && !(cachedLocs && cachedLocs.length > 0);
-  });
   const locationListRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const getCategoryLocations = useCallback((category: 'ingredient' | 'supply') => {
@@ -166,456 +182,70 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
     });
   }, [activeTab, ingredientItems, supplyItems, itemSortOrder]);
 
-  useEffect(() => {
-    if (!user || isInitialLoad) return;
-
-    const migrationKey = `Mise-rules-migrated-v2-${user.uid}`;
-    const migrated = localStorage.getItem(migrationKey);
-
-    if (!migrated) {
-      const migrateRules = async () => {
-        try {
-          // Check if user already has custom rules to avoid overwriting or duplicates
-          const rulesRef = collection(db, 'inventoryAutoSortRules');
-          const q = query(rulesRef, where('userId', '==', user.uid));
-          const snapshot = await getDocs(q);
-          const existingKeywords = snapshot.docs.map(doc => doc.data().keyword.toLowerCase());
-
-          const batch = writeBatch(db);
-          const rulesToSeed = [
-            { keyword: 'dish soap', location: 'Under Sink', category: 'supply' },
-            { keyword: 'trash bag', location: 'Under Sink', category: 'supply' },
-            { keyword: 'recycle bag', location: 'Under Sink', category: 'supply' },
-            { keyword: 'paper towel', location: 'Closet', category: 'supply' },
-            { keyword: 'toilet paper', location: 'Closet', category: 'supply' },
-            { keyword: 'cleaning supply', location: 'Closet', category: 'supply' },
-            { keyword: 'battery', location: 'Closet', category: 'supply' },
-            { keyword: 'snack', location: 'Pantry', category: 'ingredient' },
-            { keyword: 'detergent', location: 'Laundry Room', category: 'supply' },
-            { keyword: 'laundry', location: 'Laundry Room', category: 'supply' },
-            { keyword: 'bags', location: 'Pantry', category: 'supply' }
-          ];
-
-          let added = 0;
-          for (const rule of rulesToSeed) {
-            if (!existingKeywords.includes(rule.keyword)) {
-              const newRuleRef = doc(collection(db, 'inventoryAutoSortRules'));
-              batch.set(newRuleRef, {
-                ...rule,
-                userId: user.uid,
-                createdAt: serverTimestamp()
-              });
-              added++;
-            }
-          }
-
-          if (added > 0) {
-            await batch.commit();
-            console.log(`Migrated ${added} standard supply rules to custom collection.`);
-          }
-          localStorage.setItem(migrationKey, 'true');
-        } catch (error) {
-          console.error("Migration failed:", error);
-        }
-      };
-
-      migrateRules();
-    }
-  }, [user, isInitialLoad]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const q = query(
-      collection(db, 'inventory'),
-      where('userId', '==', user.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!isDraggingLocRef.current && !isSyncingItemsRef.current) {
-        const inventoryData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as InventoryItem));
-        // Sort in memory to handle documents without the 'order' field
-        const sortedItems = inventoryData.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.id.localeCompare(b.id);
-        });
-        setItems(sortedItems);
-        cacheData(STORAGE_KEYS.INVENTORY_ITEMS, sortedItems);
-        setIsInitialLoad(false);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'inventory');
-    });
-
-    const qLocs = query(
-      collection(db, 'inventoryLocations'),
-      where('userId', '==', user.uid)
-    );
-
-    const unsubscribeLocs = onSnapshot(qLocs, (snapshot) => {
-      if (!isSyncingLocsRef.current && !isDraggingLocRef.current) {
-        const locs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        // Sort in memory to handle documents without the 'order' field
-        const sortedLocs = locs.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.name.localeCompare(b.name);
-        });
-        setDbLocations(sortedLocs);
-        cacheData(STORAGE_KEYS.INVENTORY_LOCATIONS, sortedLocs);
-        setIsInitialLoad(false);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'inventoryLocations');
-    });
-
-    const qStores = query(
-      collection(db, 'storeLists'),
-      where('userId', '==', user.uid)
-    );
-
-    const unsubscribeStores = onSnapshot(qStores, (snapshot) => {
-      const stores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      setStoreLists(stores.sort((a, b) => a.name.localeCompare(b.name)));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'storeLists');
-    });
-
-    return () => {
-      unsubscribe();
-      unsubscribeLocs();
-      unsubscribeStores();
-    };
-  }, [user]);
-
-
-  const toggleItemUsed = async (item: InventoryItem) => {
-    try {
-      await updateDoc(doc(db, 'inventory', item.id), {
-        used: !item.used,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'inventory/' + item.id);
-    }
-  };
-
-  const toggleItemLow = async (item: InventoryItem) => {
-    try {
-      await updateDoc(doc(db, 'inventory', item.id), {
-        isLow: !item.isLow,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'inventory/' + item.id);
-    }
-  };
-
-  const handleAddLowToShoppingList = async (location: string) => {
-    const lowItems = items.filter(item => item.location === location && item.isLow && !item.used);
-    if (lowItems.length === 0) return;
-
-    const batch = writeBatch(db);
-
-    for (const item of lowItems) {
-      let targetStoreId = '';
-      const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
-      if (boughtFromMatch) {
-        const storeName = boughtFromMatch[1].trim();
-        const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
-        if (store) targetStoreId = store.id;
-      }
-
-      if (!targetStoreId && storeLists.length > 0) {
-        targetStoreId = storeLists[0].id;
-      }
-
-      if (targetStoreId) {
-        const shoppingItemRef = doc(collection(db, 'shoppingItems'));
-        batch.set(shoppingItemRef, {
-          name: item.name,
-          amount: item.quantity || '',
-          unit: item.unit || '',
-          storeListId: targetStoreId,
-          completed: false,
-          userId: user?.uid,
-          createdAt: serverTimestamp(),
-          order: 0
-        });
-
-        // Toggle low state off since it's now on the shopping list
-        batch.update(doc(db, 'inventory', item.id), {
-          isLow: false,
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    try {
-      await batch.commit();
-      addToast(`Low stock items added to shopping list`, 'success');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory/addLowToShoppingList');
-    }
-  };
-
-  const handleClearUsed = async (location: string) => {
-    const usedItems = items.filter(item => item.location === location && item.used);
-    const batch = writeBatch(db);
-
-    for (const item of usedItems) {
-      batch.delete(doc(db, 'inventory', item.id));
-    }
-
-    try {
-      await batch.commit();
-      addToast(`${usedItems.length} items cleared from ${location}`, 'success');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'inventory/clearUsed');
-    }
-  };
-
-  const handleRestockUsed = async (location: string) => {
-    const usedItems = items.filter(item => item.location === location && item.used);
-    const batch = writeBatch(db);
-
-    for (const item of usedItems) {
-      let targetStoreId = '';
-      const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
-      if (boughtFromMatch) {
-        const storeName = boughtFromMatch[1].trim();
-        const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
-        if (store) targetStoreId = store.id;
-      }
-
-      if (!targetStoreId && storeLists.length > 0) {
-        targetStoreId = storeLists[0].id;
-      }
-
-      if (targetStoreId) {
-        const shoppingItemRef = doc(collection(db, 'shoppingItems'));
-        batch.set(shoppingItemRef, {
-          name: item.name,
-          amount: item.quantity || '',
-          unit: item.unit || '',
-          storeListId: targetStoreId,
-          completed: false,
-          userId: user?.uid,
-          createdAt: serverTimestamp(),
-          order: 0
-        });
-      }
-
-      // Deselect the item after restocking
-      batch.update(doc(db, 'inventory', item.id), {
-        used: false,
-        updatedAt: serverTimestamp()
-      });
-    }
-
-    try {
-      await batch.commit();
-      addToast(`${usedItems.length} items added to shopping list`, 'success');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory/restockUsed');
-    }
-  };
-
-  const handleClearAndRestockUsed = async (location: string) => {
-    const usedItems = items.filter(item => item.location === location && item.used);
-    const batch = writeBatch(db);
-
-    for (const item of usedItems) {
-      // 1. Queue for Shopping List (Restock logic)
-      let targetStoreId = '';
-      const boughtFromMatch = item.notes?.match(/Bought from (.+)/);
-      if (boughtFromMatch) {
-        const storeName = boughtFromMatch[1].trim();
-        const store = storeLists.find(s => s.name.toLowerCase() === storeName.toLowerCase());
-        if (store) targetStoreId = store.id;
-      }
-
-      if (!targetStoreId && storeLists.length > 0) {
-        targetStoreId = storeLists[0].id;
-      }
-
-      if (targetStoreId) {
-        const shoppingItemRef = doc(collection(db, 'shoppingItems'));
-        batch.set(shoppingItemRef, {
-          name: item.name,
-          amount: item.quantity || '',
-          unit: item.unit || '',
-          storeListId: targetStoreId,
-          completed: false,
-          userId: user?.uid,
-          createdAt: serverTimestamp(),
-          order: 0
-        });
-      }
-
-      // 2. Queue for Deletion (Clear logic)
-      batch.delete(doc(db, 'inventory', item.id));
-    }
-
-    try {
-      await batch.commit();
-      addToast(`${usedItems.length} items restocked and cleared`, 'success');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory/clearAndRestockUsed');
-    }
-  };
+  const handleAddLowToShoppingList = useCallback(async (location: string) => {
+    await baseHandleAddLowToShoppingList(location);
+  }, [baseHandleAddLowToShoppingList]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
-    let finalName = formData.name.trim();
-    let finalQuantity = formData.quantity.trim();
-    let finalUnit = formData.unit.trim();
-
-    if (useSmartInput) {
-      if (!smartInput.trim()) return;
-      const parsed = parseShoppingItem(smartInput.trim());
-      finalName = parsed.name;
-      finalQuantity = parsed.amount;
-      finalUnit = parsed.unit;
-    }
-
-    if (!finalName) return;
-
-    try {
-      const itemData: any = {
-        name: finalName,
-        category: activeTab === 'ingredients' ? 'ingredient' : 'supply',
-        updatedAt: serverTimestamp()
-      };
-
-      if (editingItem) {
-        // When updating, we must explicitly set or clear these fields
-        itemData.quantity = finalQuantity || '';
-        itemData.unit = finalUnit || '';
-        itemData.location = formData.location.trim() || '';
-        itemData.purchasedOn = formData.purchasedOn || '';
-        itemData.notes = formData.notes.trim() || '';
-        
-        await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
-      } else {
-        // When creating, we only add if they have values
-        itemData.userId = user.uid;
-        if (finalQuantity) itemData.quantity = finalQuantity;
-        if (finalUnit) itemData.unit = finalUnit;
-        if (formData.location.trim()) itemData.location = formData.location.trim();
-        if (formData.purchasedOn) itemData.purchasedOn = formData.purchasedOn;
-        if (formData.notes.trim()) itemData.notes = formData.notes.trim();
-
-        // Get current max order for this location to append at the end
-        const locationItems = items.filter(i => i.location === (formData.location.trim() || 'Uncategorized'));
-        const maxOrder = locationItems.length > 0 
-          ? Math.max(...locationItems.map(i => i.order ?? 0)) 
-          : -1;
-
-        const newDoc = await addDoc(collection(db, 'inventory'), {
-          ...itemData,
-          order: maxOrder + 1,
-          createdAt: serverTimestamp()
-        });
-
-        // Scroll to bottom of the card list
-        const loc = formData.location.trim() || 'Uncategorized';
-        setTimeout(() => {
-          const listElement = locationListRefs.current[loc];
-          if (listElement) {
-            listElement.scrollTo({
-              top: listElement.scrollHeight,
-              behavior: 'smooth'
-            });
-          }
-        }, 100);
-      }
-
-      resetForm();
-    } catch (error) {
-      console.error('Error handling inventory item:', error);
-      handleFirestoreError(error, editingItem ? OperationType.UPDATE : OperationType.CREATE, 'inventory');
+    await baseHandleSubmit(formData, useSmartInput, smartInput, editingItem, activeTab, resetForm);
+    
+    if (!editingItem) {
+      const loc = formData.location.trim() || 'Uncategorized';
+      setTimeout(() => {
+        const listElement = locationListRefs.current[loc];
+        if (listElement) {
+          listElement.scrollTo({ top: listElement.scrollHeight, behavior: 'smooth' });
+        }
+      }, 100);
     }
   };
 
-  const handleDelete = async (item: InventoryItem) => {
-    try {
-      await deleteDoc(doc(db, 'inventory', item.id));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'inventory/' + item.id);
-    }
+  const startEdit = (item: InventoryItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      quantity: item.quantity || '',
+      unit: item.unit || '',
+      location: item.location || '',
+      purchasedOn: item.purchasedOn || '',
+      notes: item.notes || ''
+    });
+    const smartValue = [item.quantity, item.unit, item.name].filter(Boolean).join(' ');
+    setSmartInput(smartValue);
+    setUseSmartInput(true);
+    setIsAddingItem(true);
   };
+
+  const resetForm = useCallback(() => {
+    setFormData({
+      name: '',
+      quantity: '',
+      unit: '',
+      location: '',
+      purchasedOn: '',
+      notes: ''
+    });
+    setSmartInput('');
+    setUseSmartInput(true);
+    setIsAddingItem(false);
+    setEditingItem(null);
+  }, []);
 
   const handleDeleteLocation = async (location: string) => {
-    try {
-      // 1. Delete items in this location
-      const itemsToDelete = items.filter(item => item.location === location);
-      const batch = writeBatch(db);
-      itemsToDelete.forEach(item => {
-        batch.delete(doc(db, 'inventory', item.id));
-      });
-      
-      // 2. Delete the location from inventoryLocations if it exists there
-      const dbLoc = dbLocations.find(loc => loc.name === location);
-      if (dbLoc) {
-        batch.delete(doc(db, 'inventoryLocations', dbLoc.id));
-      }
-      
-      await batch.commit();
-      addToast(`Location "${location}" deleted`, 'success');
-      
-      if (expandedLocation === location) {
-        setExpandedLocation(null);
-        setIsEditMode(false);
-      }
-      setLocationToDelete(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'inventory/location/' + location);
+    await baseHandleDeleteLocation(location);
+    if (expandedLocation === location) {
+      setExpandedLocation(null);
+      setIsEditMode(false);
     }
+    setLocationToDelete(null);
   };
 
   const handleMoveLocationItems = async (sourceLocation: string, targetLocation: string) => {
-    if (sourceLocation === targetLocation) return;
-    
-    try {
-      const itemsToMove = items.filter(item => item.location === sourceLocation && item.used);
-      const batch = writeBatch(db);
-      
-      // Get max order in target location
-      const targetItems = items.filter(item => item.location === targetLocation);
-      let maxOrder = targetItems.length > 0 
-        ? Math.max(...targetItems.map(i => i.order ?? 0)) 
-        : -1;
-
-      itemsToMove.forEach((item) => {
-        maxOrder++;
-        markItemAsSessionMoved(item.id);
-        batch.update(doc(db, 'inventory', item.id), {
-          location: targetLocation,
-          order: maxOrder,
-          used: false,
-          movedAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      });
-
-      await batch.commit();
-      addToast(`${itemsToMove.length} ${itemsToMove.length === 1 ? 'item' : 'items'} moved to ${targetLocation}`, 'move');
-      setLocationToMove(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'inventory/moveLocation');
-    }
+    await baseHandleMoveLocationItems(sourceLocation, targetLocation);
+    setLocationToMove(null);
   };
 
-  // Handle adding item with specific location
   const startAddWithLocation = (location: string) => {
     setUseSmartInput(true);
     setFormData({
@@ -629,39 +259,6 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
     setIsAddingItem(true);
   };
 
-  const startEdit = (item: InventoryItem) => {
-    setEditingItem(item);
-    setFormData({
-      name: item.name,
-      quantity: item.quantity || '',
-      unit: item.unit || '',
-      location: item.location || '',
-      purchasedOn: item.purchasedOn || '',
-      notes: item.notes || ''
-    });
-    // Initialize smart input with existing item data
-    const smartValue = [item.quantity, item.unit, item.name].filter(Boolean).join(' ');
-    setSmartInput(smartValue);
-    setUseSmartInput(true);
-    setIsAddingItem(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      quantity: '',
-      unit: '',
-      location: '',
-      purchasedOn: '',
-      notes: ''
-    });
-    setSmartInput('');
-    setUseSmartInput(true);
-    setIsAddingItem(false);
-    setEditingItem(null);
-  };
-
-  // Reset search when switching tabs
   const handleTabSwitch = (tab: 'ingredients' | 'supplies') => {
     if (tab === activeTab) return;
     setActiveTab(tab);
@@ -673,29 +270,12 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
 
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newLocationName.trim() || !user) return;
-
-    try {
-      const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
-      const maxOrder = dbLocations.filter(l => l.category === category).length > 0 
-        ? Math.max(...dbLocations.filter(l => l.category === category).map(l => l.order || 0)) 
-        : -1;
-
-      await addDoc(collection(db, 'inventoryLocations'), {
-        name: newLocationName.trim(),
-        category,
-        userId: user.uid,
-        order: maxOrder + 1,
-        createdAt: serverTimestamp()
-      });
-      setNewLocationName('');
-      setIsAddingLocation(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'inventoryLocations');
-    }
+    if (!newLocationName.trim()) return;
+    await baseHandleAddLocation(newLocationName, activeTab === 'ingredients' ? 'ingredient' : 'supply');
+    setNewLocationName('');
+    setIsAddingLocation(false);
   };
 
-  // Handle expansion functions
   const handleExpand = (location: string) => {
     setExpandedLocation(location);
     window.history.pushState({ expanded: location }, '');
@@ -712,57 +292,30 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
       return;
     }
 
-    setIsEditingLocationName(false); // Set to false immediately to prevent multiple calls
+    setIsEditingLocationName(false);
     const newLocation = editLocationNameValue.trim();
-    const itemsToUpdate = items.filter(item => item.location === expandedLocation);
+    await baseHandleUpdateLocationName(expandedLocation, newLocation);
 
-    try {
-      const batch = writeBatch(db);
-      
-      // 1. Update all items in this location
-      itemsToUpdate.forEach(item => {
-        batch.update(doc(db, 'inventory', item.id), {
-          location: newLocation,
-          updatedAt: serverTimestamp()
-        });
-      });
-
-      // 2. Update the location document in inventoryLocations if it exists
-      const dbLoc = dbLocations.find(loc => loc.name === expandedLocation);
-      if (dbLoc) {
-        batch.update(doc(db, 'inventoryLocations', dbLoc.id), {
-          name: newLocation,
-          updatedAt: serverTimestamp()
-        });
+    setExpandedCards(prev => {
+      const next = { ...prev };
+      if (expandedLocation in next) {
+        next[newLocation] = next[expandedLocation];
+        delete next[expandedLocation];
       }
+      return next;
+    });
 
-      await batch.commit();
-
-      // Update expandedCards state
-      setExpandedCards(prev => {
-        const next = { ...prev };
-        if (expandedLocation in next) {
-          next[newLocation] = next[expandedLocation];
-          delete next[expandedLocation];
-        }
-        return next;
-      });
-
-      setExpandedLocation(newLocation);
-      setIsEditingLocationName(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'inventory/location/' + expandedLocation);
-    }
+    setExpandedLocation(newLocation);
   };
 
-  const handleCollapse = () => {
+  const handleCollapse = useCallback(() => {
     if (expandedLocation) {
       setExpandedLocation(null);
       setIsEditMode(false);
-      setExpandedCards({}); // Collapse grid cards too
+      setExpandedCards({});
       window.history.back();
     }
-  };
+  }, [expandedLocation]);
 
   const handleMoveLocationOrder = async (index: number, direction: 'up' | 'down') => {
     const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
@@ -776,37 +329,15 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
     categoryLocNames[index] = categoryLocNames[newIndex];
     categoryLocNames[newIndex] = temp;
 
-    // Update DB
-    try {
-      const batch = writeBatch(db);
-      for (let i = 0; i < categoryLocNames.length; i++) {
-        const name = categoryLocNames[i];
-        const existing = dbLocations.find(l => l.name === name && l.category === category);
-        
-        if (existing) {
-          if (existing.order !== i) {
-            batch.update(doc(db, 'inventoryLocations', existing.id), {
-              order: i,
-              updatedAt: serverTimestamp()
-            });
-          }
-        } else {
-          // Create it so it becomes a "real" location with an order
-          const newDocRef = doc(collection(db, 'inventoryLocations'));
-          batch.set(newDocRef, {
-            name,
-            category,
-            order: i,
-            userId: user?.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        }
-      }
-      await batch.commit();
-    } catch (error) {
-      console.error('Failed to update location order:', error);
-    }
+    const newLocs = [...dbLocations];
+    categoryLocNames.forEach((name, i) => {
+      const loc = newLocs.find(l => l.name === name && l.category === category);
+      if (loc) loc.order = i;
+    });
+
+    setDbLocations(newLocs);
+    pendingLocsRef.current = newLocs;
+    await syncReorderedLocations(category);
   };
 
   useEffect(() => {
@@ -818,13 +349,10 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
     setExpandedCards(prev => {
       const isCurrentlyExpanded = !!prev[location];
       if (!isCurrentlyExpanded) {
-        // Expanding this one, collapse all others
         const newState: Record<string, boolean> = {};
-        // All others are collapsed by default (not in newState)
-        newState[location] = true; // Expand this one
+        newState[location] = true;
         return newState;
       } else {
-        // Collapsing this one
         const newState = { ...prev };
         delete newState[location];
         return newState;
@@ -900,115 +428,20 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCollapse]); // handleCollapse is a stable useCallback
-
-
-  const handleReorderLocations = useCallback((newLocationsNames: string[]) => {
-    const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
-    
-    // Update DB locations with new order locally
-    setDbLocations(prev => {
-      const otherLocs = prev.filter(l => l.category !== category);
-      
-      // Create a map for quick lookup of new order
-      const orderMap = new Map(newLocationsNames.map((name, index) => [name, index]));
-      
-      // Update existing locations and add missing ones
-      const updatedLocs = [...prev]
-        .filter(l => l.category === category)
-        .map(l => {
-          if (orderMap.has(l.name)) {
-            return { ...l, order: orderMap.get(l.name) };
-          }
-          return l;
-        });
-        
-      // Add any names that are in newLocationsNames but not in dbLocations
-      newLocationsNames.forEach((name, index) => {
-        if (!updatedLocs.find(l => l.name === name)) {
-          updatedLocs.push({ name, category, userId: user?.uid, order: index });
-        }
-      });
-
-      const allLocs = [...otherLocs, ...updatedLocs];
-      pendingLocsRef.current = allLocs;
-      return allLocs;
-    });
-  }, [activeTab, user?.uid]);
-
-  const syncReorderedLocations = useCallback(async () => {
-    if (!pendingLocsRef.current || isSyncingLocsRef.current) return;
-    
-    const category = activeTab === 'ingredients' ? 'ingredient' : 'supply';
-    const locsToSync = [...pendingLocsRef.current];
-    isSyncingLocsRef.current = true;
-    
-    try {
-      const batch = writeBatch(db);
-      const categoryLocs = locsToSync.filter(l => l.category === category);
-      let hasChanges = false;
-      
-      // We need to make sure we only update locations that actually exist in DB
-      categoryLocs.forEach((loc) => {
-        if (loc.id) {
-          batch.update(doc(db, 'inventoryLocations', loc.id), { 
-            order: loc.order,
-            updatedAt: Timestamp.now()
-          });
-          hasChanges = true;
-        }
-      });
-      
-      if (hasChanges) {
-        await batch.commit();
-      }
-    } catch (error) {
-      console.error('Failed to sync locations reorder:', error);
-    } finally {
-      isSyncingLocsRef.current = false;
-      pendingLocsRef.current = null;
-    }
-  }, [activeTab]);
+  }, [handleCollapse, resetForm]);
 
   const handleReorderItems = useCallback((location: string, newItems: InventoryItem[]) => {
     setItems(prev => {
-      // Keep items from other locations
       const otherItems = prev.filter(item => item.location !== location);
-      
-      // Update order for items in this location
       const updatedItems = newItems.map((item, index) => ({
         ...item,
         order: index
       }));
-      
       const allItems = [...otherItems, ...updatedItems];
       pendingItemsRef.current = allItems;
       return allItems;
     });
-  }, []);
-
-  const syncReorderedItems = useCallback(async (location: string) => {
-    if (!pendingItemsRef.current || isSyncingItemsRef.current) return;
-    
-    const itemsToSync = [...pendingItemsRef.current].filter(item => item.location === location);
-    isSyncingItemsRef.current = true;
-    
-    try {
-      const batch = writeBatch(db);
-      itemsToSync.forEach((item) => {
-        batch.update(doc(db, 'inventory', item.id), { 
-          order: item.order,
-          updatedAt: Timestamp.now()
-        });
-      });
-      await batch.commit();
-    } catch (error) {
-      console.error('Failed to sync items reorder:', error);
-    } finally {
-      isSyncingItemsRef.current = false;
-      pendingItemsRef.current = null;
-    }
-  }, []);
+  }, [setItems, pendingItemsRef]);
 
   // Handle smart input parsing on blur or Enter key
   const handleSmartInputParse = () => {
@@ -1282,7 +715,7 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
                       handleExpand={handleExpand}
                       toggleItemUsed={toggleItemUsed}
                       startEdit={startEdit}
-                      handleDelete={handleDelete}
+                      handleDelete={handleDeleteItem}
                       checkboxStyle={checkboxStyle}
                       handleClearUsed={handleClearUsed}
                       handleRestockUsed={handleRestockUsed}
@@ -1355,7 +788,7 @@ export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) 
         filteredItems={currentFilteredItems}
         toggleItemUsed={toggleItemUsed}
         startEdit={startEdit}
-        handleDelete={handleDelete}
+        handleDelete={handleDeleteItem}
         handleClearUsed={handleClearUsed}
         handleRestockUsed={handleRestockUsed}
         handleClearAndRestockUsed={handleClearAndRestockUsed}

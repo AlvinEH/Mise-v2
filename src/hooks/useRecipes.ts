@@ -8,7 +8,6 @@ import { handleFirestoreError } from '../utils/firestore';
 export const useRecipes = (user: User | null) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [recipeToDelete, setRecipeToDelete] = useState<Recipe | null>(null);
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alpha'>('alpha');
 
   useEffect(() => {
     if (!user) {
@@ -38,8 +37,6 @@ export const useRecipes = (user: User | null) => {
     recipes,
     recipeToDelete,
     setRecipeToDelete,
-    sortBy,
-    setSortBy,
     handleDelete
-  }), [recipes, recipeToDelete, sortBy, handleDelete]);
+  }), [recipes, recipeToDelete, handleDelete]);
 };
