@@ -24,7 +24,7 @@ export const PageHeader: React.FC<PageHeaderProps> = memo(({ title, showBack, on
   return (
     <motion.header 
       layoutId="global-header"
-      className="flex flex-col border-b border-m3-outline/5 bg-m3-surface-container sticky top-0 z-40 pt-2 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] flex-shrink-0"
+      className="flex flex-col border-b border-m3-outline/5 bg-m3-surface-container sticky top-0 z-40 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] flex-shrink-0"
     >
       <div className="flex items-center px-4 h-16 lg:h-20 lg:px-8 relative">
         <div className="flex items-center flex-shrink-0 z-10 min-w-0">
