@@ -15,8 +15,8 @@ export const BottomNav = memo(() => {
   ];
 
   return (
-    <nav className="bg-m3-surface-container/95 backdrop-blur-md border-t border-m3-outline/10 px-2 pb-[env(safe-area-inset-bottom)] shrink-0">
-      <div className="max-w-md mx-auto flex items-center justify-around h-16">
+    <nav className="bg-m3-surface-container/95 backdrop-blur-md border-t border-m3-outline/10 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] shrink-0">
+      <div className="max-w-md mx-auto flex items-center h-16">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           
@@ -26,18 +26,18 @@ export const BottomNav = memo(() => {
               to={item.path}
               className="relative flex flex-col items-center justify-center flex-1 h-full group"
             >
-              <div className="relative flex flex-col items-center justify-center h-8 w-16">
+              <div className="relative flex items-center justify-center h-10 w-10">
                 {isActive && (
                   <motion.div
                     layoutId="nav-pill"
-                    className="absolute inset-0 bg-m3-primary rounded-full shadow-md"
+                    className="absolute inset-0 bg-m3-primary/15 rounded-full"
                     transition={{ type: "spring", stiffness: 400, damping: 33 }}
                   />
                 )}
                 <div className={`
                   relative z-10 flex items-center justify-center transition-colors duration-200
                   ${isActive 
-                    ? 'text-m3-on-primary' 
+                    ? 'text-m3-primary' 
                     : 'text-m3-on-surface-variant group-hover:text-m3-on-surface'}
                 `}>
                   <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
