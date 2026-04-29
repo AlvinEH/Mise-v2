@@ -62,13 +62,15 @@ export const SettingsPage = ({
   }, [user.uid]);
   
   const themes: { id: Theme, label: string, color: string }[] = [
-    { id: 'm3', label: 'Material 3', color: '#006d3b' },
     { id: 'catppuccin', label: 'Catppuccin', color: '#89b4fa' },
-    { id: 'rose-pine', label: 'Rose Pine', color: '#ebbcba' },
-    { id: 'gruvbox', label: 'Gruvbox', color: '#fabd2f' },
+    { id: 'dracula', label: 'Dracula', color: '#bd93f9' },
     { id: 'everforest', label: 'Everforest', color: '#a7c080' },
+    { id: 'gruvbox', label: 'Gruvbox', color: '#fabd2f' },
+    { id: 'm3', label: 'Material 3', color: '#006d3b' },
     { id: 'nord', label: 'Nord', color: '#88c0d0' },
+    { id: 'rose-pine', label: 'Rose Pine', color: '#ebbcba' },
     { id: 'sakura', label: 'Sakura', color: '#ffb7c5' },
+    { id: 'solarized', label: 'Solarized', color: '#b58900' },
   ];
 
   const currentTheme = themes.find(t => t.id === theme);

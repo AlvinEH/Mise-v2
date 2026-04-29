@@ -101,6 +101,10 @@ export const useTheme = (user?: User | null) => {
       'nord-dark': '#2e3440',
       'sakura-light': '#fffafa',
       'sakura-dark': '#2d1b1b',
+      'dracula-light': '#f8f8f2',
+      'dracula-dark': '#282a36',
+      'solarized-light': '#fdf6e3',
+      'solarized-dark': '#002b36',
     };
 
     const color = themeColors[themeValue] || '#ebf0eb';
