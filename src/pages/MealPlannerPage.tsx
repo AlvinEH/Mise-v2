@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, UtensilsCrossed, Calendar as CalendarIcon, Trash2, X, Search, Filter } from 'lucide-react';
+import { Plus, UtensilsCrossed, Calendar as CalendarIcon, Trash2, X, Filter, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HeaderSearchBar } from '../components/ui/HeaderSearchBar';
 import { format, addDays, subDays, isSameDay, startOfDay, isBefore, getDay, parseISO } from 'date-fns';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, getDocs, limit, serverTimestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -11,7 +12,6 @@ import { MealEntry } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestore';
 
 interface MealPlannerPageProps {
-  onMenuClick: () => void;
 }
 
 interface DayMeals {
@@ -19,7 +19,7 @@ interface DayMeals {
   dinner?: MealEntry;
 }
 
-export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
+export const MealPlannerPage = memo(() => {
   const { addToast } = useToast();
   const [user] = useAuthState(auth);
   const [meals, setMeals] = useState<MealEntry[]>([]);
@@ -30,7 +30,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
   const [selectedDate, setSelectedDate] = useState('');
   
   // Search state
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -125,14 +125,16 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
     }
   }, [meals.length]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim() || !user) return;
+  const handleSearch = async (queryText: string) => {
+    if (!queryText.trim() || !user) {
+      setHasSearched(false);
+      setSearchResults([]);
+      return;
+    }
 
     setIsSearching(true);
     setHasSearched(true);
-    setSearchResults([]);
-
+    
     try {
       // Fetch all user meal entries ordered by date desc
       // We'll filter them client-side for "contains" search
@@ -153,7 +155,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
       const matchingDates: string[] = [];
 
       for (const meal of allMeals) {
-        const matches = meal.recipeName?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matches = meal.recipeName?.toLowerCase().includes(queryText.toLowerCase());
         
         if (matches) {
           if (!matchingDates.includes(meal.date)) {
@@ -184,7 +186,7 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
   };
 
   const closeSearch = () => {
-    setShowSearchModal(false);
+    setIsSearchExpanded(false);
     setSearchQuery('');
     setSearchResults([]);
     setHasSearched(false);
@@ -329,6 +331,33 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
     }
   };
 
+  const handlePrevRange = () => {
+    setDateRange(prev => ({
+      start: subDays(prev.start, 15),
+      end: subDays(prev.end, 15)
+    }));
+    // Scroll to bottom after range update so user sees the transition from the top of the previous range
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'auto' });
+        scrollContainerRef.current.scrollTo({ top: scrollContainerRef.current.scrollHeight - 100, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  const handleNextRange = () => {
+    setDateRange(prev => ({
+      start: addDays(prev.start, 15),
+      end: addDays(prev.end, 15)
+    }));
+    // Scroll to top after range update
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const handleDatePicker = () => {
     setShowDatePicker(true);
     setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
@@ -360,8 +389,8 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
 
   if (!user) {
     return (
-      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-        <PageHeader title="Meal Planner" onMenuClick={onMenuClick} />
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <PageHeader title="Meal Planner" />
         <main className="flex-1 flex items-center justify-start p-8">
           <div className="text-center">
             <UtensilsCrossed size={64} className="mx-auto mb-6 text-m3-on-surface-variant/30" />
@@ -373,38 +402,129 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-m3-surface">
       <PageHeader 
-        title="Meal Planner" 
-        onMenuClick={onMenuClick} 
+        title={isSearchExpanded ? "" : "Meal Planner"} 
         actions={
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className="p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
-            title="Search meals"
-          >
-            <Search size={22} />
-          </button>
+          <>
+            <HeaderSearchBar
+              isExpanded={isSearchExpanded}
+              onExpandChange={(expanded) => {
+                setIsSearchExpanded(expanded);
+                if (!expanded) closeSearch();
+              }}
+              searchQuery={searchQuery}
+              onSearchQueryChange={(query) => {
+                setSearchQuery(query);
+                handleSearch(query);
+              }}
+              placeholder="Search Meals"
+              isSearching={isSearching}
+              maxWidth="78vw"
+            />
+          </>
         }
       />
       
       <main className="flex-1 overflow-hidden flex flex-col min-h-0">
+        {/* Search Results Overlay */}
+        <AnimatePresence>
+          {isSearchExpanded && hasSearched && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="px-6 py-4 bg-m3-surface-container-high border-b border-m3-outline-variant/20 z-40 shadow-lg"
+            >
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-xs font-black uppercase tracking-widest text-m3-on-surface-variant/60">
+                    {isSearching ? 'Searching...' : searchResults.length > 0 ? 'Recent Matches' : 'No Results Found'}
+                  </p>
+                  <button 
+                    onClick={closeSearch}
+                    className="text-xs font-black text-m3-primary hover:underline"
+                  >
+                    Close Results
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.date}
+                      onClick={() => goToResultDate(result.date, result.meals)}
+                      className="flex-1 min-w-[200px] p-3 rounded-2xl bg-m3-surface-container-low hover:bg-m3-primary/5 border border-m3-outline-variant/10 transition-all text-left group"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-m3-primary">
+                          {format(parseISO(result.date), 'EEE, MMM d')}
+                        </span>
+                        <Search size={12} className="text-m3-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="space-y-0.5">
+                        {result.meals.lunch && (
+                          <p className="text-xs text-m3-on-surface truncate">
+                            <span className="text-[10px] font-bold text-m3-on-surface-variant/40 mr-1.5">L</span>
+                            {result.meals.lunch.recipeName}
+                          </p>
+                        )}
+                        {result.meals.dinner && (
+                          <p className="text-xs text-m3-on-surface truncate">
+                            <span className="text-[10px] font-bold text-m3-on-surface-variant/40 mr-1.5">D</span>
+                            {result.meals.dinner.recipeName}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  {!isSearching && searchResults.length === 0 && (
+                    <div className="w-full text-center py-4">
+                      <p className="text-sm font-medium text-m3-on-surface-variant">
+                        No meals found matching "{searchQuery}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Navigation Controls */}
         <div className="px-6 py-4 bg-m3-surface z-10 border-b border-m3-outline-variant/20">
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-2 md:gap-6 max-w-4xl mx-auto">
             <button 
-              onClick={handleDatePicker}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-bold text-sm hover:shadow-md transition-all active:scale-95"
+              onClick={handlePrevRange}
+              className="p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+              title="Previous 15 days"
             >
-              <CalendarIcon size={18} className="text-m3-primary" />
-              Date
+              <ChevronLeft size={24} />
             </button>
+
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={handleDatePicker}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-m3-surface-container text-m3-on-surface font-bold text-sm hover:shadow-md transition-all active:scale-95"
+              >
+                <CalendarIcon size={18} className="text-m3-primary" />
+                <span className="hidden sm:inline">Date</span>
+              </button>
+              <button 
+                onClick={goToToday}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-m3-primary text-m3-on-primary font-bold text-sm hover:shadow-md transition-all active:scale-95"
+              >
+                <CalendarIcon size={18} className="text-m3-on-primary" />
+                Today
+              </button>
+            </div>
+
             <button 
-              onClick={goToToday}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-m3-primary text-m3-on-primary font-bold text-sm hover:shadow-md transition-all active:scale-95"
+              onClick={handleNextRange}
+              className="p-2 text-m3-on-surface-variant hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
+              title="Next 15 days"
             >
-              <CalendarIcon size={18} className="text-m3-on-primary" />
-              Today
+              <ChevronRight size={24} />
             </button>
           </div>
         </div>
@@ -514,106 +634,6 @@ export const MealPlannerPage = memo(({ onMenuClick }: MealPlannerPageProps) => {
 
       {/* Add/Edit Meal Modal */}
       <AnimatePresence>
-        {showSearchModal && (
-          <div 
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-            onClick={closeSearch}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-m3-surface-container-high rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
-            >
-              <div className="p-6 border-b border-m3-outline-variant/20 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-m3-on-surface">Search Meals</h2>
-                <button 
-                  onClick={closeSearch}
-                  className="p-2 rounded-full hover:bg-m3-surface-container-highest transition-colors"
-                >
-                  <X size={20} className="text-m3-on-surface-variant" />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto">
-                <form onSubmit={handleSearch}>
-                  <div className="relative group">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for a meal"
-                      autoCapitalize="words"
-                      className="w-full h-14 pl-12 pr-12 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base font-bold placeholder:text-m3-on-surface-variant/40 transition-all shadow-sm hover:shadow-md focus:shadow-md text-m3-on-surface"
-                    />
-                    <Search size={22} className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50 transition-colors group-focus-within:text-m3-primary" />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
-                      >
-                        <X size={20} />
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSearching || !searchQuery.trim()}
-                    className="w-full mt-6 py-2.5 bg-m3-primary text-m3-on-primary rounded-full font-semibold text-sm shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
-                  >
-                    {isSearching ? 'Searching...' : 'Search'}
-                  </button>
-                </form>
-
-                {(searchResults.length > 0 || (hasSearched && !isSearching)) && (
-                  <div className="space-y-4 mt-6">
-                    {searchResults.length > 0 ? (
-                      <>
-                        <p className="text-sm font-medium text-m3-on-surface-variant px-1">Recent Results</p>
-                        {searchResults.map((result) => (
-                          <button
-                            key={result.date}
-                            onClick={() => goToResultDate(result.date, result.meals)}
-                            className="w-full p-4 rounded-2xl bg-m3-surface-container-low hover:bg-m3-surface-container-low/80 transition-all text-left group shadow-sm"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-bold text-m3-primary">
-                                {format(parseISO(result.date), 'EEEE, MMM d')}
-                              </span>
-                              <Search size={14} className="text-m3-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <div className="space-y-1">
-                              {result.meals.lunch && (
-                                <p className="text-sm text-m3-on-surface flex items-center gap-2">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Lunch</span>
-                                  {result.meals.lunch.recipeName}
-                                </p>
-                              )}
-                              {result.meals.dinner && (
-                                <p className="text-sm text-m3-on-surface flex items-center gap-2">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-m3-on-surface-variant/50 w-12">Dinner</span>
-                                  {result.meals.dinner.recipeName}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </>
-                    ) : (
-                      <div className="text-center py-8">
-                        <Search size={48} className="mx-auto mb-4 text-m3-on-surface-variant/20" />
-                        <p className="text-m3-on-surface-variant">No meals found matching "{searchQuery}"</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-
         {showDatePicker && (
           <motion.div
             initial={{ opacity: 0 }}

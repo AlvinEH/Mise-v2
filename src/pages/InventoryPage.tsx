@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
-import { Plus, Edit2, Trash2, Package, Apple, Search, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings, SlidersHorizontal, ListOrdered } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, Apple, Check, X, ChevronDown, ChevronUp, Maximize2, Minimize2, ArrowUpDown, MoveHorizontal, ArrowRightLeft, ArrowUp, ArrowDown, Settings, SlidersHorizontal, ListOrdered } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, writeBatch, getDocs, serverTimestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { PageHeader } from '../components/layout/PageHeader';
+import { HeaderSearchBar } from '../components/ui/HeaderSearchBar';
 import { handleFirestoreError, OperationType } from '../utils/firestore';
 import { parseShoppingItem } from '../utils/shoppingItems';
 import { InventoryItem, CheckboxStyle } from '../types';
@@ -23,12 +24,11 @@ import { useToast } from '../contexts/ToastContext';
 import { STORAGE_KEYS, cacheData, getCachedData } from '../utils/cache';
 
 interface InventoryPageProps {
-  onMenuClick: () => void;
   user: User;
   checkboxStyle: CheckboxStyle;
 }
 
-export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: InventoryPageProps) => {
+export const InventoryPage = memo(({ user, checkboxStyle }: InventoryPageProps) => {
   const [activeTab, setActiveTab] = useState<'ingredients' | 'supplies'>('ingredients');
   const [items, setItems] = useState<InventoryItem[]>(() => getCachedData<InventoryItem[]>(STORAGE_KEYS.INVENTORY_ITEMS) || []);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +53,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   const [isSortingLocations, setIsSortingLocations] = useState(false);
   const [isSortingItems, setIsSortingItems] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [itemSortOrder, setItemSortOrder] = useState<InventorySortOrder>('custom');
   const [isEditingLocationName, setIsEditingLocationName] = useState(false);
   const [isAutoSortModalOpen, setIsAutoSortModalOpen] = useState(false);
@@ -1050,8 +1051,8 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
 
   if (!user) {
     return (
-      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-        <PageHeader title="Inventory" onMenuClick={onMenuClick} />
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <PageHeader title="Inventory" />
         <main className="flex-1 flex items-center justify-center p-8">
           <div className="text-center">
             <Package size={64} className="mx-auto mb-6 text-m3-on-surface-variant/30" />
@@ -1063,17 +1064,25 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
   }
 
   return (
-    <LayoutGroup id="inventory">
-      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+    <>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <PageHeader 
-        title="Inventory" 
-        onMenuClick={onMenuClick} 
+        title={isSearchExpanded ? "" : "Inventory"} 
         actions={
-          <div className="flex items-center gap-1 relative">
+          <>
+            <HeaderSearchBar
+              isExpanded={isSearchExpanded}
+              onExpandChange={setIsSearchExpanded}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              placeholder={`Search ${activeTab === 'ingredients' ? 'Ingredients' : 'Supplies'}`}
+              maxWidth="66vw"
+            />
+
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-full transition-all ${
-                isMenuOpen 
+              className={`p-2 rounded-full transition-all flex-shrink-0 ${
+                isMenuOpen
                   ? 'bg-m3-primary text-m3-on-primary shadow-md' 
                   : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
               }`}
@@ -1094,7 +1103,7 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 top-12 z-[100] w-60 bg-m3-surface rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-2 px-2 flex flex-col gap-1"
+                    className="absolute right-0 top-12 z-[100] w-56 bg-m3-surface-container rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-3 px-3 flex flex-col gap-1"
                   >
                     <button
                       onClick={() => {
@@ -1130,45 +1139,20 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                 </>
               )}
             </AnimatePresence>
-          </div>
+          </>
         }
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
         <div className="max-w-7xl mx-auto">
-          {/* Search and Tabs */}
-          <div className="mb-8 flex flex-col gap-4 max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 w-full">
-              <div className="relative flex-1 group">
-                <Search 
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-m3-on-surface-variant/50 transition-colors group-focus-within:text-m3-primary" 
-                  size={24} 
-                />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab === 'ingredients' ? 'Ingredients' : 'Supplies'}`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoCapitalize="words"
-                  className="w-full h-14 pl-12 pr-14 bg-m3-surface-container-low border-none rounded-full outline-none focus:ring-2 focus:ring-m3-primary/20 text-base font-bold placeholder:text-m3-on-surface-variant/40 transition-all shadow-sm hover:shadow-md focus:shadow-md"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-m3-on-surface-variant hover:text-m3-on-surface rounded-full hover:bg-m3-surface-variant/20 transition-all"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
-              </div>
-            </div>
-
+          {/* Tabs and Indicator */}
+          <div className="mb-8 flex flex-col gap-6 max-w-4xl mx-auto">
             <div className="flex items-center justify-center w-full">
-              <div className="flex items-center gap-1 bg-m3-surface-container-high p-1 rounded-full w-full sm:w-auto">
+              <div className="flex items-center gap-1 bg-m3-surface-container-high p-1 rounded-full w-full sm:w-auto shadow-sm">
                 <button
                   onClick={() => handleTabSwitch('ingredients')}
-                  className={`flex-1 sm:px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[100px] ${
-                    activeTab === 'ingredients'
-                      ? 'bg-m3-primary text-m3-on-primary shadow-md'
+                  className={`flex-1 sm:px-8 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[120px] ${
+                    activeTab === 'ingredients' 
+                      ? 'bg-m3-primary text-m3-on-primary shadow-md' 
                       : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
                   }`}
                 >
@@ -1176,9 +1160,9 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                 </button>
                 <button
                   onClick={() => handleTabSwitch('supplies')}
-                  className={`flex-1 sm:px-6 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[100px] ${
-                    activeTab === 'supplies'
-                      ? 'bg-m3-primary text-m3-on-primary shadow-md'
+                  className={`flex-1 sm:px-8 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center min-w-[120px] ${
+                    activeTab === 'supplies' 
+                      ? 'bg-m3-primary text-m3-on-primary shadow-md' 
                       : 'text-m3-on-surface-variant hover:bg-m3-surface-variant/30'
                   }`}
                 >
@@ -1186,6 +1170,21 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
                 </button>
               </div>
             </div>
+
+            {/* Active Search Indicator */}
+            {searchQuery && (
+              <div className="flex items-center justify-between bg-m3-primary/5 px-4 py-2 rounded-xl border border-m3-primary/10">
+                <span className="text-xs font-bold text-m3-primary truncate">
+                  Showing results for "{searchQuery}"
+                </span>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs font-black text-m3-primary hover:underline ml-2 flex-shrink-0"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           <AnimatePresence>
@@ -1385,10 +1384,10 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
       <AnimatePresence>
         {!expandedLocation && !Object.values(expandedCards).some(v => v === true) && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed bottom-6 right-6 z-40 pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-6 right-6 z-40"
           >
             <motion.button 
               onClick={() => setIsAddingLocation(!isAddingLocation)}
@@ -1423,6 +1422,6 @@ export const InventoryPage = memo(({ onMenuClick, user, checkboxStyle }: Invento
         onClose={() => setIsAutoSortModalOpen(false)}
         user={user}
       />
-    </LayoutGroup>
+    </>
   );
 });

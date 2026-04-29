@@ -161,7 +161,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-1 flex flex-col h-[100dvh] overflow-hidden bg-m3-surface"
+      className="flex-1 flex flex-col min-h-0 overflow-hidden bg-m3-surface"
     >
       <PageHeader 
         title="Recipe" 
@@ -171,7 +171,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
           <>
             <button 
               onClick={() => onEdit(recipe)}
-              className="p-2 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
+              className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
               title="Edit Recipe"
             >
               <Pencil size={20} />
@@ -181,7 +181,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                 href={recipe.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 hover:bg-m3-surface-variant/30 text-m3-on-surface rounded-full transition-colors"
+                className="p-2 text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10 rounded-full transition-all"
                 title="View Original"
               >
                 <ExternalLink size={20} />
@@ -189,7 +189,7 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
             )}
             <button 
               onClick={() => onDelete(recipe)}
-              className="p-2 hover:bg-m3-surface-variant/30 text-red-600 rounded-full transition-colors"
+              className="p-2 text-m3-error/60 hover:text-m3-error hover:bg-m3-error/10 rounded-full transition-all"
               title="Delete Recipe"
             >
               <Trash2 size={20} />
@@ -325,6 +325,15 @@ export const RecipePage: React.FC<RecipePageProps> = ({ recipes, onEdit, onDelet
                       </button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {recipe.notes && (
+              <div>
+                <h2 className="text-2xl font-bold text-m3-on-surface mb-4">Notes & Tips</h2>
+                <div className="prose prose-m3 max-w-none italic text-m3-on-surface-variant">
+                  <Markdown>{recipe.notes}</Markdown>
                 </div>
               </div>
             )}

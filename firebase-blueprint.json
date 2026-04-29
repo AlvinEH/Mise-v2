@@ -50,6 +50,10 @@
           "type": "string",
           "description": "The number of servings or yield of the recipe."
         },
+        "notes": {
+          "type": "string",
+          "description": "Additional tips, notes, or variations for the recipe (Markdown)."
+        },
         "tags": {
           "type": "array",
           "items": {

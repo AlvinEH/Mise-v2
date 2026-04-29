@@ -116,7 +116,7 @@ export const IngredientItem = ({
         opacity: { duration: 0.2 },
         y: { type: "spring", stiffness: 200, damping: 25, mass: 1 }
       }}
-      className={`relative flex flex-col px-4 pb-4 pt-2.5 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
+      className={`relative flex flex-col px-4 pb-1 pt-2.5 bg-m3-surface-variant/30 rounded-2xl cursor-pointer ${isActive ? 'ring-2 ring-m3-primary/30 shadow-lg' : 'hover:bg-m3-surface-variant/50'}`}
     >
       <div className="flex flex-col">
         <AnimatePresence initial={false}>

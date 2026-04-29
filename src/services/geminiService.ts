@@ -18,6 +18,7 @@ export interface ExtractedRecipe {
   ingredientSections: IngredientSection[];
   instructions: string;
   servings: string;
+  notes?: string;
 }
 
 export interface AISortedItem {
@@ -43,6 +44,7 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
     3. Look for the main recipe content. If this is a Reddit link to a specific comment, focus on that comment's text.
     4. Distinguish between the core ingredient name and 'notes' or preparation details. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise.
     5. Identify if an ingredient is mentioned as optional.
+    6. Extract any extra tips, notes, or variations provided in the recipe and put them in the 'notes' field.
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`,
     config: {
@@ -76,7 +78,8 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
             }
           },
           instructions: { type: Type.STRING },
-          servings: { type: Type.STRING }
+          servings: { type: Type.STRING },
+          notes: { type: Type.STRING, description: "Any extra tips, notes, or variations for the recipe. Format in Markdown." }
         },
         required: ['title', 'ingredientSections', 'instructions']
       }
@@ -104,7 +107,8 @@ export const extractRecipeFromText = async (text: string): Promise<ExtractedReci
     1. Capture ingredients and instructions EXACTLY as written. Do not summarize or omit steps.
     2. Do NOT change amounts or units unless converting simple fractions to decimals (e.g., "1/2" to "0.5"). Keep complex fractions if they don't convert neatly.
     3. Distinguish between the core ingredient name and 'notes' or preparation details. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise.
-    4. Identify if an ingredient is mentioned as optional.
+    5. Identify if an ingredient is mentioned as optional.
+    6. Extract any extra tips, notes, or variations provided in the recipe and put them in the 'notes' field.
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`,
     config: {
@@ -138,7 +142,8 @@ export const extractRecipeFromText = async (text: string): Promise<ExtractedReci
             }
           },
           instructions: { type: Type.STRING },
-          servings: { type: Type.STRING }
+          servings: { type: Type.STRING },
+          notes: { type: Type.STRING, description: "Any extra tips, notes, or variations for the recipe. Format in Markdown." }
         },
         required: ['title', 'ingredientSections', 'instructions']
       }
@@ -157,7 +162,7 @@ export const extractRecipeFromImage = async (base64Data: string, mimeType: strin
   const model = ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: [
-      { text: "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, and servings. Capture ingredients and instructions EXACTLY as written in the image. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise. Identify optional flags." },
+      { text: "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, servings, and any extra tips or notes. Capture ingredients and instructions EXACTLY as written in the image. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise. Identify optional flags. Extract any extra tips, notes, or variations provided in the recipe into the 'notes' field." },
       { inlineData: { data: base64Data, mimeType } }
     ],
     config: {
@@ -191,7 +196,8 @@ export const extractRecipeFromImage = async (base64Data: string, mimeType: strin
             }
           },
           instructions: { type: Type.STRING },
-          servings: { type: Type.STRING }
+          servings: { type: Type.STRING },
+          notes: { type: Type.STRING, description: "Any extra tips, notes, or variations for the recipe. Format in Markdown." }
         },
         required: ['title', 'ingredientSections', 'instructions']
       }

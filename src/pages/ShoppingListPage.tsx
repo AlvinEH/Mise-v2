@@ -16,7 +16,8 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
-import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown, ShoppingCart, SlidersHorizontal, ListOrdered, Settings } from 'lucide-react';
+import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown, ShoppingCart, SlidersHorizontal, ListOrdered, Settings, Search } from 'lucide-react';
+import { HeaderSearchBar } from '../components/ui/HeaderSearchBar';
 
 import { db } from '../firebase';
 import { StoreList, ShoppingItem, OperationType } from '../types';
@@ -37,13 +38,12 @@ import { STORAGE_KEYS, cacheData, getCachedData, SESSION_KEYS, setSessionData, g
 import { CheckboxStyle } from '../types';
 
 interface ShoppingListPageProps {
-  onMenuClick: () => void;
   user: User;
   checkboxStyle: CheckboxStyle;
   aiAutoSort?: boolean;
 }
 
-export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
+export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
   const { addToast } = useToast();
   const [storeLists, setStoreLists] = useState<StoreList[]>(() => getCachedData<StoreList[]>(STORAGE_KEYS.SHOPPING_LISTS) || []);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => getCachedData<ShoppingItem[]>(STORAGE_KEYS.SHOPPING_ITEMS) || []);
@@ -54,6 +54,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
   const [isSortingStores, setIsSortingStores] = useState(false);
   const [isSortingItems, setIsSortingItems] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [itemSortOrder, setItemSortOrder] = useState<InventorySortOrder>('custom');
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
@@ -226,8 +228,19 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
   }, [user]);
 
   const sortedShoppingItems = React.useMemo(() => {
+    let items = [...shoppingItems];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      items = items.filter(item => 
+        item.name.toLowerCase().includes(query) ||
+        (item.unit && item.unit.toLowerCase().includes(query)) ||
+        (item.amount && item.amount.toLowerCase().includes(query))
+      );
+    }
+
     if (itemSortOrder === 'custom') {
-      return [...shoppingItems].sort((a, b) => {
+      return items.sort((a, b) => {
         const orderA = a.order ?? 0;
         const orderB = b.order ?? 0;
         if (orderA !== orderB) return orderA - orderB;
@@ -260,6 +273,18 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
     });
     return groups;
   }, [sortedShoppingItems]);
+
+  const filteredStoreLists = React.useMemo(() => {
+    if (!searchQuery.trim()) return storeLists;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return storeLists.filter(store => {
+      // Store matches if its name matches OR if any of its filtered items match
+      const nameMatch = store.name.toLowerCase().includes(query);
+      const hasMatchingItems = itemsByStoreList[store.id] && itemsByStoreList[store.id].length > 0;
+      return nameMatch || hasMatchingItems;
+    });
+  }, [storeLists, searchQuery, itemsByStoreList]);
 
   const handleMoveStoreOrder = async (index: number, direction: 'up' | 'down') => {
     const lists = [...storeLists].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -670,8 +695,8 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
 
   if (!user) {
     return (
-      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
-        <PageHeader title="Shopping List" onMenuClick={onMenuClick} />
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <PageHeader title="Shopping List" />
         <main className="flex-1 flex items-center justify-center p-8">
           <div className="text-center">
             <ShoppingCart size={64} className="mx-auto mb-6 text-m3-on-surface-variant/30" />
@@ -683,19 +708,26 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
   }
 
   return (
-    <LayoutGroup id="shopping-list">
-      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <PageHeader 
-        title="Shopping List" 
-        onMenuClick={onMenuClick} 
+        title={isSearchExpanded ? "" : "Shopping List"} 
         actions={
-          <div className="flex items-center gap-1 relative">
+          <>
+            <HeaderSearchBar
+              isExpanded={isSearchExpanded}
+              onExpandChange={setIsSearchExpanded}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              placeholder="Search Shopping List"
+              maxWidth="66vw"
+            />
+
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-full transition-all ${
+              className={`p-2 rounded-full transition-all flex-shrink-0 ${
                 isMenuOpen 
-                  ? 'bg-m3-primary text-m3-on-primary shadow-md' 
-                  : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
+              ? 'bg-m3-primary text-m3-on-primary shadow-md' 
+              : 'text-m3-on-surface-variant/60 hover:text-m3-primary hover:bg-m3-primary/10'
               }`}
               title="Options"
             >
@@ -714,7 +746,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 top-12 z-[100] w-60 bg-m3-surface rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-2 px-2 flex flex-col gap-1"
+                    className="absolute right-0 top-12 z-[100] w-56 bg-m3-surface-container rounded-2xl shadow-2xl border border-m3-outline/10 overflow-hidden py-3 px-3 flex flex-col gap-1"
                   >
                     <button
                       onClick={() => {
@@ -740,7 +772,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
                 </>
               )}
             </AnimatePresence>
-          </div>
+          </>
         }
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-10 min-h-0">
@@ -776,6 +808,23 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
                   exit: { opacity: 0 }
                 }}
               >
+                {searchQuery.trim() && filteredStoreLists.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col items-center justify-center py-20 text-center"
+                  >
+                    <Search size={48} className="text-m3-on-surface-variant/20 mb-4" />
+                    <p className="text-m3-on-surface-variant font-medium">No matches found for "{searchQuery}"</p>
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="mt-4 text-m3-primary font-bold hover:underline px-4 py-2"
+                    >
+                      Clear search
+                    </button>
+                  </motion.div>
+                )}
+                
                 <AnimatePresence>
                   {isAddingStore && (
                 <motion.div 
@@ -828,7 +877,7 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
             <AnimatePresence initial={true}>
               {storeLists.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
-                  {storeLists.map((list, index) => (
+                  {filteredStoreLists.map((list, index) => (
                       <StoreCardWrapper
                         key={list.id}
                         list={list}
@@ -884,10 +933,10 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
       <AnimatePresence>
         {!expandedListId && !expandedCardId && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed bottom-6 right-6 z-40 pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute bottom-6 right-6 z-40"
           >
             <motion.button 
               onClick={() => setIsAddingStore(!isAddingStore)}
@@ -966,6 +1015,5 @@ export const ShoppingListPage = ({ onMenuClick, user, checkboxStyle, aiAutoSort 
         onMove={handleMoveStoreItems}
       />
     </div>
-    </LayoutGroup>
   );
 };

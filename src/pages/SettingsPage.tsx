@@ -6,7 +6,6 @@ import { Theme, Mode, CheckboxStyle } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
 
 interface SettingsPageProps {
-  onMenuClick: () => void;
   user: User;
   onLogout: () => void;
   theme: Theme;
@@ -20,7 +19,6 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage = ({ 
-  onMenuClick, 
   user, 
   onLogout,
   theme,
@@ -68,10 +66,9 @@ export const SettingsPage = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <PageHeader 
         title="Settings" 
-        onMenuClick={onMenuClick} 
       />
       <main className="flex-1 overflow-y-auto p-8 sm:p-12 max-w-4xl mx-auto w-full min-h-0">
         <div className="space-y-12">

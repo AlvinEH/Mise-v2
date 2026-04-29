@@ -35,10 +35,9 @@ import { OperationType, Recipe } from '../types';
 
 interface AddRecipePageProps {
   user: User;
-  onMenuClick: () => void;
 }
 
-export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick }) => {
+export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user }) => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
@@ -55,11 +54,13 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
     instructions: string;
     sourceUrl: string;
     servings: string;
+    notes: string;
   }>({
     title: '',
     instructions: '',
     sourceUrl: '',
-    servings: ''
+    servings: '',
+    notes: ''
   });
   
   const [ingredientSections, setIngredientSections] = useState<{ 
@@ -90,7 +91,8 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
               title: data.title,
               instructions: data.instructions || '',
               sourceUrl: data.sourceUrl || '',
-              servings: data.servings || ''
+              servings: data.servings || '',
+              notes: data.notes || ''
             });
             
             if (data.ingredientSections && data.ingredientSections.length > 0) {
@@ -274,7 +276,8 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
       title: extracted.title,
       instructions: formatInstructions(extracted.instructions),
       sourceUrl: '',
-      servings: extracted.servings || ''
+      servings: extracted.servings || '',
+      notes: extracted.notes || ''
     });
     
     if (extracted.ingredientSections && extracted.ingredientSections.length > 0) {
@@ -406,6 +409,7 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
         ingredientSections: finalIngredientSections,
         instructions: form.instructions || '',
         servings: form.servings || '',
+        notes: form.notes || '',
         updatedAt: serverTimestamp()
       };
 
@@ -750,36 +754,49 @@ export const AddRecipePage: React.FC<AddRecipePageProps> = ({ user, onMenuClick 
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Instructions (Markdown)</label>
-                <button 
-                  type="button"
-                  onClick={() => setForm(prev => ({ ...prev, instructions: formatInstructions(prev.instructions) }))}
-                  className="text-xs text-m3-primary font-black hover:bg-m3-primary/10 px-3 py-1.5 rounded-full transition-all"
-                >
-                  Clean Up Formatting
-                </button>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Instructions (Markdown)</label>
+                  <button 
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, instructions: formatInstructions(prev.instructions) }))}
+                    className="text-xs text-m3-primary font-black hover:bg-m3-primary/10 px-3 py-1.5 rounded-full transition-all"
+                  >
+                    Clean Up Formatting
+                  </button>
+                </div>
+                <textarea 
+                  rows={10}
+                  required
+                  value={form.instructions}
+                  onChange={e => setForm({...form, instructions: e.target.value})}
+                  className="w-full px-6 py-5 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[24px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium leading-relaxed"
+                  placeholder="1. Preheat oven to 350°F&#10;2. Mix ingredients&#10;3. Bake for 25 minutes"
+                />
               </div>
-              <textarea 
-                rows={10}
-                required
-                value={form.instructions}
-                onChange={e => setForm({...form, instructions: e.target.value})}
-                className="w-full px-6 py-5 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[24px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium leading-relaxed"
-                placeholder="1. Preheat oven to 350°F&#10;2. Mix ingredients&#10;3. Bake for 25 minutes"
-              />
-            </div>
 
-            <div className="space-y-4">
-              <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Source URL (Optional)</label>
-              <TextareaAutosize 
-                value={form.sourceUrl}
-                onChange={e => setForm({...form, sourceUrl: e.target.value})}
-                className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium"
-                minRows={1}
-                placeholder="https://example.com/original-recipe"
-              />
+              <div className="space-y-4">
+                <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Tips & Notes (Markdown)</label>
+                <TextareaAutosize 
+                  value={form.notes}
+                  onChange={e => setForm({...form, notes: e.target.value})}
+                  className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium leading-relaxed"
+                  minRows={3}
+                  placeholder="Add any tips, variations, or special notes here..."
+                />
+              </div>
+
+              <div className="space-y-4">
+                <label className="block text-xs font-black text-m3-primary uppercase tracking-[0.2em]">Source URL (Optional)</label>
+                <TextareaAutosize 
+                  value={form.sourceUrl}
+                  onChange={e => setForm({...form, sourceUrl: e.target.value})}
+                  className="w-full px-6 py-4 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-[20px] focus:bg-m3-surface-variant/30 focus:ring-2 focus:ring-m3-primary/20 focus:border-m3-primary outline-none resize-none text-m3-on-surface transition-all font-medium"
+                  minRows={1}
+                  placeholder="https://example.com/original-recipe"
+                />
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-8 border-t border-m3-outline/10">

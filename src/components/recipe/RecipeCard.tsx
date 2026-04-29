@@ -1,6 +1,5 @@
 import React, { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { Users } from 'lucide-react';
 import { Recipe } from '../../types';
 
@@ -12,14 +11,9 @@ export const RecipeCard = memo(({ recipe }: RecipeCardProps) => {
   const navigate = useNavigate();
   
   return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ y: -4 }}
+    <div 
       onClick={() => navigate(`/recipe/${recipe.id}`)}
-      className="bg-m3-surface-variant/20 rounded-[24px] border border-m3-outline/10 overflow-hidden cursor-pointer group transition-colors hover:bg-m3-surface-variant/40"
+      className="bg-m3-surface-variant/20 rounded-[24px] border border-m3-outline/10 overflow-hidden cursor-pointer group transition-all duration-300 hover:bg-m3-surface-variant/40"
     >
       <div className="p-4">
         <div className="flex justify-between items-start mb-2 gap-2">
@@ -34,6 +28,6 @@ export const RecipeCard = memo(({ recipe }: RecipeCardProps) => {
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 });

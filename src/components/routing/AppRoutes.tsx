@@ -27,7 +27,6 @@ interface AppRoutesProps {
   setSortBy: (sort: 'newest' | 'oldest' | 'alpha') => void;
   isSortModalOpen: boolean;
   setIsSortModalOpen: (open: boolean) => void;
-  setIsSidebarOpen: (open: boolean) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   mode: Mode;
@@ -40,10 +39,10 @@ interface AppRoutesProps {
 }
 
 const pageTransition = {
-  initial: { y: 10, opacity: 0 },
-  animate: { y: 0, opacity: 1 },
-  exit: { y: 10, opacity: 0 },
-  transition: { duration: 0.2, ease: 'easeOut' as const }
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.15, ease: 'easeOut' as const }
 };
 
 export const AppRoutes: React.FC<AppRoutesProps> = memo((
@@ -58,7 +57,6 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
     setSortBy,
     isSortModalOpen,
     setIsSortModalOpen,
-    setIsSidebarOpen,
     theme,
     setTheme,
     mode,
@@ -73,15 +71,14 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
   return (
     <Routes>
       <Route path="/" element={
-        <motion.div key="home" {...pageTransition} className="flex-1 flex flex-col min-h-0">
-          <HomePage onMenuClick={() => setIsSidebarOpen(true)} />
+        <motion.div key="home" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
+          <HomePage />
         </motion.div>
       } />
       
       <Route path="/recipes" element={
-        <motion.div key="recipes" {...pageTransition} className="flex-1 flex flex-col min-h-0">
+        <motion.div key="recipes" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
           <RecipesPage
-            onMenuClick={() => setIsSidebarOpen(true)}
             recipes={recipes}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -96,27 +93,26 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       } />
       
       <Route path="/recipe/:id" element={
-        <motion.div key="recipe-detail" {...pageTransition}>
+        <motion.div key="recipe-detail" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
           <RecipePage recipes={recipes} onEdit={onEdit} onDelete={onDelete} checkboxStyle={checkboxStyle} />
         </motion.div>
       } />
       
       <Route path="/add-recipe" element={
-        <motion.div key="add-recipe" {...pageTransition}>
-          <AddRecipePage user={user} onMenuClick={() => setIsSidebarOpen(true)} />
+        <motion.div key="add-recipe" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
+          <AddRecipePage user={user} />
         </motion.div>
       } />
 
       <Route path="/edit-recipe/:id" element={
-        <motion.div key="edit-recipe" {...pageTransition}>
-          <AddRecipePage user={user} onMenuClick={() => setIsSidebarOpen(true)} />
+        <motion.div key="edit-recipe" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
+          <AddRecipePage user={user} />
         </motion.div>
       } />
       
       <Route path="/inventory" element={
-        <motion.div key="inventory" {...pageTransition} className="flex-1 flex flex-col min-h-0">
+        <motion.div key="inventory" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
           <InventoryPage 
-            onMenuClick={() => setIsSidebarOpen(true)} 
             user={user!}
             checkboxStyle={checkboxStyle}
           />
@@ -124,9 +120,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       } />
       
       <Route path="/shopping-list" element={
-        <motion.div key="shopping-list" {...pageTransition} className="flex-1 flex flex-col min-h-0">
+        <motion.div key="shopping-list" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
           <ShoppingListPage 
-            onMenuClick={() => setIsSidebarOpen(true)} 
             user={user!} 
             checkboxStyle={checkboxStyle}
             aiAutoSort={aiAutoSort}
@@ -135,15 +130,14 @@ export const AppRoutes: React.FC<AppRoutesProps> = memo((
       } />
       
       <Route path="/meal-planner" element={
-        <motion.div key="meal-planner" {...pageTransition} className="flex-1 flex flex-col min-h-0">
-          <MealPlannerPage onMenuClick={() => setIsSidebarOpen(true)} />
+        <motion.div key="meal-planner" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
+          <MealPlannerPage />
         </motion.div>
       } />
       
       <Route path="/settings" element={
-        <motion.div key="settings" {...pageTransition} className="flex-1 flex flex-col min-h-0">
+        <motion.div key="settings" {...pageTransition} className="relative flex-1 flex flex-col min-h-0">
           <SettingsPage 
-            onMenuClick={() => setIsSidebarOpen(true)} 
             theme={theme}
             setTheme={setTheme}
             mode={mode}

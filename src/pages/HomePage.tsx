@@ -1,14 +1,11 @@
 import React, { memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, ShoppingCart, Package, BookOpen } from 'lucide-react';
+import { Calendar, ShoppingCart, Package, BookOpen, Settings } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 
-interface HomePageProps {
-  onMenuClick: () => void;
-}
-
-export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
+export const HomePage = memo(() => {
+  const navigate = useNavigate();
   const pages = [
     {
       icon: Calendar,
@@ -41,10 +38,9 @@ export const HomePage = memo(({ onMenuClick }: HomePageProps) => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-m3-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-m3-surface">
       <PageHeader 
         title="Welcome to Mise" 
-        onMenuClick={onMenuClick} 
       />
       
       <main className="flex-1 overflow-auto p-6">

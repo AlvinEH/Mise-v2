@@ -8,6 +8,7 @@ export interface Recipe extends Omit<ExtractedRecipe, 'ingredients'> {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   sourceUrl?: string;
+  notes?: string;
   tags?: string[];
   ingredients?: Ingredient[]; // Keep for backward compatibility
 }

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { LogIn } from 'lucide-react';
 
 // Components
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import { Sidebar } from './components/layout/Sidebar';
+import { BottomNav } from './components/layout/BottomNav';
 import { AppRoutes } from './components/routing/AppRoutes';
 
 // Hooks
@@ -67,7 +67,6 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
 function App() {
   const { user, isAuthReady } = useAuth();
   const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle, aiAutoSort, setAiAutoSort } = useTheme();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const hasResetRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSortModalOpen, setIsSortModalOpen] = useState(false);
@@ -100,10 +99,8 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [handleClickOutside]);
 
-  const handleSidebarClose = useCallback(() => setIsSidebarOpen(false), []);
-  const handleSidebarOpen = useCallback(() => setIsSidebarOpen(true), []);
-
-  // Determine if we should hide the sidebar based on current route
+  // Determine if we should hide the nav based on current route
+  // Typically we might want it always, or hide it deep in details.
   const isRecipeDetailPage = useMemo(() => 
     location.pathname.startsWith('/recipe/') || 
     location.pathname === '/add-recipe' || 
@@ -145,52 +142,48 @@ function App() {
   }
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-m3-surface">
-      {/* Sidebar */}
-      {!isRecipeDetailPage && (
-        <Sidebar 
-          isOpen={isSidebarOpen}
-          onClose={handleSidebarClose}
-        />
-      )}
+    <LayoutGroup>
+      <div className="flex flex-col h-[100dvh] overflow-hidden bg-m3-surface-container pt-[env(safe-area-inset-top)]">
+          {/* Main Content */}
+          <div className="relative flex-1 flex flex-col overflow-hidden bg-m3-surface min-h-0">
+            <AppRoutes
+              user={user}
+              recipes={recipes}
+              onEdit={handleEdit}
+              onDelete={setRecipeToDelete}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              isSortModalOpen={isSortModalOpen}
+              setIsSortModalOpen={setIsSortModalOpen}
+              theme={theme}
+              setTheme={setTheme}
+              mode={mode}
+              setMode={setMode}
+              checkboxStyle={checkboxStyle}
+              setCheckboxStyle={setCheckboxStyle}
+              aiAutoSort={aiAutoSort}
+              setAiAutoSort={setAiAutoSort}
+              onLogout={logOut}
+            />
+          </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
-        <AppRoutes
-          user={user}
-          recipes={recipes}
-          onEdit={handleEdit}
-          onDelete={setRecipeToDelete}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          sortBy={sortBy}
-          setSortBy={setSortBy}
-          isSortModalOpen={isSortModalOpen}
-          setIsSortModalOpen={setIsSortModalOpen}
-          setIsSidebarOpen={handleSidebarOpen}
-          theme={theme}
-          setTheme={setTheme}
-          mode={mode}
-          setMode={setMode}
-          checkboxStyle={checkboxStyle}
-          setCheckboxStyle={setCheckboxStyle}
-          aiAutoSort={aiAutoSort}
-          setAiAutoSort={setAiAutoSort}
-          onLogout={logOut}
-        />
-      </div>
+          {/* Bottom Navigation */}
+          {!isRecipeDetailPage && <BottomNav />}
 
-      {/* Delete Recipe Modal */}
-      <AnimatePresence>
-        {recipeToDelete && (
-          <DeleteModal
-            recipe={recipeToDelete}
-            onCancel={() => setRecipeToDelete(null)}
-            onDelete={handleDelete}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+          {/* Delete Recipe Modal */}
+          <AnimatePresence>
+            {recipeToDelete && (
+              <DeleteModal
+                recipe={recipeToDelete}
+                onCancel={() => setRecipeToDelete(null)}
+                onDelete={handleDelete}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+    </LayoutGroup>
   );
 }
 
