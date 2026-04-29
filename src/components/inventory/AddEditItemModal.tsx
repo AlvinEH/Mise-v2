@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { InventoryItem } from '../../types';
 import { INVENTORY_UNITS } from '../../constants/units';
 
@@ -44,6 +44,7 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
   handleSubmit,
   currentLocations
 }) => {
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -194,16 +195,60 @@ export const AddEditItemModal: React.FC<AddEditItemModalProps> = ({
                 <label className="block text-sm font-bold text-m3-on-surface-variant mb-2">
                   Location
                 </label>
-                <select
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  className="w-full px-4 py-3 bg-m3-surface-variant/20 border border-m3-outline/20 rounded-2xl outline-none focus:border-m3-primary font-medium"
-                >
-                  <option value="">Select location</option>
-                  {currentLocations.map(location => (
-                    <option key={location} value={location}>{location}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-m3-surface-variant/10 border border-m3-outline/10 rounded-2xl outline-none focus:border-m3-primary/30 font-medium transition-all text-sm"
+                  >
+                    <span className={formData.location ? 'text-m3-on-surface' : 'text-m3-on-surface-variant/40'}>
+                      {formData.location || 'Select location'}
+                    </span>
+                    <ChevronDown 
+                      size={18} 
+                      className={`text-m3-on-surface-variant transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`} 
+                    />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isLocationDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40 bg-transparent" 
+                          onClick={() => setIsLocationDropdownOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          className="absolute left-0 right-0 top-full mt-2 bg-m3-surface border border-m3-outline/10 rounded-2xl shadow-2xl z-50 py-2 max-h-[160px] overflow-y-auto"
+                        >
+                          {currentLocations.length > 0 ? (
+                            currentLocations.map((location) => (
+                              <button
+                                key={location}
+                                type="button"
+                                onClick={() => {
+                                  setFormData({...formData, location});
+                                  setIsLocationDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-3 text-sm font-bold transition-colors hover:bg-m3-primary/5 ${
+                                  formData.location === location ? 'text-m3-primary bg-m3-primary/5' : 'text-m3-on-surface'
+                                }`}
+                              >
+                                {location}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-xs font-bold text-m3-on-surface-variant/40 italic">
+                              No locations available
+                            </div>
+                          )}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
               {activeTab === 'ingredients' && (
