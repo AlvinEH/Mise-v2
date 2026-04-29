@@ -110,6 +110,24 @@ service cloud.firestore {
              data.updatedAt == request.time;
     }
 
+    function isValidGeminiSettings(data) {
+      return data.keys().hasAll(['apiKey', 'updatedAt']) &&
+             data.keys().size() == 2 &&
+             data.apiKey is string && data.apiKey.size() > 0 && data.apiKey.size() < 200 &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidUserPreferences(data) {
+      let required = ['theme', 'mode', 'checkboxStyle', 'aiAutoSort', 'updatedAt'];
+      return data.keys().hasAll(required) &&
+             data.keys().size() == 5 &&
+             data.theme is string &&
+             data.mode is string &&
+             data.checkboxStyle is string &&
+             data.aiAutoSort is bool &&
+             data.updatedAt == request.time;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -118,6 +136,18 @@ service cloud.firestore {
       allow get: if isAdmin() || isOwner(userId);
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(incoming()) && incoming().role == 'user';
       allow update: if (isAdmin() || (isOwner(userId) && incoming().role == existing().role)) && isValidUser(incoming());
+      
+      match /settings/gemini {
+        allow get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidGeminiSettings(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      match /settings/preferences {
+        allow get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidUserPreferences(incoming());
+        allow delete: if isOwner(userId);
+      }
     }
 
     match /recipes/{recipeId} {
@@ -164,7 +194,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
                     incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
                     incoming().updatedAt == request.time &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order']));
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order']);
       allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 

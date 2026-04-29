@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { motion } from 'motion/react';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon, Sparkles } from 'lucide-react';
 import { Theme, Mode, CheckboxStyle } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
@@ -32,9 +34,32 @@ export const SettingsPage = ({
 }: SettingsPageProps) => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isCheckboxDropdownOpen, setIsCheckboxDropdownOpen] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('Mise-gemini-api-key') || '');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [isLoadingKey, setIsLoadingKey] = useState(true);
+
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'settings', 'gemini');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setGeminiApiKey(docSnap.data().apiKey || '');
+          // Keep localStorage as a fallback for offline/legacy support if needed, 
+          // but we prioritize cloud now.
+          if (docSnap.data().apiKey) {
+            localStorage.setItem('Mise-gemini-api-key', docSnap.data().apiKey);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching API key:', error);
+      } finally {
+        setIsLoadingKey(false);
+      }
+    };
+    fetchApiKey();
+  }, [user.uid]);
   
   const themes: { id: Theme, label: string, color: string }[] = [
     { id: 'm3', label: 'Material 3', color: '#006d3b' },
@@ -55,14 +80,28 @@ export const SettingsPage = ({
     setApiKeySaved(false);
   };
 
-  const saveApiKey = () => {
-    if (geminiApiKey.trim()) {
-      localStorage.setItem('Mise-gemini-api-key', geminiApiKey.trim());
-    } else {
-      localStorage.removeItem('Mise-gemini-api-key');
+  const saveApiKey = async () => {
+    try {
+      const docRef = doc(db, 'users', user.uid, 'settings', 'gemini');
+      if (geminiApiKey.trim()) {
+        await setDoc(docRef, {
+          apiKey: geminiApiKey.trim(),
+          updatedAt: serverTimestamp()
+        });
+        localStorage.setItem('Mise-gemini-api-key', geminiApiKey.trim());
+      } else {
+        await setDoc(docRef, {
+          apiKey: '',
+          updatedAt: serverTimestamp()
+        });
+        localStorage.removeItem('Mise-gemini-api-key');
+      }
+      setApiKeySaved(true);
+      setTimeout(() => setApiKeySaved(false), 2000);
+    } catch (error) {
+      console.error('Error saving API key:', error);
+      alert('Failed to save API key to your account.');
     }
-    setApiKeySaved(true);
-    setTimeout(() => setApiKeySaved(false), 2000);
   };
 
   return (

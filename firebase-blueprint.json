@@ -338,6 +338,35 @@
         }
       },
       "required": ["keyword", "location", "category", "userId", "createdAt"]
+    },
+    "GeminiSettings": {
+      "title": "Gemini Settings",
+      "description": "User-specific Gemini API settings.",
+      "type": "object",
+      "properties": {
+        "apiKey": {
+          "type": "string",
+          "description": "The private Gemini API key."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["apiKey", "updatedAt"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "description": "User-specific UI and application preferences.",
+      "type": "object",
+      "properties": {
+        "theme": { "type": "string" },
+        "mode": { "type": "string" },
+        "checkboxStyle": { "type": "string" },
+        "aiAutoSort": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["theme", "mode", "checkboxStyle", "aiAutoSort", "updatedAt"]
     }
   },
   "firestore": {
@@ -348,6 +377,14 @@
     "users": {
       "schema": "User",
       "description": "Collection of user profiles."
+    },
+    "users/{userId}/settings/gemini": {
+      "schema": "GeminiSettings",
+      "description": "Secure storage for user Gemini API keys."
+    },
+    "users/{userId}/settings/preferences": {
+      "schema": "UserPreferences",
+      "description": "User UI preferences (theme, mode, etc.)."
     },
     "storeLists": {
       "schema": "StoreList",

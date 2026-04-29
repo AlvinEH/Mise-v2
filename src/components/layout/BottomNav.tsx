@@ -15,8 +15,8 @@ export const BottomNav = memo(() => {
   ];
 
   return (
-    <nav className="bg-m3-surface-container/95 backdrop-blur-md border-t border-m3-outline/10 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] shrink-0">
-      <div className="max-w-md mx-auto flex items-center h-16">
+    <nav className="bg-m3-surface-container/95 backdrop-blur-md border-t border-m3-outline/10 shrink-0">
+      <div className="max-w-md mx-auto flex items-center h-16 pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)]">
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           

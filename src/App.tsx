@@ -66,7 +66,7 @@ const DeleteModal = ({ recipe, onCancel, onDelete }: {
 // --- Main App Component ---
 function App() {
   const { user, isAuthReady } = useAuth();
-  const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle, aiAutoSort, setAiAutoSort } = useTheme();
+  const { theme, setTheme, mode, setMode, checkboxStyle, setCheckboxStyle, aiAutoSort, setAiAutoSort } = useTheme(user);
   const hasResetRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSortModalOpen, setIsSortModalOpen] = useState(false);
