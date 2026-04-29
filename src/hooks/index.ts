@@ -97,6 +97,10 @@ export const useTheme = (user?: User | null) => {
       'gruvbox-dark': '#32302f',
       'everforest-light': '#f3ead3',
       'everforest-dark': '#343c41',
+      'nord-light': '#eceff4',
+      'nord-dark': '#2e3440',
+      'sakura-light': '#fffafa',
+      'sakura-dark': '#2d1b1b',
     };
 
     const color = themeColors[themeValue] || '#ebf0eb';

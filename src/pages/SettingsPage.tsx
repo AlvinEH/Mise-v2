@@ -67,6 +67,8 @@ export const SettingsPage = ({
     { id: 'rose-pine', label: 'Rose Pine', color: '#ebbcba' },
     { id: 'gruvbox', label: 'Gruvbox', color: '#fabd2f' },
     { id: 'everforest', label: 'Everforest', color: '#a7c080' },
+    { id: 'nord', label: 'Nord', color: '#88c0d0' },
+    { id: 'sakura', label: 'Sakura', color: '#ffb7c5' },
   ];
 
   const currentTheme = themes.find(t => t.id === theme);
@@ -249,7 +251,7 @@ export const SettingsPage = ({
                     type={showApiKey ? "text" : "password"}
                     value={geminiApiKey}
                     onChange={handleApiKeyChange}
-                    className="w-full px-4 py-3 bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[20px] outline-none focus:border-m3-primary font-mono text-sm transition-all"
+                    className="w-full pl-4 pr-12 py-3 bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[20px] outline-none focus:border-m3-primary font-mono text-sm transition-all"
                   />
                   <button
                     type="button"

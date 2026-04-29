@@ -56,7 +56,7 @@ export interface InventoryItem {
 }
 
 // Theme Types
-export type Theme = 'm3' | 'catppuccin' | 'rose-pine' | 'gruvbox' | 'everforest';
+export type Theme = 'm3' | 'catppuccin' | 'rose-pine' | 'gruvbox' | 'everforest' | 'nord' | 'sakura';
 export type Mode = 'light' | 'dark';
 export type CheckboxStyle = 'square' | 'circle';
 
