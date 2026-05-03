@@ -102,7 +102,7 @@ service cloud.firestore {
 
     function isValidInventoryItem(data) {
       return data.keys().hasAll(['name', 'category', 'userId', 'createdAt', 'updatedAt']) &&
-             data.keys().size() <= 12 &&
+             data.keys().size() <= 14 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.category in ['ingredient', 'supply'] &&
              data.userId == request.auth.uid &&
@@ -194,7 +194,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
                     incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
                     incoming().updatedAt == request.time &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order']);
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order', 'movedAt', 'isLow']);
       allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 

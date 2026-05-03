@@ -270,6 +270,15 @@
         "order": {
           "type": "integer",
           "description": "The sort order of the item within its location."
+        },
+        "movedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was moved to a different location."
+        },
+        "isLow": {
+          "type": "boolean",
+          "description": "Whether the item is running low on stock."
         }
       },
       "required": ["name", "category", "userId", "createdAt", "updatedAt"]

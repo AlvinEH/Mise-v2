@@ -3,7 +3,7 @@ import { User } from 'firebase/auth';
 import { motion } from 'motion/react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon, Sparkles, Smartphone } from 'lucide-react';
+import { Palette, Sun, Moon, LogOut, ChevronDown, Key, Eye, EyeOff, CheckSquare, Circle, User as UserIcon, Sparkles, Monitor } from 'lucide-react';
 import { Theme, Mode, CheckboxStyle } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
 
@@ -33,7 +33,6 @@ export const SettingsPage = ({
   setAiAutoSort
 }: SettingsPageProps) => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
-  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const [isCheckboxDropdownOpen, setIsCheckboxDropdownOpen] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -76,11 +75,11 @@ export const SettingsPage = ({
 
   const currentTheme = themes.find(t => t.id === theme);
 
-  const modeOptions: { id: Mode, label: string, icon: React.ReactNode }[] = [
-    { id: 'auto', label: 'Auto (System)', icon: <Smartphone size={20} /> },
-    { id: 'light', label: 'Light', icon: <Sun size={20} /> },
-    { id: 'dark', label: 'Dark', icon: <Moon size={20} /> },
-  ];
+  const toggleMode = () => {
+    if (mode === 'light') setMode('dark');
+    else if (mode === 'dark') setMode('auto');
+    else setMode('light');
+  };
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setGeminiApiKey(e.target.value);
@@ -125,9 +124,22 @@ export const SettingsPage = ({
             transition={{ duration: 0.4, delay: 0.1 }}
             className="space-y-8"
           >
-            <div className="flex items-center gap-3">
-              <Palette className="text-m3-primary" size={28} />
-              <h3 className="text-2xl font-black text-m3-on-surface">Appearance</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Palette className="text-m3-primary" size={28} />
+                <h3 className="text-2xl font-black text-m3-on-surface">Appearance</h3>
+              </div>
+              
+              {/* Mode Toggle */}
+              <button
+                onClick={toggleMode}
+                className="p-3 bg-m3-surface-variant/20 hover:bg-m3-surface-variant/40 rounded-xl transition-all"
+                title={mode === 'light' ? 'Switch to Dark Mode' : mode === 'dark' ? 'Switch to Auto Mode' : 'Switch to Light Mode'}
+              >
+                {mode === 'light' ? <Sun size={24} className="text-m3-on-surface" /> : 
+                 mode === 'dark' ? <Moon size={24} className="text-m3-on-surface" /> : 
+                 <Monitor size={24} className="text-m3-on-surface" />}
+              </button>
             </div>
 
             {/* Color Palette Dropdown */}
@@ -161,45 +173,6 @@ export const SettingsPage = ({
                         >
                           <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: t.color }} />
                           <span className="font-black text-m3-on-surface">{t.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Light/Dark Mode Selector */}
-              <div className="space-y-4">
-                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Light/Dark Mode</label>
-                <div className="relative">
-                  <button
-                    onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
-                    className="w-full flex items-center justify-between p-4 bg-m3-surface-variant/10 hover:bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] transition-all"
-                  >
-                    <div className="flex items-center gap-4 text-m3-on-surface">
-                      {mode === 'auto' && <Smartphone size={24} />}
-                      {mode === 'light' && <Sun size={24} />}
-                      {mode === 'dark' && <Moon size={24} />}
-                      <span className="font-black capitalize">{mode === 'auto' ? 'Auto (System)' : mode}</span>
-                    </div>
-                    <ChevronDown size={20} className={`text-m3-on-surface-variant transition-transform ${isModeDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {isModeDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-m3-surface border border-m3-outline/10 rounded-[24px] shadow-xl z-10 overflow-hidden">
-                      {modeOptions.map((modeOption) => (
-                        <button
-                          key={modeOption.id}
-                          onClick={() => {
-                            setMode(modeOption.id);
-                            setIsModeDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-4 p-4 hover:bg-m3-surface-variant/20 transition-all ${
-                            mode === modeOption.id ? 'bg-m3-primary/5' : ''
-                          }`}
-                        >
-                          <div className="text-m3-on-surface">{modeOption.icon}</div>
-                          <span className="font-black text-m3-on-surface">{modeOption.label}</span>
                         </button>
                       ))}
                     </div>
