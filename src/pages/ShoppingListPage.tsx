@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, memo, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { User } from 'firebase/auth';
 import { 
   collection, 
@@ -15,7 +15,7 @@ import {
   getDocs,
   serverTimestamp
 } from 'firebase/firestore';
-import { motion, AnimatePresence, Reorder, useDragControls, LayoutGroup } from 'motion/react';
+import { motion, AnimatePresence, Reorder, LayoutGroup } from 'motion/react';
 import { Plus, Minimize2, Trash2, Edit2, X, MoveHorizontal, ChevronDown, ArrowRightLeft, ArrowUp, ArrowDown, ArrowUpDown, ShoppingCart, SlidersHorizontal, ListOrdered, Settings, Search } from 'lucide-react';
 import { HeaderSearchBar } from '../components/ui/HeaderSearchBar';
 
@@ -43,7 +43,7 @@ interface ShoppingListPageProps {
   aiAutoSort?: boolean;
 }
 
-export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
+export const ShoppingListPage = memo(({ user, checkboxStyle, aiAutoSort = false }: ShoppingListPageProps) => {
   const { addToast } = useToast();
   const [storeLists, setStoreLists] = useState<StoreList[]>(() => getCachedData<StoreList[]>(STORAGE_KEYS.SHOPPING_LISTS) || []);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => getCachedData<ShoppingItem[]>(STORAGE_KEYS.SHOPPING_ITEMS) || []);
@@ -227,7 +227,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     };
   }, [user]);
 
-  const sortedShoppingItems = React.useMemo(() => {
+  const sortedShoppingItems = useMemo(() => {
     let items = [...shoppingItems];
 
     if (searchQuery.trim()) {
@@ -264,7 +264,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     });
   }, [shoppingItems, itemSortOrder]);
 
-  const itemsByStoreList = React.useMemo(() => {
+  const itemsByStoreList = useMemo(() => {
     const groups: Record<string, ShoppingItem[]> = {};
     sortedShoppingItems.forEach(item => {
       const storeListId = item.storeListId;
@@ -274,7 +274,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     return groups;
   }, [sortedShoppingItems]);
 
-  const filteredStoreLists = React.useMemo(() => {
+  const filteredStoreLists = useMemo(() => {
     if (!searchQuery.trim()) return storeLists;
     
     const query = searchQuery.toLowerCase().trim();
@@ -499,7 +499,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     }
   };
 
-  const getInventoryLocationAndCategory = (itemName: string, _currentLocations: any[]): { location: string; category: 'ingredient' | 'supply' } => {
+  const getInventoryLocationAndCategory = useCallback((itemName: string, _currentLocations: any[]): { location: string; category: 'ingredient' | 'supply' } => {
     const name = itemName.toLowerCase();
     
     // 1. Check unified rules (Highest priority)
@@ -510,7 +510,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     
     // Default to Refrigerator for groceries
     return { location: 'Refrigerator', category: 'ingredient' };
-  };
+  }, [autoSortRules]);
 
   const handleClearCompleted = useCallback(async (storeListId: string) => {
     const completedItems = shoppingItems.filter(item => item.storeListId === storeListId && item.completed);
@@ -1016,4 +1016,4 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       />
     </div>
   );
-};
+});

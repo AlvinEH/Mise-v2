@@ -165,7 +165,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidId(listId) && isValidStoreList(incoming());
       allow update: if isAuthenticated() && isValidId(listId) && isDocOwner() && 
                     incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'order']);
       allow delete: if isAuthenticated() && isValidId(listId) && (isAdmin() || isDocOwner());
     }
 
