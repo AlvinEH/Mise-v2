@@ -2,7 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import admin from "firebase-admin";
 import fs from "fs";
 
@@ -64,28 +64,29 @@ async function startServer() {
       if (operation === 'generateContent') {
         const { prompt, config } = params;
         
-        let generationConfig: any = { ...config };
+        // Define schemas for specific known prompts if needed
+        let generationConfig = { ...config };
         if (prompt.includes("Extract the recipe details")) {
           generationConfig.responseSchema = {
-            type: Type.OBJECT,
+            type: "object",
             properties: {
-              title: { type: Type.STRING },
+              title: { type: "string" },
               ingredientSections: {
-                type: Type.ARRAY,
+                type: "array",
                 items: {
-                  type: Type.OBJECT,
+                  type: "object",
                   properties: {
-                    title: { type: Type.STRING },
+                    title: { type: "string" },
                     items: {
-                      type: Type.ARRAY,
+                      type: "array",
                       items: {
-                        type: Type.OBJECT,
+                        type: "object",
                         properties: {
-                          name: { type: Type.STRING },
-                          amount: { type: Type.STRING },
-                          unit: { type: Type.STRING },
-                          note: { type: Type.STRING },
-                          isOptional: { type: Type.BOOLEAN }
+                          name: { type: "string" },
+                          amount: { type: "string" },
+                          unit: { type: "string" },
+                          note: { type: "string" },
+                          isOptional: { type: "boolean" }
                         },
                         required: ["name"]
                       }
@@ -94,25 +95,25 @@ async function startServer() {
                   required: ["items"]
                 }
               },
-              instructions: { type: Type.STRING },
-              servings: { type: Type.STRING },
-              notes: { type: Type.STRING }
+              instructions: { type: "string" },
+              servings: { type: "string" },
+              notes: { type: "string" }
             },
             required: ["title", "ingredientSections", "instructions"]
           };
         } else if (prompt.includes("Categorize the following household/grocery items")) {
           generationConfig.responseSchema = {
-            type: Type.ARRAY,
+            type: "array",
             items: {
-              type: Type.OBJECT,
+              type: "object",
               properties: {
-                name: { type: Type.STRING },
+                name: { type: "string" },
                 location: { 
-                  type: Type.STRING, 
+                  type: "string", 
                   enum: ['Pantry', 'Freezer', 'Refrigerator', 'Washroom', 'Laundry Room', 'Under Sink', 'Cat Supplies'] 
                 },
                 category: { 
-                  type: Type.STRING, 
+                  type: "string", 
                   enum: ['ingredient', 'supply'] 
                 }
               },
@@ -130,28 +131,28 @@ async function startServer() {
       } else if (operation === 'generateContentWithImage') {
         const { prompt, imageData, mimeType, config } = params;
         
-        let generationConfig: any = { ...config };
+        let generationConfig = { ...config };
         if (prompt.includes("Extract the recipe details")) {
           generationConfig.responseSchema = {
-            type: Type.OBJECT,
+            type: "object",
             properties: {
-              title: { type: Type.STRING },
+              title: { type: "string" },
               ingredientSections: {
-                type: Type.ARRAY,
+                type: "array",
                 items: {
-                  type: Type.OBJECT,
+                  type: "object",
                   properties: {
-                    title: { type: Type.STRING },
+                    title: { type: "string" },
                     items: {
-                      type: Type.ARRAY,
+                      type: "array",
                       items: {
-                        type: Type.OBJECT,
+                        type: "object",
                         properties: {
-                          name: { type: Type.STRING },
-                          amount: { type: Type.STRING },
-                          unit: { type: Type.STRING },
-                          note: { type: Type.STRING },
-                          isOptional: { type: Type.BOOLEAN }
+                          name: { type: "string" },
+                          amount: { type: "string" },
+                          unit: { type: "string" },
+                          note: { type: "string" },
+                          isOptional: { type: "boolean" }
                         },
                         required: ["name"]
                       }
@@ -160,9 +161,9 @@ async function startServer() {
                   required: ["items"]
                 }
               },
-              instructions: { type: Type.STRING },
-              servings: { type: Type.STRING },
-              notes: { type: Type.STRING }
+              instructions: { type: "string" },
+              servings: { type: "string" },
+              notes: { type: "string" }
             },
             required: ["title", "ingredientSections", "instructions"]
           };
