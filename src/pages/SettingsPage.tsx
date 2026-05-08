@@ -34,32 +34,6 @@ export const SettingsPage = ({
 }: SettingsPageProps) => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isCheckboxDropdownOpen, setIsCheckboxDropdownOpen] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [apiKeySaved, setApiKeySaved] = useState(false);
-
-  useEffect(() => {
-    // Load local API key if it exists
-    const savedKey = localStorage.getItem('Mise-gemini-api-key');
-    if (savedKey) {
-      setGeminiApiKey(savedKey);
-    }
-  }, []);
-
-  const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGeminiApiKey(e.target.value);
-    setApiKeySaved(false);
-  };
-
-  const saveApiKey = () => {
-    if (geminiApiKey.trim()) {
-      localStorage.setItem('Mise-gemini-api-key', geminiApiKey.trim());
-    } else {
-      localStorage.removeItem('Mise-gemini-api-key');
-    }
-    setApiKeySaved(true);
-    setTimeout(() => setApiKeySaved(false), 2000);
-  };
 
   const themes: { id: Theme, label: string, color: string }[] = [
     { id: 'catppuccin', label: 'Catppuccin', color: '#89b4fa' },
@@ -212,46 +186,7 @@ export const SettingsPage = ({
             </div>
             
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Gemini API Key</label>
-                <p className="text-xs text-m3-on-surface-variant font-medium">
-                  If you are hosting this app statically (e.g. GitHub Pages), enter your Google AI Studio API key here. 
-                  In the standard mise environment, this is handled automatically.
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-m3-primary hover:underline ml-1">
-                    Get a key →
-                  </a>
-                </p>
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <input
-                      type={showApiKey ? "text" : "password"}
-                      value={geminiApiKey}
-                      onChange={handleApiKeyChange}
-                      className="w-full pl-4 pr-12 py-3 bg-m3-surface-variant/20 border border-m3-outline/10 rounded-[24px] outline-none focus:border-m3-primary font-mono text-sm transition-all"
-                      placeholder="Enter API Key..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-m3-on-surface-variant/60 hover:text-m3-on-surface-variant transition-colors"
-                    >
-                      {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={saveApiKey}
-                    className={`px-8 py-3 rounded-full font-black text-sm transition-all active:scale-95 ${
-                      apiKeySaved 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-m3-primary text-m3-on-primary shadow-sm hover:shadow-md'
-                    }`}
-                  >
-                    {apiKeySaved ? 'Saved!' : 'Save'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-m3-outline/10">
+              <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-black text-m3-on-surface">AI Auto-Sort Items</span>
@@ -274,9 +209,9 @@ export const SettingsPage = ({
                 </button>
               </div>
 
-              <div className="p-4 bg-m3-primary/10 rounded-[24px] border border-m3-primary/20">
+              <div className="p-4 bg-m3-primary/10 rounded-[20px] border border-m3-primary/20">
                 <p className="text-sm text-m3-primary font-bold">
-                  ✓ AI features are powered by Google Gemini.
+                  ✓ AI features are powered by Google Gemini and are enabled for your account.
                 </p>
               </div>
             </div>
