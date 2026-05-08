@@ -64,6 +64,8 @@ const getAI = async () => {
   return aiInstance;
 };
 
+const GEMINI_MODEL = "gemini-2.0-flash";
+
 // Response Schemas for structured output
 const RECIPE_SCHEMA = {
   type: Type.OBJECT,
@@ -115,7 +117,7 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: GEMINI_MODEL,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
       responseMimeType: "application/json",
@@ -144,7 +146,7 @@ export const extractRecipeFromText = async (text: string): Promise<ExtractedReci
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: GEMINI_MODEL,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
       responseMimeType: "application/json",
@@ -160,7 +162,7 @@ export const extractRecipeFromImage = async (base64Data: string, mimeType: strin
   const prompt = "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, servings, and any extra tips or notes. Capture ingredients and instructions EXACTLY as written in the image. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise. Identify optional flags. Extract any extra tips, notes, or variations provided in the recipe into the 'notes' field.";
   
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: GEMINI_MODEL,
     contents: [
       {
         role: 'user',
@@ -197,7 +199,7 @@ ${existingRules.map(r => `- ${r.keyword} -> ${r.location} (${r.category})`).join
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
