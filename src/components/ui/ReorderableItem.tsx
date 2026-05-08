@@ -64,9 +64,7 @@ export const ReorderableItem = memo(({
       transition={transition}
       layout="position"
       whileDrag={{ 
-        scale: 1.02, 
-        zIndex: 50,
-        boxShadow: "0 8px 16px rgba(0,0,0,0.12)"
+        zIndex: 50
       }}
       className={className}
       style={{ position: 'relative', willChange: 'transform', transform: 'translate3d(0,0,0)' }}
