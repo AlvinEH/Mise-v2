@@ -1,4 +1,6 @@
-import { auth } from "../firebase";
+import { GoogleGenAI, Type } from "@google/genai";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 export type Ingredient = {
   name: string;
@@ -27,30 +29,79 @@ export interface AISortedItem {
   category: 'ingredient' | 'supply';
 }
 
-const executeGemini = async (operation: string, params: any): Promise<string> => {
+/**
+ * Fetches the Gemini API key. 
+ * Prioritizes the user's key from Firestore if they've provided one,
+ * falls back to the environment variable.
+ */
+const getApiKey = async (): Promise<string> => {
   const user = auth.currentUser;
-  if (!user) throw new Error('User not authenticated');
-
-  const token = await user.getIdToken();
-  const response = await fetch('/api/gemini/execute', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ operation, params })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || 'Failed to execute Gemini operation');
+  if (user) {
+    try {
+      const docRef = doc(db, 'users', user.uid, 'settings', 'gemini');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().apiKey) {
+        return docSnap.data().apiKey;
+      }
+    } catch (e) {
+      console.error("Error fetching user API key, falling back to system key:", e);
+    }
   }
+  
+  const systemKey = process.env.GEMINI_API_KEY;
+  if (!systemKey) {
+    throw new Error("Gemini API key not configured. Please check your settings.");
+  }
+  return systemKey;
+};
 
-  const data = await response.json();
-  return data.result;
+let aiInstance: GoogleGenAI | null = null;
+const getAI = async () => {
+  if (!aiInstance) {
+    const apiKey = await getApiKey();
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
+
+// Response Schemas for structured output
+const RECIPE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    ingredientSections: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          items: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                amount: { type: Type.STRING },
+                unit: { type: Type.STRING },
+                note: { type: Type.STRING },
+                isOptional: { type: Type.BOOLEAN }
+              },
+              required: ["name"]
+            }
+          }
+        },
+        required: ["items"]
+      }
+    },
+    instructions: { type: Type.STRING },
+    servings: { type: Type.STRING },
+    notes: { type: Type.STRING }
+  },
+  required: ["title", "ingredientSections", "instructions"]
 };
 
 export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe> => {
+  const ai = await getAI();
   const prompt = `Extract the recipe details from this URL: ${url}. 
     
     CRITICAL INSTRUCTIONS:
@@ -63,18 +114,20 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
-  const config = {
-    responseMimeType: "application/json",
-    // We omit the complex responseSchema here and let the server-side model handle it 
-    // or we can pass it if we want to be strict. For simplicity in the proxy, 
-    // we'll use consistent prompts and expect the same results.
-  };
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: RECIPE_SCHEMA
+    }
+  });
 
-  const result = await executeGemini('generateContent', { prompt, config });
-  return JSON.parse(result);
+  return JSON.parse(response.text || '{}');
 };
 
 export const extractRecipeFromText = async (text: string): Promise<ExtractedRecipe> => {
+  const ai = await getAI();
   const prompt = `Extract the recipe details from this text: 
     
     ---
@@ -90,34 +143,47 @@ export const extractRecipeFromText = async (text: string): Promise<ExtractedReci
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
-  const config = {
-    responseMimeType: "application/json",
-  };
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: RECIPE_SCHEMA
+    }
+  });
 
-  const result = await executeGemini('generateContent', { prompt, config });
-  return JSON.parse(result);
+  return JSON.parse(response.text || '{}');
 };
 
 export const extractRecipeFromImage = async (base64Data: string, mimeType: string): Promise<ExtractedRecipe> => {
+  const ai = await getAI();
   const prompt = "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, servings, and any extra tips or notes. Capture ingredients and instructions EXACTLY as written in the image. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise. Identify optional flags. Extract any extra tips, notes, or variations provided in the recipe into the 'notes' field.";
   
-  const config = {
-    responseMimeType: "application/json",
-  };
-
-  const result = await executeGemini('generateContentWithImage', { 
-    prompt, 
-    imageData: base64Data, 
-    mimeType,
-    config 
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          { inlineData: { data: base64Data, mimeType } }
+        ]
+      }
+    ],
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: RECIPE_SCHEMA
+    }
   });
-  return JSON.parse(result);
+
+  return JSON.parse(response.text || '{}');
 };
 
 export const suggestLocationsBatched = async (
   itemNames: string[], 
   existingRules?: { keyword: string; location: string; category: string }[]
 ): Promise<Map<string, { location: string; category: 'ingredient' | 'supply' }>> => {
+  const ai = await getAI();
   const rulesContext = existingRules && existingRules.length > 0 
     ? `Follow the pattern of these existing user rules for similar items:
 ${existingRules.map(r => `- ${r.keyword} -> ${r.location} (${r.category})`).join('\n')}`
@@ -129,13 +195,34 @@ ${existingRules.map(r => `- ${r.keyword} -> ${r.location} (${r.category})`).join
     
     Items: ${itemNames.join(', ')}`;
 
-  const config = {
-    responseMimeType: "application/json",
-  };
-
   try {
-    const result = await executeGemini('generateContent', { prompt, config });
-    const results: AISortedItem[] = JSON.parse(result);
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              location: { 
+                type: Type.STRING, 
+                enum: ['Pantry', 'Freezer', 'Refrigerator', 'Washroom', 'Laundry Room', 'Under Sink', 'Cat Supplies'] 
+              },
+              category: { 
+                type: Type.STRING, 
+                enum: ['ingredient', 'supply'] 
+              }
+            },
+            required: ["name", "location", "category"]
+          }
+        }
+      }
+    });
+
+    const results: AISortedItem[] = JSON.parse(response.text || '[]');
     const resultMap = new Map<string, { location: string; category: 'ingredient' | 'supply' }>();
     
     results.forEach(res => {

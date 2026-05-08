@@ -27,7 +27,7 @@ export const useTheme = (user?: User | null) => {
     (localStorage.getItem('Mise-theme') as Theme) || 'm3'
   );
   const [mode, setMode] = useState<Mode>(() => 
-    (localStorage.getItem('Mise-mode') as Mode) || 'auto'
+    (localStorage.getItem('Mise-mode') as Mode) || 'light'
   );
   const [checkboxStyle, setCheckboxStyle] = useState<CheckboxStyle>(() => 
     (localStorage.getItem('Mise-checkbox-style') as CheckboxStyle) || 'square'
@@ -35,29 +35,12 @@ export const useTheme = (user?: User | null) => {
   const [aiAutoSort, setAiAutoSort] = useState<boolean>(() => 
     localStorage.getItem('Mise-ai-auto-sort') === 'true'
   );
-  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  const [systemMode, setSystemMode] = useState<'light' | 'dark'>(() => 
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  );
 
   const isInitialLoad = useRef(true);
   const lastSyncedData = useRef<any>(null);
-
-  // Listen for system preference changes
-  useEffect(() => {
-    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemPrefersDark(e.matches);
-    };
-
-    // Add listener for preference changes
-    darkModeQuery.addEventListener('change', handleChange);
-    
-    return () => {
-      darkModeQuery.removeEventListener('change', handleChange);
-    };
-  }, []);
 
   // Sync from Firestore on mount/login
   useEffect(() => {
@@ -97,10 +80,12 @@ export const useTheme = (user?: User | null) => {
       checkboxStyle !== lastSyncedData.current.checkboxStyle ||
       aiAutoSort !== lastSyncedData.current.aiAutoSort;
 
-    // Calculate effective mode (considering auto mode)
-    const effectiveMode = mode === 'auto' ? (systemPrefersDark ? 'dark' : 'light') : mode;
-
     // Update local effects regardless of sync state
+    let effectiveMode = mode;
+    if (mode === 'auto') {
+      effectiveMode = systemMode;
+    }
+
     const themeValue = theme === 'm3' ? (effectiveMode === 'light' ? '' : 'm3-dark') : `${theme}-${effectiveMode}`;
     const currentTheme = document.documentElement.getAttribute('data-theme');
     
@@ -144,7 +129,7 @@ export const useTheme = (user?: User | null) => {
       try {
         StatusBar.setBackgroundColor({ color });
         StatusBar.setStyle({ 
-          style: mode === 'dark' ? Style.Dark : Style.Light 
+          style: effectiveMode === 'dark' ? Style.Dark : Style.Light 
         });
       } catch (error) {
         console.warn('StatusBar not available', error);
@@ -174,7 +159,18 @@ export const useTheme = (user?: User | null) => {
         console.error("Error saving preferences to Firestore:", err);
       });
     }
-  }, [theme, mode, checkboxStyle, aiAutoSort, user, systemPrefersDark]);
+  }, [theme, mode, systemMode, checkboxStyle, aiAutoSort, user]);
+
+  // Listen for system theme changes when in 'auto' mode
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemMode(e.matches ? 'dark' : 'light');
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   return useMemo(() => ({ 
     theme, setTheme, 
