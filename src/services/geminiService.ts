@@ -61,15 +61,16 @@ const executeGemini = async (operation: string, params: any): Promise<string> =>
 
   // 2. Fallback to direct client-side call if a key is provided (for static hosting like GitHub Pages)
   const savedKey = localStorage.getItem('Mise-gemini-api-key');
-  const localKey = (savedKey && savedKey.trim() !== '' && savedKey !== 'undefined' && savedKey !== 'null') ? savedKey : null;
+  const localKey = (savedKey && typeof savedKey === 'string' && savedKey.trim() !== '' && savedKey !== 'undefined' && savedKey !== 'null') ? savedKey.trim() : null;
 
-  if (localKey) {
+  if (localKey && localKey.length > 5) {
     try {
+      console.log('[Gemini Service] Attempting direct client execution with local key...');
       const ai = new GoogleGenAI({ apiKey: localKey });
       if (operation === 'generateContent') {
         const { prompt, config } = params;
         const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
+          model: "gemini-3-flash-preview",
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           config: config
         });

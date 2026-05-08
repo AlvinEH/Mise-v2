@@ -7,6 +7,9 @@ import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 
+import dotenv from "dotenv";
+dotenv.config();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -53,11 +56,13 @@ async function startServer() {
     try {
       // Use system API key by default
       const apiKey = process.env.GEMINI_API_KEY;
-
-      if (!apiKey) {
-        return res.status(400).json({ error: "Gemini API key not configured on server" });
+      
+      if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey.trim() === "") {
+        console.error("[Gemini Proxy] Missing or invalid GEMINI_API_KEY on server.");
+        return res.status(400).json({ error: "Gemini API key not configured correctly on server" });
       }
 
+      console.log(`[Gemini Proxy] Initializing with key length: ${apiKey.length}`);
       const ai = new GoogleGenAI({ apiKey });
       
       let result;
@@ -65,7 +70,7 @@ async function startServer() {
         const { prompt, config } = params;
         
         const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash", // Use stable model version
+          model: "gemini-3-flash-preview", // Use correct model for @google/genai SDK
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           config: config
         });
