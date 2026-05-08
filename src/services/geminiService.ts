@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { auth } from "../firebase";
 
 export type Ingredient = {
   name: string;
@@ -27,78 +27,27 @@ export interface AISortedItem {
   category: 'ingredient' | 'supply';
 }
 
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const executeGemini = async (operation: string, params: any): Promise<string> => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('User not authenticated');
 
-const getRecipeSchema = () => ({
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING },
-    ingredientSections: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING },
-          items: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                amount: { type: Type.STRING },
-                unit: { type: Type.STRING },
-                note: { type: Type.STRING },
-                isOptional: { type: Type.BOOLEAN }
-              },
-              required: ["name"]
-            }
-          }
-        },
-        required: ["items"]
-      }
+  const token = await user.getIdToken();
+  const response = await fetch('/api/gemini/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
     },
-    instructions: { type: Type.STRING },
-    servings: { type: Type.STRING },
-    notes: { type: Type.STRING }
-  },
-  required: ["title", "ingredientSections", "instructions"]
-});
+    body: JSON.stringify({ operation, params })
+  });
 
-const getCategorizationSchema = () => ({
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      name: { type: Type.STRING },
-      location: { 
-        type: Type.STRING, 
-        enum: ['Pantry', 'Freezer', 'Refrigerator', 'Washroom', 'Laundry Room', 'Under Sink', 'Cat Supplies'] 
-      },
-      category: { 
-        type: Type.STRING, 
-        enum: ['ingredient', 'supply'] 
-      }
-    },
-    required: ["name", "location", "category"]
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to execute Gemini operation');
   }
-});
 
-const cleanJsonResponse = (text: string): string => {
-  if (!text) return text;
-  // Remove markdown code blocks if present
-  let cleaned = text.trim();
-  if (cleaned.startsWith('```')) {
-    const lines = cleaned.split('\n');
-    if (lines[0].startsWith('```')) {
-      lines.shift();
-    }
-    if (lines[lines.length - 1].startsWith('```')) {
-      lines.pop();
-    }
-    cleaned = lines.join('\n').trim();
-  }
-  return cleaned;
+  const data = await response.json();
+  return data.result;
 };
 
 export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe> => {
@@ -114,22 +63,15 @@ export const extractRecipeFromUrl = async (url: string): Promise<ExtractedRecipe
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: getRecipeSchema()
-      }
-    });
+  const config = {
+    responseMimeType: "application/json",
+    // We omit the complex responseSchema here and let the server-side model handle it 
+    // or we can pass it if we want to be strict. For simplicity in the proxy, 
+    // we'll use consistent prompts and expect the same results.
+  };
 
-    const cleaned = cleanJsonResponse(response.text || '');
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Gemini Recipe Extraction Error (URL):', error);
-    throw new Error('Failed to extract recipe from URL.');
-  }
+  const result = await executeGemini('generateContent', { prompt, config });
+  return JSON.parse(result);
 };
 
 export const extractRecipeFromText = async (text: string): Promise<ExtractedRecipe> => {
@@ -148,51 +90,28 @@ export const extractRecipeFromText = async (text: string): Promise<ExtractedReci
 
     For instructions, treat each distinct paragraph or section of text that describes a part of the culinary process as a separate instruction step. Ensure the returned instructions string has steps separated by clear newlines.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: getRecipeSchema()
-      }
-    });
+  const config = {
+    responseMimeType: "application/json",
+  };
 
-    const cleaned = cleanJsonResponse(response.text || '');
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Gemini Recipe Extraction Error (Text):', error);
-    throw new Error('Failed to extract recipe from text.');
-  }
+  const result = await executeGemini('generateContent', { prompt, config });
+  return JSON.parse(result);
 };
 
 export const extractRecipeFromImage = async (base64Data: string, mimeType: string): Promise<ExtractedRecipe> => {
   const prompt = "Extract the recipe details from this image. Provide the title, ingredients organized into sections (e.g., 'Main Ingredients', 'Frosting'), instructions, servings, and any extra tips or notes. Capture ingredients and instructions EXACTLY as written in the image. If an ingredient includes parentheticals or extra context (e.g., '1 large egg (room temperature)', '50g butter, softened', '3 cloves garlic, minced'), extract ONLY the core name ('egg', 'butter', 'garlic') and put the rest ('room temperature', 'softened', 'minced') into the 'note' field. Keep the note field concise. Identify optional flags. Extract any extra tips, notes, or variations provided in the recipe into the 'notes' field.";
   
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
-            { inlineData: { data: base64Data, mimeType } }
-          ]
-        }
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: getRecipeSchema()
-      }
-    });
+  const config = {
+    responseMimeType: "application/json",
+  };
 
-    const cleaned = cleanJsonResponse(response.text || '');
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error('Gemini Recipe Extraction Error (Image):', error);
-    throw new Error('Failed to extract recipe from image.');
-  }
+  const result = await executeGemini('generateContentWithImage', { 
+    prompt, 
+    imageData: base64Data, 
+    mimeType,
+    config 
+  });
+  return JSON.parse(result);
 };
 
 export const suggestLocationsBatched = async (
@@ -210,33 +129,23 @@ ${existingRules.map(r => `- ${r.keyword} -> ${r.location} (${r.category})`).join
     
     Items: ${itemNames.join(', ')}`;
 
+  const config = {
+    responseMimeType: "application/json",
+  };
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: getCategorizationSchema()
-      }
+    const result = await executeGemini('generateContent', { prompt, config });
+    const results: AISortedItem[] = JSON.parse(result);
+    const resultMap = new Map<string, { location: string; category: 'ingredient' | 'supply' }>();
+    
+    results.forEach(res => {
+      resultMap.set(res.name.toLowerCase(), {
+        location: res.location,
+        category: res.category
+      });
     });
 
-    const cleaned = cleanJsonResponse(response.text || '');
-    try {
-      const results: AISortedItem[] = JSON.parse(cleaned);
-      const resultMap = new Map<string, { location: string; category: 'ingredient' | 'supply' }>();
-      
-      results.forEach(res => {
-        resultMap.set(res.name.toLowerCase(), {
-          location: res.location,
-          category: res.category
-        });
-      });
-
-      return resultMap;
-    } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', cleaned);
-      throw new Error(`AI returned invalid JSON: ${cleaned.substring(0, 50)}...`);
-    }
+    return resultMap;
   } catch (error) {
     console.error('Gemini AI Sorting Error:', error);
     throw error;
