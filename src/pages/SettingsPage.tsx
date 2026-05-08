@@ -41,7 +41,7 @@ export const SettingsPage = ({
   useEffect(() => {
     // Load local API key if it exists
     const savedKey = localStorage.getItem('Mise-gemini-api-key');
-    if (savedKey) {
+    if (savedKey && savedKey !== 'undefined' && savedKey !== 'null') {
       setGeminiApiKey(savedKey);
     }
   }, []);
@@ -213,14 +213,13 @@ export const SettingsPage = ({
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Gemini API Key</label>
-                <p className="text-xs text-m3-on-surface-variant font-medium">
-                  If you are hosting this app statically (e.g. GitHub Pages), enter your Google AI Studio API key here. 
-                  In the standard mise environment, this is handled automatically.
-                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-m3-primary hover:underline ml-1">
-                    Get a key →
-                  </a>
-                </p>
+                <label className="text-sm font-black uppercase tracking-widest text-m3-on-surface-variant">Gemini API Key (Local/Static Fallback)</label>
+                <div className="p-4 bg-m3-surface-variant/10 rounded-[24px] border border-m3-outline/5 mb-4">
+                  <p className="text-xs text-m3-on-surface-variant font-medium leading-relaxed">
+                    This setting is only required if you are running Mise in a <span className="text-m3-primary font-bold">static environment</span> (like GitHub Pages or local preview without reach to the server). 
+                    In the full Mise environment, AI features are handled automatically.
+                  </p>
+                </div>
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
                     <input

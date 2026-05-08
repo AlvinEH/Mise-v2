@@ -31,6 +31,9 @@ export interface AISortedItem {
 const executeGemini = async (operation: string, params: any): Promise<string> => {
   // 1. Try proxy first (standard AI Studio environment)
   const user = auth.currentUser;
+  
+  // Note: We try the proxy if there's a user, but we don't throw yet if it fails, 
+  // as we might be in a static hosting environment where the user should provide their own key.
   if (user) {
     try {
       const token = await user.getIdToken();
@@ -47,28 +50,42 @@ const executeGemini = async (operation: string, params: any): Promise<string> =>
         const data = await response.json();
         return data.result;
       }
+      
+      // If we got an error from the server (like 400 or 500), we log it but might still try local fallback
+      const errorData = await response.json().catch(() => ({}));
+      console.warn('Gemini proxy returned an error:', response.status, errorData);
     } catch (proxyError) {
       console.warn('Proxy execution failed or unavailable, checking for local key fallback.', proxyError);
     }
   }
 
   // 2. Fallback to direct client-side call if a key is provided (for static hosting like GitHub Pages)
-  const localKey = localStorage.getItem('Mise-gemini-api-key');
+  const savedKey = localStorage.getItem('Mise-gemini-api-key');
+  const localKey = (savedKey && savedKey.trim() !== '' && savedKey !== 'undefined' && savedKey !== 'null') ? savedKey : null;
+
   if (localKey) {
-    const ai = new GoogleGenAI({ apiKey: localKey });
-    if (operation === 'generateContent') {
-      const { prompt, config } = params;
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: config
-      });
-      return response.text || '';
+    try {
+      const ai = new GoogleGenAI({ apiKey: localKey });
+      if (operation === 'generateContent') {
+        const { prompt, config } = params;
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: config
+        });
+        return response.text || '';
+      }
+    } catch (clientError) {
+      console.error('Direct Gemini execution failed:', clientError);
+      throw clientError;
     }
-    // Note: generateContentWithImage would need similar implementation if used locally
   }
 
-  throw new Error('Gemini API execution failed. Please ensure your API key is configured or you are connected to the server.');
+  const errorMessage = user 
+    ? 'Gemini API execution failed. The server key is missing or invalid, and no local key is configured in Settings.'
+    : 'Gemini API execution failed. You are not signed in or no local API key is configured in Settings for static hosting.';
+    
+  throw new Error(errorMessage);
 };
 
 const getRecipeSchema = () => ({
