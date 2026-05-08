@@ -64,7 +64,7 @@ const getAI = async () => {
   return aiInstance;
 };
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 // Response Schemas for structured output
 const RECIPE_SCHEMA = {
