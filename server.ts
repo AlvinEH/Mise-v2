@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { GoogleGenAI, Type } from "@google/genai";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
@@ -44,7 +45,39 @@ async function startServer() {
   };
 
   // API routes
-  // (No more Gemini proxy here)
+  // API Route to fetch/execute Gemini requests
+  app.post("/api/gemini/execute", authenticate, async (req: any, res: any) => {
+    const { operation, params } = req.body;
+    const userId = req.user.uid;
+
+    try {
+      // Use system API key by default
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(400).json({ error: "Gemini API key not configured on server" });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      let result;
+      if (operation === 'generateContent') {
+        const { prompt, config } = params;
+        
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash", // Use stable model version
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: config
+        });
+        result = response.text;
+      }
+
+      res.json({ result });
+    } catch (error: any) {
+      console.error("Gemini Proxy Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
