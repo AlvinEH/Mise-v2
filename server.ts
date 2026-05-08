@@ -58,8 +58,9 @@ async function startServer() {
         return res.status(400).json({ error: "Gemini API key not configured in account settings" });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
-      
+      const genAI = new GoogleGenAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+
       let result;
       if (operation === 'generateContent') {
         const { prompt, config } = params;
@@ -122,12 +123,11 @@ async function startServer() {
           };
         }
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+        const response = await model.generateContent({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: generationConfig
+          generationConfig
         });
-        result = response.text;
+        result = response.response.text();
       } else if (operation === 'generateContentWithImage') {
         const { prompt, imageData, mimeType, config } = params;
         
@@ -169,8 +169,7 @@ async function startServer() {
           };
         }
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+        const response = await model.generateContent({
           contents: [
             {
               role: 'user',
@@ -180,9 +179,9 @@ async function startServer() {
               ]
             }
           ],
-          config: generationConfig
+          generationConfig
         });
-        result = response.text;
+        result = response.response.text();
       }
 
       res.json({ result });
