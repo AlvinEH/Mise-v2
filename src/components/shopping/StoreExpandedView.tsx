@@ -26,6 +26,7 @@ interface StoreExpandedViewProps {
   handleReorder: (id: string, items: ShoppingItem[]) => void;
   syncReorderedItems: (id: string) => void;
   checkboxStyle: CheckboxStyle;
+  isDraggingItemRef?: React.MutableRefObject<boolean>;
   onMoveItems: (id: string) => void;
 }
 
@@ -51,6 +52,7 @@ export const StoreExpandedView: React.FC<StoreExpandedViewProps> = ({
   handleReorder,
   syncReorderedItems,
   checkboxStyle,
+  isDraggingItemRef,
   onMoveItems
 }) => {
   const expandedList = storeLists.find(l => l.id === expandedListId);
@@ -135,6 +137,7 @@ export const StoreExpandedView: React.FC<StoreExpandedViewProps> = ({
                 isExpanded={true}
                 isEditMode={isEditMode}
                 checkboxStyle={checkboxStyle}
+                isDraggingItemRef={isDraggingItemRef}
                 onMoveItems={() => onMoveItems(expandedList.id)}
               />
             )}

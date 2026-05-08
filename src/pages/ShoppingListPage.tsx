@@ -988,6 +988,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
         handleReorder={handleReorder}
         syncReorderedItems={syncReorderedItems}
         checkboxStyle={checkboxStyle}
+        isDraggingItemRef={isDraggingItemRef}
         onMoveItems={setStoreToMove}
       />
 
