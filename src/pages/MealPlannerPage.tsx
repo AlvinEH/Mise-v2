@@ -35,6 +35,7 @@ export const MealPlannerPage = memo(() => {
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchResults, setSearchResults] = useState<{ date: string; meals: DayMeals }[]>([]);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate date range: 7 days before and 7 days after the selected date
   const getRangeForDate = (date: Date) => {
@@ -136,8 +137,7 @@ export const MealPlannerPage = memo(() => {
     setHasSearched(true);
     
     try {
-      // Fetch all user meal entries ordered by date desc
-      // We'll filter them client-side for "contains" search
+      // Fetch user meal entries. Limit results for search preview performance.
       const q = query(
         collection(db, 'mealEntries'),
         where('userId', '==', user.uid),
@@ -150,39 +150,65 @@ export const MealPlannerPage = memo(() => {
         ...doc.data()
       } as MealEntry));
 
-      // Group by date and filter by search query
-      const groupedByDate: Record<string, DayMeals> = {};
-      const matchingDates: string[] = [];
-
+      // 1. Group ALL meals by date so we can show full context for matching days
+      const allGroupedByDate: Record<string, DayMeals> = {};
       for (const meal of allMeals) {
-        const matches = meal.recipeName?.toLowerCase().includes(queryText.toLowerCase());
-        
-        if (matches) {
-          if (!matchingDates.includes(meal.date)) {
-            matchingDates.push(meal.date);
-          }
+        if (!allGroupedByDate[meal.date]) {
+          allGroupedByDate[meal.date] = {};
         }
-        
-        // Always populate grouped data for the matching dates
-        if (!groupedByDate[meal.date]) {
-          groupedByDate[meal.date] = {};
+        // If there are duplicates for some reason, the one with most recent updatedAt wins
+        const existing = allGroupedByDate[meal.date][meal.type];
+        if (!existing || (meal.updatedAt?.toMillis() || 0) > (existing.updatedAt?.toMillis() || 0)) {
+          allGroupedByDate[meal.date][meal.type] = meal;
         }
-        groupedByDate[meal.date][meal.type] = meal;
       }
 
-      // Take the 5 most recent matching dates
-      const top5Dates = matchingDates.slice(0, 5);
+      // 2. Identify dates that have a matching meal
+      const matchingDatesSet = new Set<string>();
+      const searchLower = queryText.toLowerCase();
+      
+      for (const meal of allMeals) {
+        if (meal.recipeName?.toLowerCase().includes(searchLower)) {
+          matchingDatesSet.add(meal.date);
+        }
+      }
+
+      // 3. Convert to sorted array of unique dates (descending)
+      const sortedMatchingDates = Array.from(matchingDatesSet).sort((a, b) => b.localeCompare(a));
+      
+      // 4. Take the 5 most recent matching dates and attach their full meal info
+      const top5Dates = sortedMatchingDates.slice(0, 5);
       const results = top5Dates.map(date => ({
         date,
-        meals: groupedByDate[date]
+        meals: allGroupedByDate[date]
       }));
 
       setSearchResults(results);
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'mealEntries');
+      handleFirestoreError(error, OperationType.LIST, 'mealEntries/search');
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const onSearchQueryChange = (query: string) => {
+    setSearchQuery(query);
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!query.trim()) {
+      setIsSearching(false);
+      setHasSearched(false);
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch(query);
+    }, 400);
   };
 
   const closeSearch = () => {
@@ -414,10 +440,7 @@ export const MealPlannerPage = memo(() => {
                 if (!expanded) closeSearch();
               }}
               searchQuery={searchQuery}
-              onSearchQueryChange={(query) => {
-                setSearchQuery(query);
-                handleSearch(query);
-              }}
+              onSearchQueryChange={onSearchQueryChange}
               placeholder="Search Meals"
               isSearching={isSearching}
               maxWidth="78vw"
