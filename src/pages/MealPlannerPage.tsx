@@ -802,18 +802,17 @@ export const MealPlannerPage = memo(() => {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2 pt-8">
+                <div className="flex items-center justify-end gap-2 pt-6">
                   {(editingDay.lunch || editingDay.dinner) && (
                     <button
                       type="button"
                       onClick={handleDeleteDay}
-                      className="px-4 py-2.5 rounded-full font-semibold text-sm text-m3-error hover:bg-m3-error/8 transition-all flex items-center gap-2 active:scale-95"
+                      className="mr-auto px-4 py-2.5 rounded-full font-semibold text-sm text-m3-error hover:bg-m3-error/8 transition-all flex items-center gap-2 active:scale-95"
                     >
                       <Trash2 size={18} />
                       <span className="hidden sm:inline">Delete</span>
                     </button>
                   )}
-                  <div className="flex-1" />
                   <button
                     type="button"
                     onClick={cancelEdit}
