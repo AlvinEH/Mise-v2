@@ -58,6 +58,9 @@ export const useInventory = (user: User | null) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
+          // Comprehensive fallback for absolute stability
+          const nameComp = a.name.localeCompare(b.name);
+          if (nameComp !== 0) return nameComp;
           return a.id.localeCompare(b.id);
         });
         
@@ -81,7 +84,9 @@ export const useInventory = (user: User | null) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
-          return a.name.localeCompare(b.name);
+          const nameComp = a.name.localeCompare(b.name);
+          if (nameComp !== 0) return nameComp;
+          return a.id.localeCompare(b.id);
         });
         setDbLocations(sortedLocs);
         cacheData(STORAGE_KEYS.INVENTORY_LOCATIONS, sortedLocs);

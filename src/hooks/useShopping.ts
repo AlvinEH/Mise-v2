@@ -49,7 +49,9 @@ export const useShopping = (user: User | null) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
           if (orderA !== orderB) return orderA - orderB;
-          return a.name.localeCompare(b.name);
+          const nameComp = a.name.localeCompare(b.name);
+          if (nameComp !== 0) return nameComp;
+          return a.id.localeCompare(b.id);
         });
         setStoreLists(sortedLists);
         cacheData(STORAGE_KEYS.SHOPPING_LISTS, sortedLists);
@@ -67,8 +69,14 @@ export const useShopping = (user: User | null) => {
     const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
       if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
-        setShoppingItems(items);
-        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, items);
+        const sortedItems = items.sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.id.localeCompare(b.id);
+        });
+        setShoppingItems(sortedItems);
+        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 

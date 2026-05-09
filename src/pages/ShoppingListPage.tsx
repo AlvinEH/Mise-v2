@@ -175,7 +175,10 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
         const orderA = a.order ?? 0;
         const orderB = b.order ?? 0;
         if (orderA !== orderB) return orderA - orderB;
-        return a.name.localeCompare(b.name);
+        // Fallback to name, then ID for terminal stability
+        const nameComp = a.name.localeCompare(b.name);
+        if (nameComp !== 0) return nameComp;
+        return a.id.localeCompare(b.id);
       });
 
       if (!isSyncingListsRef.current && !isDraggingListRef.current) {
@@ -198,8 +201,14 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       // and not dragging a list (since list contents might shift)
       if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
         const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
-        setShoppingItems(items);
-        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, items);
+        const sortedItems = items.sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.id.localeCompare(b.id);
+        });
+        setShoppingItems(sortedItems);
+        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
       }
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 
@@ -244,25 +253,26 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
         const orderA = a.order ?? 0;
         const orderB = b.order ?? 0;
         if (orderA !== orderB) return orderA - orderB;
+        // Fallback to id for absolute stability
         return a.id.localeCompare(b.id);
       });
     }
 
-    return [...shoppingItems].sort((a, b) => {
+    return items.sort((a, b) => {
       switch (itemSortOrder) {
         case 'a-z':
-          return a.name.localeCompare(b.name);
+          return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
         case 'z-a':
-          return b.name.localeCompare(a.name);
+          return b.name.localeCompare(a.name) || a.id.localeCompare(b.id);
         case 'newest':
-          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+          return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0) || a.id.localeCompare(b.id);
         case 'oldest':
-          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+          return (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0) || a.id.localeCompare(b.id);
         default:
-          return 0;
+          return a.id.localeCompare(b.id);
       }
     });
-  }, [shoppingItems, itemSortOrder]);
+  }, [shoppingItems, itemSortOrder, searchQuery]);
 
   const itemsByStoreList = React.useMemo(() => {
     const groups: Record<string, ShoppingItem[]> = {};
@@ -404,7 +414,8 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     try {
       // Get current max order for this store
       const storeItems = shoppingItems.filter(i => i.storeListId === storeListId);
-      const maxOrder = storeItems.length > 0 ? Math.max(...storeItems.map(i => i.order)) : -1;
+      const orders = storeItems.map(i => typeof i.order === 'number' && !isNaN(i.order) ? i.order : 0);
+      const maxOrder = orders.length > 0 ? Math.max(...orders) : -1;
 
       const itemData: any = {
         storeListId,
