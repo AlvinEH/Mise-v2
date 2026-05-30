@@ -174,7 +174,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidId(itemId) && isValidShoppingItem(incoming());
       allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
                     incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'completed', 'order', 'amount', 'unit', 'updatedAt', 'storeListId']);
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'completed', 'order', 'amount', 'unit', 'updatedAt', 'storeListId', 'movedAt']);
       allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 
