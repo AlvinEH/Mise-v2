@@ -194,7 +194,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidId(itemId) && isDocOwner() && 
                     incoming().userId == existing().userId && incoming().createdAt == existing().createdAt &&
                     incoming().updatedAt == request.time &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order']);
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'quantity', 'unit', 'location', 'purchasedOn', 'notes', 'used', 'updatedAt', 'order', 'movedAt', 'isLow']);
       allow delete: if isAuthenticated() && isValidId(itemId) && (isAdmin() || isDocOwner());
     }
 
