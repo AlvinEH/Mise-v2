@@ -210,6 +210,32 @@ export const ShoppingListContent: React.FC<ShoppingListContentProps> = memo(({
 }) => {
   const [newItemName, setNewItemName] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(items.length);
+
+  useEffect(() => {
+    if (items.length > prevCountRef.current && items.length > 0) {
+      const lastItem = items[items.length - 1];
+      const isNewItem = !lastItem.createdAt || (
+        lastItem.createdAt && (
+          lastItem.createdAt.toMillis 
+            ? (Date.now() - lastItem.createdAt.toMillis() < 5000) 
+            : (Date.now() - new Date(lastItem.createdAt as any).getTime() < 5000)
+        )
+      );
+
+      if (isNewItem) {
+        setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+              top: scrollContainerRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      }
+    }
+    prevCountRef.current = items.length;
+  }, [items.length, items]);
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();

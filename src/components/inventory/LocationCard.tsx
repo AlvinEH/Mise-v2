@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { ChevronDown, ChevronUp, Maximize2, Plus, Edit2, X, ShoppingCart } from 'lucide-react';
 import { InventoryItem, CheckboxStyle } from '../../types';
@@ -48,6 +48,33 @@ export const LocationCard = memo(({
   onListRef
 }: LocationCardProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const prevCountRef = useRef(locationItems.length);
+
+  useEffect(() => {
+    if (locationItems.length > prevCountRef.current && locationItems.length > 0) {
+      const lastItem = locationItems[locationItems.length - 1];
+      const isNewItem = !lastItem.createdAt || (
+        lastItem.createdAt && (
+          lastItem.createdAt.toMillis 
+            ? (Date.now() - lastItem.createdAt.toMillis() < 5000) 
+            : (Date.now() - new Date(lastItem.createdAt as any).getTime() < 5000)
+        )
+      );
+
+      if (isNewItem) {
+        setTimeout(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+              top: scrollRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      }
+    }
+    prevCountRef.current = locationItems.length;
+  }, [locationItems.length, locationItems]);
 
   return (
     <motion.div
@@ -110,7 +137,10 @@ export const LocationCard = memo(({
             className="flex flex-col max-h-[400px] lg:max-h-[600px] overflow-hidden"
           >
             <div 
-              ref={(el) => onListRef(location, el)}
+              ref={(el) => {
+                scrollRef.current = el;
+                onListRef(location, el);
+              }}
               className="flex-1 overflow-y-auto px-4 pb-2"
               style={{ overflowAnchor: 'none' }}
             >

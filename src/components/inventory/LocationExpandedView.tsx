@@ -56,9 +56,35 @@ export const LocationExpandedView: React.FC<LocationExpandedViewProps> = ({
   checkboxStyle
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
 
   const expandedItems = filteredItems.filter(item => item.location === location);
   const usedCount = expandedItems.filter(i => i.used).length;
+
+  useEffect(() => {
+    if (expandedItems.length > prevCountRef.current && expandedItems.length > 0) {
+      const lastItem = expandedItems[expandedItems.length - 1];
+      const isNewItem = !lastItem.createdAt || (
+        lastItem.createdAt && (
+          lastItem.createdAt.toMillis 
+            ? (Date.now() - lastItem.createdAt.toMillis() < 5000) 
+            : (Date.now() - new Date(lastItem.createdAt as any).getTime() < 5000)
+        )
+      );
+
+      if (isNewItem) {
+        setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+              top: scrollContainerRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      }
+    }
+    prevCountRef.current = expandedItems.length;
+  }, [expandedItems.length, expandedItems]);
 
   return (
     <AnimatePresence>
