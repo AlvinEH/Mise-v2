@@ -620,7 +620,7 @@ export const MealPlannerPage = memo(() => {
                           
                           <div className={`relative p-1 rounded-xl text-m3-on-primary-container`}>
                             <div className="min-w-0">
-                              <h4 className="font-semibold text-sm leading-tight mb-0.5 truncate">
+                              <h4 className="font-semibold text-sm leading-tight mb-0.5 whitespace-pre-wrap break-words">
                                 {dayMeals.lunch.recipeName}
                               </h4>
                             </div>
@@ -637,7 +637,7 @@ export const MealPlannerPage = memo(() => {
                           
                           <div className={`relative p-1 rounded-xl text-m3-on-primary-container`}>
                             <div className="min-w-0">
-                              <h4 className="font-semibold text-sm leading-tight mb-0.5 truncate">
+                              <h4 className="font-semibold text-sm leading-tight mb-0.5 whitespace-pre-wrap break-words">
                                 {dayMeals.dinner.recipeName}
                               </h4>
                             </div>
@@ -759,18 +759,18 @@ export const MealPlannerPage = memo(() => {
                     Lunch
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <textarea
+                      rows={2}
                       value={lunchMealName}
                       onChange={e => setLunchMealName(e.target.value)}
                       autoCapitalize="words"
-                      className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case"
+                      className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case resize-none"
                     />
                     {lunchMealName && (
                       <button
                         type="button"
                         onClick={() => setLunchMealName('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-m3-on-surface-variant/60 hover:text-m3-on-surface hover:bg-m3-surface-variant/20 transition-all"
+                        className="absolute right-3 top-3 p-1 rounded-full text-m3-on-surface-variant/60 hover:text-m3-on-surface hover:bg-m3-surface-variant/20 transition-all"
                       >
                         <X size={16} />
                       </button>
@@ -783,18 +783,18 @@ export const MealPlannerPage = memo(() => {
                     Dinner
                   </label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <textarea
+                      rows={2}
                       value={dinnerMealName}
                       onChange={e => setDinnerMealName(e.target.value)}
                       autoCapitalize="words"
-                      className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case"
+                      className="w-full px-4 py-3 pr-12 bg-m3-surface-container rounded-2xl outline-none border-2 border-m3-outline-variant/30 focus:border-m3-primary/50 transition-all font-medium leading-tight capitalize md:normal-case resize-none"
                     />
                     {dinnerMealName && (
                       <button
                         type="button"
                         onClick={() => setDinnerMealName('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-m3-on-surface-variant/60 hover:text-m3-on-surface hover:bg-m3-surface-variant/20 transition-all"
+                        className="absolute right-3 top-3 p-1 rounded-full text-m3-on-surface-variant/60 hover:text-m3-on-surface hover:bg-m3-surface-variant/20 transition-all"
                       >
                         <X size={16} />
                       </button>
