@@ -76,6 +76,40 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
   const isDraggingListRef = useRef(false);
   const isDraggingItemRef = useRef(false);
 
+  const latestItemsSnapshotDocsRef = useRef<ShoppingItem[] | null>(null);
+  const latestListsSnapshotDocsRef = useRef<StoreList[] | null>(null);
+
+  const checkAndApplyItemsSnapshot = useCallback(() => {
+    if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current && latestItemsSnapshotDocsRef.current) {
+      const sortedItems = [...latestItemsSnapshotDocsRef.current].sort((a, b) => {
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.id.localeCompare(b.id);
+      });
+      setShoppingItems(sortedItems);
+      cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
+      latestItemsSnapshotDocsRef.current = null;
+    }
+  }, []);
+
+  const checkAndApplyListsSnapshot = useCallback(() => {
+    if (!isSyncingListsRef.current && !isDraggingListRef.current && !isDraggingItemRef.current && latestListsSnapshotDocsRef.current) {
+      const sortedLists = [...latestListsSnapshotDocsRef.current].sort((a, b) => {
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        // Fallback to name, then ID for terminal stability
+        const nameComp = a.name.localeCompare(b.name);
+        if (nameComp !== 0) return nameComp;
+        return a.id.localeCompare(b.id);
+      });
+      setStoreLists(sortedLists);
+      cacheData(STORAGE_KEYS.SHOPPING_LISTS, sortedLists);
+      latestListsSnapshotDocsRef.current = null;
+    }
+  }, []);
+
   const [isInitialLoad, setIsInitialLoad] = useState(() => {
     const cachedLists = getCachedData<StoreList[]>(STORAGE_KEYS.SHOPPING_LISTS);
     return !(cachedLists && cachedLists.length > 0);
@@ -171,20 +205,8 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     );
     const unsubscribeLists = onSnapshot(qLists, (snapshot) => {
       const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreList));
-      const sortedLists = lists.sort((a, b) => {
-        const orderA = a.order ?? 0;
-        const orderB = b.order ?? 0;
-        if (orderA !== orderB) return orderA - orderB;
-        // Fallback to name, then ID for terminal stability
-        const nameComp = a.name.localeCompare(b.name);
-        if (nameComp !== 0) return nameComp;
-        return a.id.localeCompare(b.id);
-      });
-
-      if (!isSyncingListsRef.current && !isDraggingListRef.current) {
-        setStoreLists(sortedLists);
-        cacheData(STORAGE_KEYS.SHOPPING_LISTS, sortedLists);
-      }
+      latestListsSnapshotDocsRef.current = lists;
+      checkAndApplyListsSnapshot();
       // Always resolve initial load once we have at least one snapshot from Firestore
       setIsInitialLoad(false);
     }, (error) => {
@@ -197,19 +219,9 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       where('userId', '==', user.uid)
     );
     const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
-      // Only update if we're not in the middle of an optimistic reorder sync
-      // and not dragging a list (since list contents might shift)
-      if (!isSyncingRef.current && !isDraggingItemRef.current && !isDraggingListRef.current) {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
-        const sortedItems = items.sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          return a.id.localeCompare(b.id);
-        });
-        setShoppingItems(sortedItems);
-        cacheData(STORAGE_KEYS.SHOPPING_ITEMS, sortedItems);
-      }
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ShoppingItem));
+      latestItemsSnapshotDocsRef.current = items;
+      checkAndApplyItemsSnapshot();
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'shoppingItems'));
 
     const qInvLocs = query(
@@ -234,7 +246,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       unsubscribeInvLocs();
       unsubscribeRules();
     };
-  }, [user]);
+  }, [user, checkAndApplyListsSnapshot, checkAndApplyItemsSnapshot]);
 
   const sortedShoppingItems = React.useMemo(() => {
     let items = [...shoppingItems];
@@ -249,6 +261,9 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     }
 
     if (itemSortOrder === 'custom') {
+      if (isDraggingItemRef.current) {
+        return items;
+      }
       return items.sort((a, b) => {
         const orderA = a.order ?? 0;
         const orderB = b.order ?? 0;
@@ -379,14 +394,32 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       const itemsToMove = shoppingItems.filter(item => item.storeListId === sourceStoreId && item.completed);
       const batch = writeBatch(db);
       
-      // Get max order in target store
-      const targetItems = shoppingItems.filter(item => item.storeListId === targetStoreId);
-      let maxOrder = targetItems.length > 0 
-        ? Math.max(...targetItems.map(i => i.order ?? 0)) 
-        : -1;
+      // 1. Re-index the remaining items in the source store list sequentially
+      const remainingSourceItems = shoppingItems
+        .filter(item => item.storeListId === sourceStoreId && !item.completed)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        
+      remainingSourceItems.forEach((item, idx) => {
+        if (item.order !== idx) {
+          batch.update(doc(db, 'shoppingItems', item.id), { order: idx });
+        }
+      });
+
+      // 2. Re-index target items sequentially first
+      const targetItems = shoppingItems
+        .filter(item => item.storeListId === targetStoreId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      
+      targetItems.forEach((item, idx) => {
+        if (item.order !== idx) {
+          batch.update(doc(db, 'shoppingItems', item.id), { order: idx });
+        }
+      });
+      
+      // 3. Moved items get sequential orders continuing from targetItems.length
+      let maxOrder = targetItems.length;
 
       itemsToMove.forEach((item) => {
-        maxOrder++;
         markItemAsSessionMoved(item.id);
         batch.update(doc(db, 'shoppingItems', item.id), {
           storeListId: targetStoreId,
@@ -395,6 +428,7 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
           movedAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
+        maxOrder++;
       });
 
       await batch.commit();
@@ -412,16 +446,26 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     const parsed = parseShoppingItem(name.trim());
     
     try {
-      // Get current max order for this store
-      const storeItems = shoppingItems.filter(i => i.storeListId === storeListId);
-      const orders = storeItems.map(i => typeof i.order === 'number' && !isNaN(i.order) ? i.order : 0);
-      const maxOrder = orders.length > 0 ? Math.max(...orders) : -1;
-
+      // Get current items for this store list sorted by order
+      const storeItems = shoppingItems
+        .filter(i => i.storeListId === storeListId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        
+      const batch = writeBatch(db);
+      
+      // Update all existing items to have tight, sequential orders starting from 0
+      storeItems.forEach((item, idx) => {
+        if (item.order !== idx) {
+          batch.update(doc(db, 'shoppingItems', item.id), { order: idx });
+        }
+      });
+      
+      // New item gets order = storeItems.length
       const itemData: any = {
         storeListId,
         name: parsed.name,
         completed: false,
-        order: maxOrder + 1,
+        order: storeItems.length,
         userId: user.uid,
         createdAt: serverTimestamp()
       };
@@ -429,7 +473,10 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       if (parsed.amount) itemData.amount = parsed.amount;
       if (parsed.unit) itemData.unit = parsed.unit;
 
-      await addDoc(collection(db, 'shoppingItems'), itemData);
+      const newDocRef = doc(collection(db, 'shoppingItems'));
+      batch.set(newDocRef, itemData);
+      
+      await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'shoppingItems');
     }
@@ -447,11 +494,31 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
 
   const handleDeleteItem = useCallback(async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'shoppingItems', id));
+      const itemToDelete = shoppingItems.find(i => i.id === id);
+      if (!itemToDelete) {
+        await deleteDoc(doc(db, 'shoppingItems', id));
+        return;
+      }
+      
+      const storeListId = itemToDelete.storeListId;
+      const remainingItems = shoppingItems
+        .filter(i => i.storeListId === storeListId && i.id !== id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'shoppingItems', id));
+      
+      remainingItems.forEach((item, idx) => {
+        if (item.order !== idx) {
+          batch.update(doc(db, 'shoppingItems', item.id), { order: idx });
+        }
+      });
+      
+      await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'shoppingItems/' + id);
     }
-  }, []);
+  }, [shoppingItems]);
 
   const handleEditItem = useCallback((item: ShoppingItem) => {
     setEditingItem(item);
@@ -608,6 +675,17 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
       
       batch.delete(doc(db, 'shoppingItems', item.id));
     }
+
+    // Re-index remaining items sequentially
+    const remainingItems = shoppingItems
+      .filter(item => item.storeListId === storeListId && !item.completed)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    remainingItems.forEach((item, idx) => {
+      if (item.order !== idx) {
+        batch.update(doc(db, 'shoppingItems', item.id), { order: idx });
+      }
+    });
     
     try {
       await batch.commit();
@@ -627,15 +705,10 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
   }, [shoppingItems, user.uid, storeLists, inventoryLocations, aiAutoSort, autoSortRules, getInventoryLocationAndCategory]);
 
   const handleReorder = useCallback((storeListId: string, newItems: ShoppingItem[]) => {
-    // 1. Update local state immediately for buttery smooth UI
+    // 1. Update local state immediately for buttery smooth UI, but keep original item.order during drag
     setShoppingItems(prevItems => {
       const otherItems = prevItems.filter(item => item.storeListId !== storeListId);
-      // We must update the order property here so the sortedShoppingItems memo knows the new order
-      const updatedItems = newItems.map((item, index) => ({
-        ...item,
-        order: index
-      }));
-      return [...otherItems, ...updatedItems];
+      return [...otherItems, ...newItems];
     });
     
     // Store the latest items in a ref to be used on drag end
@@ -645,6 +718,16 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
   const syncReorderedItems = useCallback(async (storeListId: string) => {
     const newItems = pendingUpdatesRef.current.get(storeListId);
     if (!newItems || isSyncingRef.current) return;
+
+    // Set local state orders immediately so it matches the db write on drag end
+    setShoppingItems(prevItems => {
+      const otherItems = prevItems.filter(item => item.storeListId !== storeListId);
+      const updatedItems = newItems.map((item, index) => ({
+        ...item,
+        order: index
+      }));
+      return [...otherItems, ...updatedItems];
+    });
 
     isSyncingRef.current = true;
     try {
@@ -668,8 +751,12 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     } finally {
       isSyncingRef.current = false;
       pendingUpdatesRef.current.delete(storeListId);
+      checkAndApplyItemsSnapshot();
+      setTimeout(() => {
+        checkAndApplyItemsSnapshot();
+      }, 100);
     }
-  }, []);
+  }, [checkAndApplyItemsSnapshot]);
 
   const handleReorderLists = useCallback((newLists: StoreList[]) => {
     setStoreLists(newLists);
@@ -701,8 +788,12 @@ export const ShoppingListPage = ({ user, checkboxStyle, aiAutoSort = false }: Sh
     } finally {
       isSyncingListsRef.current = false;
       pendingListsRef.current = null;
+      checkAndApplyListsSnapshot();
+      setTimeout(() => {
+        checkAndApplyListsSnapshot();
+      }, 100);
     }
-  }, []);
+  }, [checkAndApplyListsSnapshot]);
 
   if (!user) {
     return (

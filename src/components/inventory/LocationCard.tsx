@@ -52,6 +52,12 @@ export const LocationCard = memo(({
   const prevCountRef = useRef(locationItems.length);
 
   useEffect(() => {
+    if (!expandedCards[location]) {
+      setIsEditMode(false);
+    }
+  }, [expandedCards, location]);
+
+  useEffect(() => {
     if (locationItems.length > prevCountRef.current && locationItems.length > 0) {
       const lastItem = locationItems[locationItems.length - 1];
       const isNewItem = !lastItem.createdAt || (
@@ -100,17 +106,18 @@ export const LocationCard = memo(({
           </div>
         </div>
         <div className="flex items-center ml-2 gap-1">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditMode(!isEditMode);
-              if (!expandedCards[location]) toggleCardCollapsed(location);
-            }}
-            className={`p-2 rounded-full transition-all ${isEditMode ? 'text-m3-primary bg-m3-primary/10 shadow-sm' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
-            title={isEditMode ? "Done" : "Quick Edit"}
-          >
-            {isEditMode ? <X size={18} /> : <Edit2 size={18} />}
-          </button>
+          {expandedCards[location] && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditMode(!isEditMode);
+              }}
+              className={`p-2 rounded-full transition-all ${isEditMode ? 'text-m3-primary bg-m3-primary/10 shadow-sm' : 'text-m3-on-surface-variant/40 hover:text-m3-primary hover:bg-m3-primary/10'}`}
+              title={isEditMode ? "Done" : "Quick Edit"}
+            >
+              {isEditMode ? <X size={18} /> : <Edit2 size={18} />}
+            </button>
+          )}
           <button
             onClick={() => {
               handleExpand(location);
